@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import { computeScaleBar } from './scaleBar';
+import { computeScaleBar } from '../../map/scaleBar';
 import { TECHNO_MAP_UTM_BOUNDS } from './technoMapConfig';
 
 export interface TechnoMapScaleBarProps {

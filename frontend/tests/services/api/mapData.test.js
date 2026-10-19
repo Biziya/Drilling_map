@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchDrillholeMap } from "../../../src/services/Api/drillholeMap.js";
-import { fetchTechnoMap } from "../../../src/services/Api/technoMap.js";
+import { fetchDrillholeMap, fetchTechnoMap } from "../../../src/services/api/mapData.js";
 
 const jsonResponse = (body, ok = true) => ({
   ok,

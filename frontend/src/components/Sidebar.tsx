@@ -1,17 +1,14 @@
-import { APP_PAGE_IDS, APP_TITLE } from '../appConfig';
-import type { AppPageId } from '../appConfig';
+import { APP_CONFIG } from '../config/app';
+import type { AppPageId } from '../config/app';
+import { useBackendStatus } from '../state/backendStatus';
+import type { BackendStatus } from '../state/backendStatus';
 import './Sidebar.css';
 
-interface NavItem {
-  id: AppPageId;
-  label: string;
-  icon: string;
-}
-
-const NAV_ITEMS: readonly NavItem[] = [
-  { id: APP_PAGE_IDS.drillMap, label: 'Exploration Map', icon: '⌖' },
-  { id: APP_PAGE_IDS.technoMap, label: 'Techno Map', icon: '⌖' },
-];
+const STATUS_LABELS: Readonly<Record<BackendStatus, string>> = {
+  checking: 'Checking…',
+  online: 'Online',
+  offline: 'Offline',
+};
 
 export interface SidebarProps {
   activePage: AppPageId;
@@ -21,11 +18,14 @@ export interface SidebarProps {
 }
 
 function Sidebar({ activePage, isCollapsed, onNavigate, onToggle }: SidebarProps) {
+  const backendStatus = useBackendStatus();
+  const statusLabel = STATUS_LABELS[backendStatus];
+
   return (
     <aside className={`sidebar${isCollapsed ? ' is-collapsed' : ''}`}>
-      <div className="sidebar__brand" aria-label={APP_TITLE}>
+      <div className="sidebar__brand" aria-label={APP_CONFIG.title}>
         <span className="sidebar__brand-mark">D</span>
-        <span className="sidebar__brand-text">{APP_TITLE}</span>
+        <span className="sidebar__brand-text">{APP_CONFIG.title}</span>
         <button
           className="sidebar__collapse"
           type="button"
@@ -39,7 +39,7 @@ function Sidebar({ activePage, isCollapsed, onNavigate, onToggle }: SidebarProps
       </div>
 
       <nav className="sidebar__nav" aria-label="Main navigation">
-        {NAV_ITEMS.map((item) => (
+        {APP_CONFIG.navigation.map((item) => (
           <button
             key={item.id}
             className={`sidebar__link${activePage === item.id ? ' is-active' : ''}`}
@@ -53,6 +53,15 @@ function Sidebar({ activePage, isCollapsed, onNavigate, onToggle }: SidebarProps
           </button>
         ))}
       </nav>
+
+      <p
+        className={`sidebar__status is-${backendStatus}`}
+        role="status"
+        title={`Backend: ${statusLabel}`}
+      >
+        <span className="sidebar__status-dot" aria-hidden="true" />
+        <span className="sidebar__label">{statusLabel}</span>
+      </p>
     </aside>
   );
 }

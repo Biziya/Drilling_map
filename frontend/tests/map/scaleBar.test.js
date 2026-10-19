@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import * as drillScaleBar from "../../../src/pages/DrillMap/scaleBar.js";
-import * as technoScaleBar from "../../../src/pages/TechnoMap/scaleBar.js";
-
-const copies = [
-  ["DrillMap", drillScaleBar],
-  ["TechnoMap", technoScaleBar],
-];
+import { computeScaleBar } from "../../src/map/scaleBar.js";
 
 // The real site bounds, so the assertions reflect production numbers.
 const BOUNDS = Object.freeze({
@@ -15,7 +9,7 @@ const BOUNDS = Object.freeze({
   maxY: 4898190.29,
 });
 
-describe.each(copies)("%s/scaleBar", (_name, { computeScaleBar }) => {
+describe("map/scaleBar", () => {
   it("produces a label and a width at default zoom", () => {
     const bar = computeScaleBar({ mapWidth: 1200, zoom: 1, bounds: BOUNDS });
 

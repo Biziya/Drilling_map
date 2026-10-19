@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import { computeScaleBar } from './scaleBar';
+import { computeScaleBar } from '../../map/scaleBar';
 import { MAP_UTM_BOUNDS } from './drillMapConfig';
 
 export interface MapScaleBarProps {

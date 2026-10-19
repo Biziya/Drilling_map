@@ -146,7 +146,7 @@ export function useMapViewport({ settings, viewKey, dragIgnoreSelector }: MapVie
         translateY: drag.origin.y + event.clientY - drag.start.y,
       }));
     },
-    onPointerUp(event: ReactPointerEvent<HTMLElement>) {
+    onPointerUp(this: void, event: ReactPointerEvent<HTMLElement>) {
       if (dragRef.current?.pointerId !== event.pointerId) return;
 
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {

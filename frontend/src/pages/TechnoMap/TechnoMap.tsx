@@ -10,12 +10,11 @@ import { buildCanvasTransformStyle, toPixels } from './mapGeometry';
 import { isViewZoomed } from './zoomMath';
 import { useMapData } from './useMapData';
 import { useMapViewport } from './useMapViewport';
-import { fetchTechnoMap } from '../../services/Api/technoMap';
+import { fetchTechnoMap } from '../../services/api/mapData';
 import { DATASET_IDS } from '../../services/cache/drillholeCache';
 import { TECHNO_MAP_SETTINGS } from './technoMapConfig';
 import { convertUtmToTechnoMapPosition } from './technoMapCoordinates';
-import type { MapViewKey } from '../../state/mapViewStore';
-import type { CssVariableName, MapTransform } from '../../types/map';
+import type { CssVariableName, MapId, MapTransform } from '../../types/map';
 import './TechnoMap.css';
 
 const INITIAL_VIEW: Readonly<MapTransform> = Object.freeze<MapTransform>({
@@ -31,7 +30,7 @@ const SCALE_VARIABLE: CssVariableName = '--techno-inverse-map-scale';
 
 // Keyed separately from the Exploration Map so the two views never overwrite
 // each other.
-const VIEW_STATE_KEY: MapViewKey = 'techno-map';
+const VIEW_STATE_KEY: MapId = 'techno-map';
 
 function TechnoMap() {
   const { viewportRef, view, renderedMapSize, image, controls, drag } = useMapViewport({

@@ -10,12 +10,11 @@ import { buildCanvasTransformStyle, toPixels } from './mapGeometry';
 import { isViewZoomed } from './zoomMath';
 import { useMapData } from './useMapData';
 import { useMapViewport } from './useMapViewport';
-import { fetchDrillholeMap } from '../../services/Api/drillholeMap';
+import { fetchDrillholeMap } from '../../services/api/mapData';
 import { DATASET_IDS } from '../../services/cache/drillholeCache';
 import { MAP_SETTINGS } from './drillMapConfig';
 import { convertUtmToMapPosition } from './utmCoordinates';
-import type { MapViewKey } from '../../state/mapViewStore';
-import type { CssVariableName, MapTransform } from '../../types/map';
+import type { CssVariableName, MapId, MapTransform } from '../../types/map';
 import './DrillMap.css';
 
 const INITIAL_VIEW: Readonly<MapTransform> = Object.freeze<MapTransform>({
@@ -31,7 +30,7 @@ const SCALE_VARIABLE: CssVariableName = '--inverse-map-scale';
 
 // Keyed separately from the Techno Map so the two views never overwrite
 // each other.
-const VIEW_STATE_KEY: MapViewKey = 'exploration-map';
+const VIEW_STATE_KEY: MapId = 'exploration-map';
 
 function DrillMap() {
   const { viewportRef, view, renderedMapSize, image, controls, drag } = useMapViewport({

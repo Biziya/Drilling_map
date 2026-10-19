@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { formatMeasurement, formatNumber } from './formatNumber';
+import { formatMeasurement, formatNumber } from '../../utils/formatNumber';
 import { readHolePurpose } from './technoMarkerKind';
 import { readDrillholeTag, readDrillholeText, readDrillholeValue } from '../../utils/drillholeFields';
 import type { DrillholeApiRecord } from '../../types/drillhole';

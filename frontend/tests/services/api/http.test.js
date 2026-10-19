@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getErrorMessage, readBody, requestJson } from "../../../src/services/Api/apiResponse.js";
+import { getErrorMessage, readBody, requestJson } from "../../../src/services/api/http.js";
 
 describe("getErrorMessage", () => {
   it("uses a plain string body", () => {

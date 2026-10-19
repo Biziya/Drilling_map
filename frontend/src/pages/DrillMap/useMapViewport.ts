@@ -12,8 +12,7 @@ import { useZoomAtPoint } from './useZoomAtPoint';
 import { useZoomControls } from './useZoomControls';
 import type { ZoomControls } from './useZoomControls';
 import { readMapView, writeMapView } from '../../state/mapViewStore';
-import type { MapViewKey } from '../../state/mapViewStore';
-import type { MapTransform, MapZoomSettings, RenderedMapSize } from '../../types/map';
+import type { MapId, MapTransform, MapZoomSettings, RenderedMapSize } from '../../types/map';
 
 export interface MapViewportOptions {
   settings: MapZoomSettings;
@@ -21,7 +20,7 @@ export interface MapViewportOptions {
   initialView: MapTransform;
   dragIgnoreSelector: string;
   /** Key this map's view is persisted under, unique per page. */
-  viewStateKey: MapViewKey;
+  viewStateKey: MapId;
 }
 
 export interface MapViewport {

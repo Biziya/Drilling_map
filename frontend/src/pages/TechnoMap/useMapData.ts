@@ -12,7 +12,7 @@ import {
   writeCachedDataset,
 } from '../../services/cache/drillholeCache';
 import type { DatasetId } from '../../services/cache/drillholeCache';
-import { isAbortError, toError } from '../../services/Api/apiResponse';
+import { isAbortError, toError } from '../../services/api/http';
 import type { DrillholeApiRecord } from '../../types/drillhole';
 import type { DrillholeProjection } from '../../types/map';
 

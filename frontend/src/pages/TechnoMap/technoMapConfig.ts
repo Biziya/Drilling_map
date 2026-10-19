@@ -1,10 +1,10 @@
-import { MAP_IMAGE_PATH, MAP_UTM_BOUNDS_FROM_ENV } from '../../config/env';
+import { MAP_IMAGE_PATH, MAP_UTM_BOUNDS as CONFIGURED_MAP_UTM_BOUNDS } from '../../config/env';
 import type { ApiText, DrillholeApiRecord } from '../../types/drillhole';
 import type {
   DrillholeStatusConfig,
   GtRange,
   MapBounds,
-  MapZoomSettings,
+  MapPageSettings,
 } from '../../types/map';
 
 export const TECHNO_BASE_MAP_SRC: string = MAP_IMAGE_PATH;
@@ -22,7 +22,7 @@ export const TECHNO_LEGEND_SYMBOL_COLOR = '#111827';
  */
 export const TECHNO_DEVIATION_LINE_EXAGGERATION = 5;
 
-export const TECHNO_MAP_SETTINGS: MapZoomSettings = {
+export const TECHNO_MAP_SETTINGS: MapPageSettings = {
   minZoom: 1,
   maxZoom: 90,
   zoomStep: 0.4,
@@ -31,7 +31,7 @@ export const TECHNO_MAP_SETTINGS: MapZoomSettings = {
 };
 
 /** UTM rectangle the base map image covers. */
-export const TECHNO_MAP_UTM_BOUNDS: Readonly<MapBounds> = MAP_UTM_BOUNDS_FROM_ENV;
+export const TECHNO_MAP_UTM_BOUNDS: Readonly<MapBounds> = CONFIGURED_MAP_UTM_BOUNDS;
 
 export const TECHNO_STATUS_CONFIG = {
   Validated: { color: '#15803d', shape: 'square', label: 'Validated DH' },

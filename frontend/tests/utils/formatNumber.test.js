@@ -1,17 +1,9 @@
 import { describe, expect, it } from "vitest";
-import * as drillFormatNumber from "../../../src/pages/DrillMap/formatNumber.js";
-import * as technoFormatNumber from "../../../src/pages/TechnoMap/formatNumber.js";
-
-const copies = [
-  ["DrillMap", drillFormatNumber],
-  ["TechnoMap", technoFormatNumber],
-];
+import { formatMeasurement, formatNumber } from "../../src/utils/formatNumber.js";
 
 const EMPTY = "\u2014"; // em dash
 
-describe.each(copies)("%s/formatNumber", (_name, mod) => {
-  const { formatNumber, formatMeasurement } = mod;
-
+describe("utils/formatNumber", () => {
   describe("formatNumber", () => {
     it("formats a finite number", () => {
       expect(formatNumber(12.3456)).toBe("12.3456");
