@@ -85,13 +85,12 @@ frontend/
 │  ├─ App.tsx                 layout, sidebar, active page, toast region
 │  ├─ index.css               Tailwind entry, theme tokens, base styles
 │  ├─ components/
-│  │  ├─ Sidebar.tsx          navigation, collapse toggle, Online/Offline
+│  │  ├─ Sidebar/             navigation, collapse toggle, Online/Offline
 │  │  └─ Toast/               app-wide toast store + container
 │  ├─ config/                 app.yaml, env readers, YAML schema validation
-│  ├─ map/                    the shared map feature — see its README
-│  ├─ pages/
-│  │  ├─ DrillMap/            Exploration Map: page + config/drillMap.yaml
-│  │  └─ TechnoMap/           Techno Map: page + config/technoMap.yaml
+│  ├─ pages/                  one self-contained folder per map page
+│  │  ├─ DrillMap/            Exploration Map — see its README
+│  │  └─ TechnoMap/           Techno Map — see its README
 │  ├─ services/
 │  │  ├─ api/                 fetch plumbing, map endpoints, health check
 │  │  └─ cache/               IndexedDB cache of the raw responses
@@ -102,20 +101,22 @@ frontend/
 └─ tests/                     Vitest suite (JavaScript), mirrors src/
 ```
 
-Docs: [`src/map/README.md`](src/map/README.md) (sections, loading, refresh,
-toasts), plus a short README per page.
+Each page's README describes its sections, loading, refresh and toasts:
+[`src/pages/DrillMap/README.md`](src/pages/DrillMap/README.md),
+[`src/pages/TechnoMap/README.md`](src/pages/TechnoMap/README.md).
 
 ---
 
 ## Architecture
 
-### One map, two configurations
+### Two independent pages
 
-The Exploration and Techno maps are one implementation, `src/map/MapPage`,
-rendered with a per-page YAML file (`id`, title, fallback marker kind, marker
-labels, legend symbols). Shared settings — zoom, GT bands, colours — live in
-`src/map/config/map.yaml`. Both maps therefore zoom, colour and draw
-deviation lines identically by construction.
+The Exploration and Techno maps look alike today but will diverge, so each
+page folder owns its whole implementation: components, hooks, maths, YAML
+configuration and a stylesheet scoped under its own root class. Neither page
+imports from the other (a test enforces this). Only global infrastructure is
+shared: `services/api`, `services/cache`, the stores in `state/`, toasts,
+types, and generic utilities in `utils/`.
 
 ### Data flow
 
@@ -134,8 +135,9 @@ the IndexedDB copy is drawn at once while the backend is asked for fresh data;
 the response replaces both the map and the cache. Data stays in memory across
 page switches (no refetch), at most one request per map runs at a time, and a
 failed request never clears the map or the cache — it raises a toast instead.
-The refresh button at the top-right of each map always asks the backend.
-Details in [`src/map/README.md`](src/map/README.md).
+The refresh button in each page header always asks the backend.
+Failure toasts name the real cause (no connection, timeout, HTTP status,
+invalid data). Details in each page's README.
 
 The cache is only ever an optimisation:
 
@@ -233,7 +235,7 @@ worth anything if these stay out.
 npm test
 ```
 
-374 tests across 20 files: unit coverage of the map maths, config,
+686 tests across 30 files: unit coverage of each page's maths, config,
 coordinates and marker rules; component tests for markers, legend symbols,
 status notice, refresh button and toasts; store tests for stale-while-
 revalidate loading; and integration tests that render both pages against a
@@ -257,9 +259,10 @@ in `src/types/drillhole.ts` (plus its PascalCase alias if the API sends one),
 then add the row to each page's tooltip. The cache needs no change — it stores
 the response verbatim.
 
-**A new map page.** Add a `MapId`, a `DATASET_IDS` entry, a fetcher in
-`services/api/mapData.ts`, a page folder with its YAML config (copy one), and
-the page to `config/app.yaml` and `App.tsx`.
+**A new map page.** Add a `MapId`, a `DATASET_IDS` entry and a fetcher in
+`services/api/mapData.ts`; copy a page folder as a starting point, rename its
+root class and config, and add the page to `config/app.yaml` and `App.tsx`.
 
-**A marker type or GT band.** Marker kinds live in `src/map/utils/markerKind.ts`;
-GT bands in `src/map/config/map.yaml`, shared by both pages.
+**A marker type or GT band.** Per page: `utils/markerKind.ts` and
+`config/<page>.yaml` in that page's folder. Changing one page never changes
+the other.

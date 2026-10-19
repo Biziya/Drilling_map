@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchDrillholeMap, fetchTechnoMap } from "../../../src/services/api/mapData.js";
 
-const jsonResponse = (body, ok = true) => ({
+const jsonResponse = (body, ok = true, status = ok ? 200 : 500) => ({
   ok,
+  status,
   text: () => Promise.resolve(typeof body === "string" ? body : JSON.stringify(body)),
 });
 
@@ -78,5 +79,39 @@ describe.each(endpoints)("%s", (_name, fetchRecords, path, subject) => {
     fetch.mockRejectedValue(abortError);
 
     await expect(fetchRecords()).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  // The kind decides the toast, so each failure must be told apart.
+  it("reports an error status as an http ApiError with the status", async () => {
+    fetch.mockResolvedValue(jsonResponse("Microsoft.Data.SqlClient.SqlException ...", false, 500));
+
+    await expect(fetchRecords()).rejects.toMatchObject({ name: "ApiError", kind: "http", status: 500 });
+  });
+
+  it("reports a non-array body as an invalid-response ApiError", async () => {
+    fetch.mockResolvedValue(jsonResponse({ holeId: "GTZO-1" }));
+
+    await expect(fetchRecords()).rejects.toMatchObject({ name: "ApiError", kind: "invalid-response" });
+  });
+
+  it("reports a refused connection as a network ApiError", async () => {
+    fetch.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    await expect(fetchRecords()).rejects.toMatchObject({ name: "ApiError", kind: "network" });
+  });
+
+  it("applies the configured request timeout", async () => {
+    vi.useFakeTimers();
+    fetch.mockImplementation((_url, { signal }) => new Promise((_resolve, reject) => {
+      signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })));
+    }));
+
+    try {
+      const outcome = expect(fetchRecords()).rejects.toMatchObject({ kind: "timeout" });
+      await vi.advanceTimersByTimeAsync(60000);
+      await outcome;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

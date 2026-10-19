@@ -13,6 +13,7 @@ import {
   writeCachedDataset,
 } from "../../src/services/cache/drillholeCache.js";
 import { renderHook } from "@testing-library/react";
+import { ApiError } from "../../src/services/api/http.js";
 
 const MAP_ID = "exploration-map";
 const cachedRecord = { holeId: "CACHED", x: 418000, y: 4894000 };
@@ -31,6 +32,9 @@ function deferred() {
 
   return { promise, resolve, reject };
 }
+
+const NETWORK = { kind: "network" };
+const offline = () => Promise.reject(new ApiError("network", "Unable to connect to the drillhole API."));
 
 const toasts = () => renderHook(() => useToasts()).result.current;
 const toastTexts = () => toasts().map(({ type, message }) => `${type}: ${message}`);
@@ -64,7 +68,7 @@ describe("mapDataStore", () => {
         records: [apiRecord],
         source: "api",
         isFetching: false,
-        failed: false,
+        failure: null,
       });
     });
 
@@ -150,42 +154,42 @@ describe("mapDataStore", () => {
     it("keeps cached data on screen and warns", async () => {
       await writeCachedDataset(MAP_ID, [cachedRecord]);
 
-      await loadMapData(MAP_ID, () => Promise.reject(new Error("Database offline")));
+      await loadMapData(MAP_ID, offline);
 
       expect(getMapData(MAP_ID)).toMatchObject({
         records: [cachedRecord],
         source: "cache",
         isFetching: false,
-        failed: true,
+        failure: NETWORK,
       });
-      expect(toastTexts()).toEqual([`warning: ${MAP_DATA_MESSAGES.staleFallback}`]);
+      expect(toastTexts()).toEqual([`warning: ${MAP_DATA_MESSAGES.showingCached(NETWORK)}`]);
     });
 
     it("does not delete the IndexedDB copy", async () => {
       await writeCachedDataset(MAP_ID, [cachedRecord]);
 
-      await loadMapData(MAP_ID, () => Promise.reject(new Error("Database offline")));
+      await loadMapData(MAP_ID, offline);
 
       expect((await readCachedDataset(MAP_ID)).records).toEqual([cachedRecord]);
     });
 
     it("raises an error toast when there is no cache either", async () => {
-      await loadMapData(MAP_ID, () => Promise.reject(new Error("Database offline")));
+      await loadMapData(MAP_ID, offline);
 
-      expect(getMapData(MAP_ID)).toMatchObject({ records: null, isFetching: false, failed: true });
+      expect(getMapData(MAP_ID)).toMatchObject({ records: null, isFetching: false, failure: NETWORK });
       expect(toastTexts()).toEqual([`error: ${MAP_DATA_MESSAGES.failed}`]);
     });
 
     it("tries the backend again on the next automatic load", async () => {
       const fetchRecords = vi.fn()
-        .mockRejectedValueOnce(new Error("Database offline"))
+        .mockRejectedValueOnce(new ApiError("network", "down"))
         .mockResolvedValueOnce([apiRecord]);
 
       await loadMapData(MAP_ID, fetchRecords);
       await loadMapData(MAP_ID, fetchRecords);
 
       expect(fetchRecords).toHaveBeenCalledTimes(2);
-      expect(getMapData(MAP_ID)).toMatchObject({ records: [apiRecord], failed: false });
+      expect(getMapData(MAP_ID)).toMatchObject({ records: [apiRecord], failure: null });
     });
   });
 
@@ -214,10 +218,61 @@ describe("mapDataStore", () => {
     it("keeps the current data when it fails", async () => {
       await loadMapData(MAP_ID, () => Promise.resolve([apiRecord]));
 
-      await loadMapData(MAP_ID, () => Promise.reject(new Error("Database offline")), { manual: true });
+      await loadMapData(MAP_ID, offline, { manual: true });
 
-      expect(getMapData(MAP_ID)).toMatchObject({ records: [apiRecord], source: "api", failed: true });
-      expect(toastTexts()).toEqual([`warning: ${MAP_DATA_MESSAGES.staleFallback}`]);
+      expect(getMapData(MAP_ID)).toMatchObject({ records: [apiRecord], source: "api", failure: NETWORK });
+      expect(toastTexts()).toEqual([`warning: ${MAP_DATA_MESSAGES.showingCached(NETWORK)}`]);
+    });
+  });
+
+  describe("failure messages", () => {
+    beforeEach(async () => {
+      await writeCachedDataset(MAP_ID, [cachedRecord]);
+    });
+
+    it.each([
+      ["network", new ApiError("network", "x"), "Backend unavailable. Showing cached data."],
+      ["timeout", new ApiError("timeout", "x"), "Backend did not respond in time. Showing cached data."],
+      ["http", new ApiError("http", "x", { status: 500 }), "Backend error (HTTP 500). Showing cached data."],
+      ["invalid-response", new ApiError("invalid-response", "x"), "Backend sent invalid data. Showing cached data."],
+      ["unexpected", new Error("bug"), "Unexpected error while loading. Showing cached data."],
+    ])("describes a %s failure accurately", async (_kind, error, message) => {
+      await loadMapData(MAP_ID, () => Promise.reject(error));
+
+      expect(toastTexts()).toEqual([`warning: ${message}`]);
+    });
+
+    it("records why the request failed", async () => {
+      await loadMapData(MAP_ID, () => Promise.reject(new ApiError("http", "x", { status: 503 })));
+
+      expect(getMapData(MAP_ID).failure).toEqual({ kind: "http", status: 503 });
+    });
+
+    it("stays quiet when an automatic retry fails the same way again", async () => {
+      await loadMapData(MAP_ID, offline);
+      clearToasts();
+
+      await loadMapData(MAP_ID, offline);
+
+      expect(toasts()).toEqual([]);
+    });
+
+    it("speaks up when an automatic retry fails differently", async () => {
+      await loadMapData(MAP_ID, offline);
+      clearToasts();
+
+      await loadMapData(MAP_ID, () => Promise.reject(new ApiError("http", "x", { status: 500 })));
+
+      expect(toastTexts()).toEqual(["warning: Backend error (HTTP 500). Showing cached data."]);
+    });
+
+    it("always answers a manual refresh, even with a repeated failure", async () => {
+      await loadMapData(MAP_ID, offline);
+      clearToasts();
+
+      await loadMapData(MAP_ID, offline, { manual: true });
+
+      expect(toastTexts()).toEqual([`warning: ${MAP_DATA_MESSAGES.showingCached(NETWORK)}`]);
     });
   });
 });

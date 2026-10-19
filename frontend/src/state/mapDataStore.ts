@@ -12,14 +12,37 @@
 import { useSyncExternalStore } from 'react';
 import { showToast } from '../components/Toast/toastStore';
 import { readCachedDataset, writeCachedDataset } from '../services/cache/drillholeCache';
+import { ApiError } from '../services/api/http';
 import type { FetchDrillholeRecords } from '../services/api/mapData';
 import type { DrillholeApiRecord } from '../types/drillhole';
 import type { MapId } from '../types/map';
 
+/** Why the most recent backend request failed. */
+export interface MapDataFailure {
+  kind: ApiError['kind'] | 'unexpected';
+  status?: number | undefined;
+}
+
+export function toFailure(error: unknown): MapDataFailure {
+  return error instanceof ApiError ? { kind: error.kind, status: error.status } : { kind: 'unexpected' };
+}
+
+/** One short sentence saying what went wrong, for toasts and the empty state. */
+export function describeFailure({ kind, status }: MapDataFailure): string {
+  switch (kind) {
+    case 'network': return 'Backend unavailable.';
+    case 'timeout': return 'Backend did not respond in time.';
+    case 'http': return `Backend error (HTTP ${status ?? 'unknown'}).`;
+    case 'invalid-response': return 'Backend sent invalid data.';
+    case 'unexpected': return 'Unexpected error while loading.';
+  }
+}
+
 export const MAP_DATA_MESSAGES = Object.freeze({
   refreshed: 'Map data refreshed successfully',
-  staleFallback: 'Backend unavailable. Showing cached data.',
-  failed: 'Unable to load map data',
+  failed: 'Unable to load map data.',
+  /** Warning shown when the request failed but cached data stays on screen. */
+  showingCached: (failure: MapDataFailure) => `${describeFailure(failure)} Showing cached data.`,
 });
 
 export interface MapDataEntry {
@@ -27,11 +50,11 @@ export interface MapDataEntry {
   records: readonly DrillholeApiRecord[] | null;
   source: 'cache' | 'api' | null;
   isFetching: boolean;
-  /** True when the most recent backend request failed. */
-  failed: boolean;
+  /** Set when the most recent backend request failed. */
+  failure: MapDataFailure | null;
 }
 
-const EMPTY_ENTRY: MapDataEntry = Object.freeze({ records: null, source: null, isFetching: false, failed: false });
+const EMPTY_ENTRY: MapDataEntry = Object.freeze({ records: null, source: null, isFetching: false, failure: null });
 
 const entries = new Map<MapId, MapDataEntry>();
 const requests = new Map<MapId, Promise<void>>();
@@ -67,19 +90,26 @@ async function requestMapData(mapId: MapId, fetchRecords: FetchDrillholeRecords,
     const records = await fetchRecords();
     if (!isCurrent()) return;
 
-    update(mapId, { records, source: 'api', isFetching: false, failed: false });
+    update(mapId, { records, source: 'api', isFetching: false, failure: null });
     // The complete response is cached, not the subset the map can place.
     void writeCachedDataset(mapId, records);
     if (manual) showToast('success', MAP_DATA_MESSAGES.refreshed);
-  } catch {
+  } catch (error) {
     // Settled first, so the toast reflects whether cached data made it on screen.
     await cacheRead;
     if (!isCurrent()) return;
 
+    const failure = toFailure(error);
+    const previous = getMapData(mapId).failure;
+    // An automatic retry that fails the same way again stays quiet; the user
+    // was already told. A manual refresh always gets an answer.
+    const isRepeat = !manual && previous?.kind === failure.kind && previous.status === failure.status;
+
     // Whatever is on screen stays there: a failed request never clears the
     // map or the cache.
-    update(mapId, { isFetching: false, failed: true });
-    if (getMapData(mapId).records) showToast('warning', MAP_DATA_MESSAGES.staleFallback);
+    update(mapId, { isFetching: false, failure });
+    if (isRepeat) return;
+    if (getMapData(mapId).records) showToast('warning', MAP_DATA_MESSAGES.showingCached(failure));
     else showToast('error', MAP_DATA_MESSAGES.failed);
   }
 }

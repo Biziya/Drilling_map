@@ -1,0 +1,506 @@
+/* DrillMap styles, scoped under .drill-map-page so they cannot reach the other
+   map page. Plain CSS (not utilities) where rules read the runtime
+   --inverse-map-scale and --status-color variables or need pseudo-elements
+   and clip paths. */
+
+
+.drill-map-page {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 12px clamp(12px, 2vw, 24px);
+  background: radial-gradient(circle at 12% 5%, rgba(76, 126, 96, .12), transparent 24rem), #edf1ee;
+}
+
+.drill-map-page .map-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.drill-map-page .map-header h1 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.4vw, 2rem);
+  line-height: 1.08;
+  letter-spacing: -.035em;
+}
+
+.drill-map-page .map-header strong {
+  flex: 0 0 auto;
+  padding: 7px 11px;
+  border: 1px solid #d3ddd6;
+  border-radius: 999px;
+  color: #496052;
+  background: rgba(255, 255, 255, .72);
+  font-size: .76rem;
+}
+
+.drill-map-page .map-panel {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid #cbd7cf;
+  border-radius: 16px;
+  background: #f8faf8;
+  box-shadow: 0 18px 50px rgba(26, 52, 36, .09);
+}
+
+.drill-map-page .map-viewport {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #dbe2dc;
+  touch-action: none;
+  user-select: none;
+}
+
+.drill-map-page .map-viewport.is-zoomed { cursor: grab; }
+.drill-map-page .map-viewport.is-dragging { cursor: grabbing; }
+
+.drill-map-page .map-canvas {
+  position: relative;
+  flex: 0 0 auto;
+  transform-origin: 0 0;
+  contain: layout;
+}
+
+.drill-map-page .base-map {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: auto;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.drill-map-page .drillhole-feature {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.drill-map-page .deviation-line-vector {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.drill-map-page .deviation-line-vector line {
+  stroke: #ff0000;
+  stroke-width: var(--inverse-map-scale, 1);
+  stroke-linecap: round;
+}
+
+.drill-map-page .drillhole-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  cursor: pointer;
+  transform: scale(var(--inverse-map-scale, 1)) translate(-50%, -50%);
+  transform-origin: 0 0;
+}
+
+.drill-map-page .drillhole-marker:hover { z-index: 20; }
+
+.drill-map-page .drillhole-marker--rig {
+  width: 32px;
+  height: 32px;
+}
+
+.drill-map-page .rig-marker-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .5));
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.drill-map-page .drillhole-marker:focus-visible .marker-symbol {
+  outline: 3px solid rgba(255, 255, 255, .95);
+  box-shadow: 0 0 0 5px #1d4ed8;
+}
+
+.drill-map-page .marker-symbol {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  border: 2px solid #fff;
+  background: var(--status-color);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, .55);
+  transform: translate(-50%, -50%);
+}
+
+.drill-map-page .marker-symbol--square { border-radius: 2px; }
+
+.drill-map-page .marker-symbol--triangle {
+  width: 15px;
+  height: 15px;
+  border: 0;
+  background: #fff;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .45));
+}
+
+.drill-map-page .marker-symbol--triangle::before {
+  position: absolute;
+  inset: 2px;
+  background: var(--status-color);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  content: '';
+}
+
+
+.drill-map-page .marker-symbol--small {
+  position: relative;
+  top: auto;
+  left: auto;
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-width: 1.5px;
+  box-shadow: none;
+  transform: none;
+}
+
+.drill-map-page .marker-symbol--triangle.marker-symbol--small {
+  width: 11px;
+  height: 11px;
+}
+
+.drill-map-page .drillhole-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 10;
+  display: none;
+  width: max-content;
+  max-width: 240px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, .78);
+  border-radius: 8px;
+  color: #f8fafc;
+  background: rgba(20, 34, 28, .94);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+  font-size: .72rem;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.drill-map-page .drillhole-tooltip::after {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  border: 5px solid transparent;
+  border-top-color: rgba(20, 34, 28, .94);
+  content: '';
+  transform: translateX(-50%);
+}
+
+.drill-map-page .drillhole-tooltip strong,
+.drill-map-page .drillhole-tooltip span { display: block; }
+.drill-map-page .drillhole-tooltip strong { margin-bottom: 4px; font-size: .82rem; }
+.drill-map-page .drillhole-tooltip b { color: #cbd5ce; font-weight: 500; }
+.drill-map-page .drillhole-marker:hover .drillhole-tooltip,
+.drill-map-page .drillhole-marker:focus .drillhole-tooltip,
+.drill-map-page .drillhole-marker.is-open .drillhole-tooltip { display: block; }
+
+.drill-map-page .map-controls {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 38px 38px auto;
+  overflow: hidden;
+  border: 1px solid rgba(33, 53, 42, .16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 5px 16px rgba(15, 31, 21, .13);
+  backdrop-filter: blur(8px);
+}
+
+.drill-map-page .map-controls button {
+  min-height: 38px;
+  border: 0;
+  border-right: 1px solid #dbe2dd;
+  color: #21352a;
+  background: transparent;
+  font-size: 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.drill-map-page .map-controls button:hover:not(:disabled) { background: #edf4ef; }
+.drill-map-page .map-controls button:focus-visible { outline: 3px solid #2563eb; outline-offset: -3px; }
+.drill-map-page .map-controls button:disabled { color: #a8b1ab; cursor: not-allowed; }
+.drill-map-page .map-controls .map-controls__reset { padding: 0 11px; border-right: 0; font-size: .72rem; }
+
+.drill-map-page .map-controls__level {
+  grid-column: 1 / -1;
+  padding: 3px;
+  border-top: 1px solid #dbe2dd;
+  color: #607068;
+  font-size: .62rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.drill-map-page .north-arrow {
+  position: absolute;
+  top: 15px;
+  right: 16px;
+  z-index: 5;
+  display: grid;
+  justify-items: center;
+  color: #1b2d23;
+  font-size: .7rem;
+  font-weight: 800;
+  text-shadow: 0 1px 2px #fff;
+}
+
+.drill-map-page .north-arrow i {
+  width: 0;
+  height: 0;
+  margin-top: 2px;
+  border-right: 7px solid transparent;
+  border-bottom: 24px solid #1b2d23;
+  border-left: 7px solid transparent;
+  filter: drop-shadow(0 1px 1px #fff);
+}
+
+.drill-map-page .map-scale-bar {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  z-index: 5;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-width: 52px;
+  padding: 7px 10px 5px;
+  border-radius: 7px;
+  color: #1f3127;
+  background: rgba(255, 255, 255, .88);
+  box-shadow: 0 2px 8px rgba(24, 43, 32, .1);
+  backdrop-filter: blur(6px);
+}
+
+.drill-map-page .map-scale-bar__line {
+  position: relative;
+  height: 7px;
+  border-bottom: 2px solid currentColor;
+}
+
+.drill-map-page .map-scale-bar__line::before,
+.drill-map-page .map-scale-bar__line::after {
+  position: absolute;
+  bottom: -2px;
+  width: 2px;
+  height: 8px;
+  background: currentColor;
+  content: '';
+}
+
+.drill-map-page .map-scale-bar__line::before { left: 0; }
+.drill-map-page .map-scale-bar__line::after { right: 0; }
+
+.drill-map-page .map-scale-bar span {
+  font-size: .66rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.drill-map-page .map-missing {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 7px;
+  padding: 30px;
+  color: #45564c;
+  text-align: center;
+  background: linear-gradient(rgba(255,255,255,.4) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.4) 1px, transparent 1px), #dce4df;
+  background-size: 34px 34px;
+}
+
+.drill-map-page .map-missing strong { font-size: 1rem; }
+.drill-map-page .map-missing span { font-size: .8rem; }
+.drill-map-page .map-missing code { padding: 2px 5px; border-radius: 4px; background: rgba(255,255,255,.75); }
+
+.drill-map-page .map-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 40;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  max-width: min(360px, calc(100% - 32px));
+  padding: 14px 18px;
+  border: 1px solid rgba(37, 65, 48, .14);
+  border-radius: 10px;
+  color: #405149;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 8px 24px rgba(24, 43, 32, .12);
+  font-size: .76rem;
+  text-align: center;
+  transform: translate(-50%, -50%);
+  backdrop-filter: blur(7px);
+}
+
+.drill-map-page .map-state strong {
+  color: #253a2e;
+  font-size: .86rem;
+}
+
+.drill-map-page .map-state__spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #cdd8d1;
+  border-top-color: #285b3e;
+  border-radius: 50%;
+  animation: drill-map-spin .8s linear infinite;
+}
+
+@keyframes drill-map-spin {
+  to { transform: rotate(360deg); }
+}
+
+.drill-map-page .map-legend {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(145px, 1fr));
+  gap: clamp(12px, 2vw, 30px);
+  padding: 9px clamp(12px, 1.5vw, 20px) 10px;
+  border-top: 1px solid #dce3de;
+  background: rgba(255, 255, 255, .92);
+}
+
+.drill-map-page .map-legend h2 {
+  margin: 0 0 5px;
+  color: #33483b;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.drill-map-page .map-legend ul {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drill-map-page .map-legend li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #5a675f;
+  font-size: .66rem;
+  line-height: 1.25;
+}
+
+.drill-map-page .legend-dot,
+.drill-map-page .legend-swatch {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 20px;
+  border: 1px solid rgba(20, 34, 28, .2);
+}
+
+.drill-map-page .legend-dot { border-radius: 50%; }
+.drill-map-page .legend-swatch { border-radius: 2px; }
+
+/* Matches the 30px gutter the colour swatches occupy so labels stay aligned. */
+.drill-map-page .legend-symbol {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 30px;
+  height: 20px;
+}
+
+.drill-map-page .legend-rig-icon {
+  display: block;
+  width: auto;
+  height: 20px;
+  max-width: 30px;
+}
+
+@media (max-width: 1050px) {
+  .drill-map-page .map-legend { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .drill-map-page { padding: 8px; }
+  .drill-map-page .map-header { align-items: flex-start; }
+  .drill-map-page .map-header strong { display: none; }
+  .drill-map-page .map-legend {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+    max-height: 32vh;
+    overflow-y: auto;
+  }
+  .drill-map-page .map-scale-bar { right: 8px; bottom: 8px; }
+}
+
+@media (max-height: 700px) {
+  .drill-map-page {
+    gap: 7px;
+    padding-block: 8px;
+  }
+
+  .drill-map-page .map-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .drill-map-page .map-legend {
+    padding-block: 6px;
+  }
+
+  .drill-map-page .map-legend h2 {
+    margin-bottom: 3px;
+    font-size: .64rem;
+  }
+
+  .drill-map-page .map-legend li {
+    font-size: .61rem;
+  }
+}

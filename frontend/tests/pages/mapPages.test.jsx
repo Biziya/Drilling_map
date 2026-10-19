@@ -291,7 +291,7 @@ describe("map pages", () => {
       render(<App />);
       fireEvent.click(screen.getByRole("button", { name: "Techno Map" }));
 
-      await screen.findByText(MAP_DATA_MESSAGES.staleFallback);
+      await screen.findByText(MAP_DATA_MESSAGES.showingCached({ kind: "network" }));
       expect(document.querySelectorAll(".drillhole-marker")).toHaveLength(RECORDS.length);
       // No large inline banner or retry button any more.
       expect(screen.queryByText(/Showing cached drillholes/)).toBeNull();
@@ -343,13 +343,60 @@ describe("map pages", () => {
       return result;
     }
 
-    it("sits in the map area of both pages", async () => {
-      await renderPage(DrillMap);
-      expect(document.querySelector(".map-viewport").contains(refreshButton())).toBe(true);
-      cleanup();
+    it.each([["Exploration Map", DrillMap], ["Techno Map", TechnoMap]])(
+      "sits in the %s header immediately before the drillhole count",
+      async (_title, Page) => {
+        const { container } = await renderPage(Page);
+        const count = container.querySelector(".map-header strong");
 
+        expect(refreshButton().nextElementSibling).toBe(count);
+        expect(count.textContent).toMatch(/^\d+ drillholes$/);
+        expect(container.querySelector(".map-header").contains(refreshButton())).toBe(true);
+        expect(container.querySelector(".map-viewport").contains(refreshButton())).toBe(false);
+        expect(screen.getAllByRole("button", { name: "Refresh map data" })).toHaveLength(1);
+      },
+    );
+
+    it("uses the circular two-arrow icon", async () => {
       await renderPage(TechnoMap);
-      expect(document.querySelector(".map-viewport").contains(refreshButton())).toBe(true);
+      const icon = refreshButton().querySelector('svg[data-icon="refresh"]');
+
+      // Two arcs and two arrow heads.
+      expect(icon.querySelectorAll("path")).toHaveLength(4);
+      expect(refreshButton().querySelector("img")).toBeNull();
+    });
+
+    it("spins only the icon while the request runs, then stops", async () => {
+      await renderLoadedTechnoMap();
+      let respond;
+      globalThis.fetch = vi.fn(() => new Promise((resolve) => { respond = resolve; }));
+      const iconClass = () => refreshButton().querySelector("svg").getAttribute("class");
+
+      fireEvent.click(refreshButton());
+
+      expect(iconClass()).toContain("motion-safe:animate-spin");
+      expect(refreshButton().className).not.toContain("animate-spin");
+
+      await act(async () => respond({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(RECORDS)) }));
+      await screen.findByText(MAP_DATA_MESSAGES.refreshed);
+
+      expect(iconClass()).not.toContain("animate-spin");
+      expect(refreshButton().disabled).toBe(false);
+    });
+
+    it("says the backend errored, not that it is unavailable, on HTTP 500", async () => {
+      await renderLoadedTechnoMap();
+      globalThis.fetch = vi.fn(() => Promise.resolve({
+        ok: false,
+        status: 500,
+        text: () => Promise.resolve("Microsoft.Data.SqlClient.SqlException: A network-related error..."),
+      }));
+
+      fireEvent.click(refreshButton());
+
+      await screen.findByText("Backend error (HTTP 500). Showing cached data.");
+      expect(screen.queryByText(/Backend unavailable/)).toBeNull();
+      expect(screen.queryByText(/SqlException/)).toBeNull();
     });
 
     it("asks the backend, updates the map and IndexedDB, and confirms", async () => {
@@ -386,7 +433,7 @@ describe("map pages", () => {
 
       fireEvent.click(refreshButton());
 
-      await screen.findByText(MAP_DATA_MESSAGES.staleFallback);
+      await screen.findByText(MAP_DATA_MESSAGES.showingCached({ kind: "network" }));
       expect(container.querySelectorAll(".drillhole-marker")).toHaveLength(RECORDS.length);
       expect(refreshButton().disabled).toBe(false);
       expect((await readCachedDataset(DATASET_IDS.technoMap)).records).toEqual(RECORDS);

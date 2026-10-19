@@ -14,3 +14,5 @@ navigation:
 connection:
   checkIntervalMs: 30000
   timeoutMs: 5000
+  # Map data requests normally take 5-15 s; give up (and say so) after this.
+  requestTimeoutMs: 60000

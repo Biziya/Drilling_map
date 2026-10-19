@@ -2,9 +2,8 @@ Project documentation has moved to the frontend root: see `../README.md`.
 
 Per-folder documentation:
 
-- `map/README.md` — the shared map: sections, loading, refresh, toasts
-- `pages/DrillMap/README.md` — Exploration Map: its config
-- `pages/TechnoMap/README.md` — Techno Map: its config
+- `pages/DrillMap/README.md` — Exploration Map: sections, loading, refresh
+- `pages/TechnoMap/README.md` — Techno Map: sections, loading, refresh
 
 Build into the publish directory:
 

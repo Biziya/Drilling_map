@@ -1,4 +1,5 @@
-import { apiUrl, getErrorMessage, readBody, requestJson } from './http';
+import { ApiError, apiUrl, getErrorMessage, readBody, requestJson } from './http';
+import { APP_CONFIG } from '../../config/app';
 import { isDrillholeApiRecord } from '../../types/drillhole';
 import type { DrillholeApiRecord } from '../../types/drillhole';
 
@@ -18,12 +19,13 @@ function createMapFetcher(path: string, subject: string, loadError: string): Fet
     const response = await requestJson(apiUrl(path), {
       signal,
       connectionErrorMessage: `Unable to connect to the ${subject} API.`,
+      timeoutMs: APP_CONFIG.connection.requestTimeoutMs,
     });
     const body = await readBody(response);
 
-    if (!response.ok) throw new Error(getErrorMessage(body, loadError));
+    if (!response.ok) throw new ApiError('http', getErrorMessage(body, loadError), { status: response.status });
     if (!Array.isArray(body)) {
-      throw new Error(`The ${subject} API returned an invalid response. Expected a JSON array.`);
+      throw new ApiError('invalid-response', `The ${subject} API returned an invalid response. Expected a JSON array.`);
     }
 
     return body.filter(isDrillholeApiRecord);

@@ -10,7 +10,7 @@ export const APP_CONFIG = parseConfig(
   object({
     title: text,
     navigation: list(object({ id: oneOf(...APP_PAGE_IDS), label: text, icon: text })),
-    connection: object({ checkIntervalMs: number, timeoutMs: number }),
+    connection: object({ checkIntervalMs: number, timeoutMs: number, requestTimeoutMs: number }),
   }),
   data,
   'app.yaml',

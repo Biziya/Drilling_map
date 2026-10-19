@@ -46,6 +46,10 @@ if (app.Environment.IsDevelopment())
 }
 app.UseCors("ReactFrontend");
 
+// Liveness probe for the frontend's Online/Offline indicator. Deliberately
+// does not touch the database: it answers "is the API up?".
+app.MapGet("/api/health", () => Results.Ok());
+
 app.MapControllers();
 
 app.Run();

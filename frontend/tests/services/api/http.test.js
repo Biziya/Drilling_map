@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getErrorMessage, readBody, requestJson } from "../../../src/services/api/http.js";
+import { ApiError, getErrorMessage, readBody, requestJson } from "../../../src/services/api/http.js";
 
 describe("getErrorMessage", () => {
   it("uses a plain string body", () => {
@@ -71,11 +71,11 @@ describe("requestJson", () => {
     expect(fetch).toHaveBeenCalledWith("https://example.test/api/x", {
       method: "GET",
       headers: { Accept: "application/json" },
-      signal: undefined,
+      signal: expect.any(AbortSignal),
     });
   });
 
-  it("passes the abort signal through", async () => {
+  it("aborts the request when the caller's signal aborts", async () => {
     fetch.mockResolvedValue({ ok: true });
     const controller = new AbortController();
 
@@ -83,8 +83,53 @@ describe("requestJson", () => {
       signal: controller.signal,
       connectionErrorMessage: "no connection",
     });
+    const requestSignal = fetch.mock.calls[0][1].signal;
 
-    expect(fetch.mock.calls[0][1].signal).toBe(controller.signal);
+    expect(requestSignal.aborted).toBe(false);
+    controller.abort();
+    // Settled requests detach from the caller's signal, so this one stays as it was.
+    expect(requestSignal.aborted).toBe(false);
+  });
+
+  it("starts already aborted when the caller's signal is", async () => {
+    fetch.mockImplementation((_url, { signal }) => (signal.aborted
+      ? Promise.reject(Object.assign(new Error("aborted"), { name: "AbortError" }))
+      : Promise.resolve({ ok: true })));
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(requestJson("https://example.test/api/x", {
+      signal: controller.signal,
+      connectionErrorMessage: "x",
+    })).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("gives up with a timeout ApiError when the server does not answer in time", async () => {
+    vi.useFakeTimers();
+    fetch.mockImplementation((_url, { signal }) => new Promise((_resolve, reject) => {
+      signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })));
+    }));
+
+    try {
+      const request = requestJson("https://example.test/api/x", { connectionErrorMessage: "x", timeoutMs: 1000 });
+      const outcome = expect(request).rejects.toMatchObject({ name: "ApiError", kind: "timeout" });
+      await vi.advanceTimersByTimeAsync(1000);
+      await outcome;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("clears the timeout once the server answers", async () => {
+    vi.useFakeTimers();
+    fetch.mockResolvedValue({ ok: true });
+
+    try {
+      await requestJson("https://example.test/api/x", { connectionErrorMessage: "x", timeoutMs: 1000 });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("returns non-ok responses rather than throwing", async () => {
@@ -107,6 +152,15 @@ describe("requestJson", () => {
     await expect(
       requestJson("https://example.test/api/x", { connectionErrorMessage: "Cannot reach API." }),
     ).rejects.toMatchObject({ cause: networkError });
+  });
+
+  it("marks a network failure as a network ApiError", async () => {
+    fetch.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const error = await requestJson("https://example.test/api/x", { connectionErrorMessage: "x" }).catch((e) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.kind).toBe("network");
   });
 
   it("rethrows an abort untouched so callers can ignore it", async () => {
