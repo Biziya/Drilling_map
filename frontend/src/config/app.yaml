@@ -1,0 +1,16 @@
+# Application shell. The visible title and the browser tab title share this value.
+title: Drilling Map
+
+# Sidebar entries, in display order. `id` must match a page registered in App.tsx.
+navigation:
+  - id: drill-map
+    label: Exploration Map
+    icon: ⌖
+  - id: techno-map
+    label: Techno Map
+    icon: ⌖
+
+# Backend health polling behind the sidebar Online/Offline indicator.
+connection:
+  checkIntervalMs: 30000
+  timeoutMs: 5000

@@ -1,0 +1,38 @@
+# Settings shared by the Exploration and Techno maps. Both maps must zoom,
+# colour and draw deviation lines identically, so there is one copy.
+
+zoom:
+  minZoom: 1
+  maxZoom: 90
+  zoomStep: 0.4
+  # Zoom the wheel/button steps snap to, and the zoom from which deviation
+  # lines are drawn.
+  deviationMinZoom: 10
+
+showLegends: true
+
+# Display-only multiplier: a few metres of deviation is invisible at map scale.
+deviationExaggeration: 5
+
+rigIconSrc: /rig.svg
+
+# Fill for a marker with no usable GT reading.
+uniformMarkerColor: '#000000'
+# Neutral fill for the legend's shape swatches.
+legendSymbolColor: '#111827'
+
+# GT bands, lowest first. Each band includes its lower bound; the last band
+# also includes its upper bound so the top of the scale is covered.
+gtRanges:
+  - { min: 0, max: 0.025, label: 0 – 0.025, color: '#dbeafe' }
+  - { min: 0.025, max: 0.05, label: 0.025 – 0.05, color: '#93c5fd' }
+  - { min: 0.05, max: 0.1, label: 0.05 – 0.1, color: '#38bdf8' }
+  - { min: 0.1, max: 0.25, label: 0.1 – 0.25, color: '#22c55e' }
+  - { min: 0.25, max: 0.5, label: 0.25 – 0.5, color: '#facc15' }
+  - { min: 0.5, max: 4, label: 0.5 – 4, color: '#ef4444' }
+
+# Legend only: the API does not return redox yet and no marker is coloured by it.
+redox:
+  Reduced: '#e1e1e1'
+  Intermediate: '#ffffbe'
+  Oxidized: '#dedec0'

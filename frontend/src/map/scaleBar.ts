@@ -1,4 +1,4 @@
-import type { MapBounds } from '../../types/map';
+import type { MapBounds } from '../types/map';
 
 const TARGET_BAR_WIDTH = 100;
 

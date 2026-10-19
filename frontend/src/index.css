@@ -1,70 +1,129 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
 
-:root {
-  font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: #14221c;
-  background: #edf1ee;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+/* Compact layout for short viewports (laptops with docked toolbars). */
+@custom-variant short (@media (max-height: 700px));
+
+@theme {
+  --font-sans: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Below this width the sidebar is always shown in its narrow form. */
+  --breakpoint-sidebar: 45rem;
+
+  --text-3xs: 0.62rem;
+  --text-2xs: 0.6875rem;
+
+  --color-ink: #14221c;
+  --color-canvas: #edf1ee;
+  --color-surface: #f8faf8;
+  --color-brand: #285b3e;
+  --color-brand-dark: #1f4931;
+  --color-brand-soft: #edf3ef;
+  --color-line: #d7e0da;
+  --color-muted: #617068;
+  --color-map: #dbe2dc;
+
+  --animate-spin: spin 0.8s linear infinite;
 }
 
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  min-width: 320px;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  overflow: hidden;
-}
-
-body {
-  background: #edf1ee;
-}
-
-button {
-  font: inherit;
-}
-
-.app-layout {
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  width: 100%;
-  height: 100dvh;
-  overflow: hidden;
-  transition: grid-template-columns 160ms ease;
-}
-
-.app-layout.is-sidebar-collapsed {
-  grid-template-columns: 64px minmax(0, 1fr);
-}
-
-.app-content {
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.empty-page {
-  height: 100%;
-  overflow: auto;
-  padding: 48px;
-}
-
-.empty-page h1 {
-  margin: 0 0 8px;
-}
-
-.empty-page span {
-  color: #66736b;
-}
-
-@media (max-width: 720px) {
-  .app-layout {
-    grid-template-columns: 64px minmax(0, 1fr);
+@layer base {
+  html,
+  body,
+  #root {
+    min-width: 320px;
+    height: 100%;
+    overflow: hidden;
   }
+
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/*
+ * Map rendering. These stay as CSS because they read the runtime
+ * --inverse-map-scale / --status-color variables or need pseudo-elements and
+ * clip paths that utilities would only obscure.
+ */
+@layer components {
+  /* Markers cancel the canvas zoom so they keep a constant on-screen size. */
+  .map-marker {
+    transform: scale(var(--inverse-map-scale, 1)) translate(-50%, -50%);
+    transform-origin: 0 0;
+  }
+
+  .deviation-line {
+    stroke: #ff0000;
+    stroke-width: var(--inverse-map-scale, 1);
+    stroke-linecap: round;
+  }
+
+  /* Fill arrives as --status-color: the square paints it as its background,
+     the triangle through ::before inside a white clipped outline. */
+  .marker-symbol {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 13px;
+    height: 13px;
+    border: 2px solid #fff;
+    border-radius: 2px;
+    background: var(--status-color);
+    box-shadow: 0 1px 5px rgb(0 0 0 / 0.55);
+    transform: translate(-50%, -50%);
+
+    &[data-shape='triangle'] {
+      width: 15px;
+      height: 15px;
+      border: 0;
+      background: #fff;
+      clip-path: polygon(50% 0, 100% 100%, 0 100%);
+      filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.45));
+
+      &::before {
+        position: absolute;
+        inset: 2px;
+        background: var(--status-color);
+        clip-path: polygon(50% 0, 100% 100%, 0 100%);
+        content: '';
+      }
+    }
+
+    /* Legend swatch size. */
+    &[data-small] {
+      position: relative;
+      top: auto;
+      left: auto;
+      width: 10px;
+      height: 10px;
+      border-width: 1.5px;
+      box-shadow: none;
+      transform: none;
+
+      &[data-shape='triangle'] {
+        width: 11px;
+        height: 11px;
+      }
+    }
+
+    .map-marker:focus-visible & {
+      outline: 3px solid rgb(255 255 255 / 0.95);
+      box-shadow: 0 0 0 5px var(--color-blue-700);
+    }
+  }
+}
+
+@utility bg-page-glow {
+  background: radial-gradient(circle at 12% 5%, rgb(76 126 96 / 0.12), transparent 24rem), var(--color-canvas);
+}
+
+@utility bg-map-grid {
+  background:
+    linear-gradient(rgb(255 255 255 / 0.4) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.4) 1px, transparent 1px),
+    #dce4df;
+  background-size: 34px 34px;
 }

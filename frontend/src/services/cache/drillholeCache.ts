@@ -19,20 +19,21 @@
 
 import { isDrillholeApiRecord } from '../../types/drillhole';
 import type { DrillholeApiRecord } from '../../types/drillhole';
+import type { MapId } from '../../types/map';
 
 const DATABASE_NAME = 'drilling-map';
 const DATABASE_VERSION = 1;
 const STORE_NAME = 'drillholeDatasets';
 const RECORD_KEY = 'id';
 
-// One record per map, so the two datasets can be refreshed independently.
+// One record per map, keyed by map id, so the datasets refresh independently.
 export const DATASET_IDS = Object.freeze({
   explorationMap: 'exploration-map',
   technoMap: 'techno-map',
-} as const);
+} as const satisfies Record<string, MapId>);
 
 /** Key identifying one map's cached dataset. */
-export type DatasetId = (typeof DATASET_IDS)[keyof typeof DATASET_IDS];
+export type DatasetId = MapId;
 
 /** A dataset read back out of the cache. */
 export interface CachedDataset {
