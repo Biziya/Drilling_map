@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import App from "../../src/App.jsx";
 import DrillMap from "../../src/pages/DrillMap/DrillMap.jsx";
 import TechnoMap from "../../src/pages/TechnoMap/TechnoMap.jsx";
-import { clearAllMapViews, readMapView } from "../../src/state/mapViewStore.js";
+import { clearAllMapViews, readMapView, writeMapView } from "../../src/state/mapViewStore.js";
+import { MAP_DATA_MESSAGES, clearMapData } from "../../src/state/mapDataStore.js";
+import { clearToasts } from "../../src/components/Toast/toastStore.js";
+import ToastContainer from "../../src/components/Toast/ToastContainer.jsx";
 import {
   DATASET_IDS,
   clearCachedDataset,
@@ -33,6 +36,8 @@ class ResizeObserverStub {
 
 beforeEach(async () => {
   clearAllMapViews();
+  clearMapData();
+  clearToasts();
   await clearCachedDataset(DATASET_IDS.explorationMap);
   await clearCachedDataset(DATASET_IDS.technoMap);
   globalThis.ResizeObserver = ResizeObserverStub;
@@ -44,6 +49,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   cleanup();
+  clearToasts();
   vi.restoreAllMocks();
 });
 
@@ -54,9 +60,10 @@ async function renderPage(Page) {
   return result;
 }
 
-const markerClassFor = (container, holeId) => [
-  ...container.querySelectorAll(".techno-drillhole-marker"),
-].find((node) => node.getAttribute("aria-label").includes(holeId)).className;
+const markerFor = (container, holeId) => [
+  ...container.querySelectorAll(".drillhole-marker"),
+].find((node) => node.getAttribute("aria-label").includes(holeId));
+const markerClassFor = (container, holeId) => markerFor(container, holeId).className;
 
 describe("map pages", () => {
   describe("titles", () => {
@@ -90,17 +97,17 @@ describe("map pages", () => {
     it("applies the documented priority", async () => {
       const { container } = await renderPage(TechnoMap);
 
-      expect(markerClassFor(container, "P-1")).toContain("techno-drillhole-marker--producer");
-      expect(markerClassFor(container, "I-1")).toContain("techno-drillhole-marker--injector");
-      expect(markerClassFor(container, "R-1")).toContain("techno-drillhole-marker--rig");
+      expect(markerClassFor(container, "P-1")).toContain("drillhole-marker--producer");
+      expect(markerClassFor(container, "I-1")).toContain("drillhole-marker--injector");
+      expect(markerClassFor(container, "R-1")).toContain("drillhole-marker--rig");
     });
 
     it("draws a triangle, a square and a rig icon", async () => {
       const { container } = await renderPage(TechnoMap);
 
-      expect(container.querySelector(".techno-marker-symbol--triangle")).toBeTruthy();
-      expect(container.querySelector(".techno-marker-symbol--square")).toBeTruthy();
-      expect(container.querySelector(".techno-rig-marker-icon").getAttribute("src"))
+      expect(container.querySelector(".marker-symbol--triangle")).toBeTruthy();
+      expect(container.querySelector(".marker-symbol--square")).toBeTruthy();
+      expect(container.querySelector(".rig-marker-icon").getAttribute("src"))
         .toBe("/rig.svg");
     });
   });
@@ -108,14 +115,14 @@ describe("map pages", () => {
   describe("Techno Map legend", () => {
     it("explains square, triangle and rig", async () => {
       const { container } = await renderPage(TechnoMap);
-      const legend = container.querySelector(".techno-map-legend");
+      const legend = container.querySelector(".map-legend");
 
       expect(legend.textContent).toContain("Injector");
       expect(legend.textContent).toContain("Producer");
       expect(legend.textContent).toContain("Drill Rig");
-      expect(legend.querySelector(".techno-marker-symbol--square")).toBeTruthy();
-      expect(legend.querySelector(".techno-marker-symbol--triangle")).toBeTruthy();
-      expect(legend.querySelector(".techno-legend-rig-icon")).toBeTruthy();
+      expect(legend.querySelector(".marker-symbol--square")).toBeTruthy();
+      expect(legend.querySelector(".marker-symbol--triangle")).toBeTruthy();
+      expect(legend.querySelector(".legend-rig-icon")).toBeTruthy();
     });
   });
 
@@ -165,10 +172,10 @@ describe("map pages", () => {
   describe("Techno Map tooltip", () => {
     it("shows HoleStatus", async () => {
       const { container } = await renderPage(TechnoMap);
-      const marker = [...container.querySelectorAll(".techno-drillhole-marker")]
+      const marker = [...container.querySelectorAll(".drillhole-marker")]
         .find((node) => node.getAttribute("aria-label").includes("I-1"));
 
-      expect(marker.querySelector(".techno-drillhole-tooltip").textContent)
+      expect(marker.querySelector(".drillhole-tooltip").textContent)
         .toContain("Hole Status: VALIDATED");
     });
   });
@@ -188,12 +195,12 @@ describe("map pages", () => {
       }));
 
       const { container } = await renderPage(TechnoMap);
-      const markers = [...container.querySelectorAll(".techno-drillhole-marker")]
+      const markers = [...container.querySelectorAll(".drillhole-marker")]
         .filter((node) => node.getAttribute("aria-label").includes("P-1"));
 
       expect(markers).toHaveLength(1);
-      expect(markers[0].querySelector(".techno-rig-marker-icon")).toBeTruthy();
-      expect(markers[0].querySelector(".techno-marker-symbol")).toBeNull();
+      expect(markers[0].querySelector(".rig-marker-icon")).toBeTruthy();
+      expect(markers[0].querySelector(".marker-symbol")).toBeNull();
     });
 
     it("draws one marker per hole on the Exploration Map", async () => {
@@ -248,13 +255,13 @@ describe("map pages", () => {
       const { container } = await renderPage(TechnoMap);
 
       await waitFor(() => {
-        expect(container.querySelectorAll(".techno-drillhole-marker").length)
+        expect(container.querySelectorAll(".drillhole-marker").length)
           .toBe(RECORDS.length);
       });
 
-      // Still waiting on the network, and saying so.
-      expect(container.querySelector(".techno-map-header strong").textContent)
-        .toContain("updating");
+      // Still waiting on the network, and saying so on the refresh button.
+      expect(screen.getByRole("button", { name: "Refresh map data" }).getAttribute("aria-busy"))
+        .toBe("true");
     });
 
     it("still renders when IndexedDB is unavailable", async () => {
@@ -265,12 +272,136 @@ describe("map pages", () => {
         const { container } = await renderPage(TechnoMap);
 
         await waitFor(() => {
-          expect(container.querySelectorAll(".techno-drillhole-marker").length)
+          expect(container.querySelectorAll(".drillhole-marker").length)
             .toBe(RECORDS.length);
         });
       } finally {
         globalThis.indexedDB = saved;
       }
+    });
+  });
+
+  describe("automatic loading and toasts", () => {
+    const failingFetch = () => vi.fn(() => Promise.reject(new TypeError("Failed to fetch")));
+
+    it("keeps cached drillholes and warns when the backend is down", async () => {
+      await writeCachedDataset(DATASET_IDS.technoMap, RECORDS);
+      globalThis.fetch = failingFetch();
+
+      render(<App />);
+      fireEvent.click(screen.getByRole("button", { name: "Techno Map" }));
+
+      await screen.findByText(MAP_DATA_MESSAGES.staleFallback);
+      expect(document.querySelectorAll(".drillhole-marker")).toHaveLength(RECORDS.length);
+      // No large inline banner or retry button any more.
+      expect(screen.queryByText(/Showing cached drillholes/)).toBeNull();
+      expect(screen.queryByRole("button", { name: /retry|try again/i })).toBeNull();
+    });
+
+    it("shows a small empty state, an error toast and a usable refresh button with no data at all", async () => {
+      globalThis.fetch = failingFetch();
+      const { container } = render(<App />);
+
+      expect((await screen.findByRole("alert")).textContent).toContain(MAP_DATA_MESSAGES.failed);
+      expect(container.querySelector(".map-state--unavailable")).toBeTruthy();
+      expect(container.querySelectorAll(".drillhole-marker")).toHaveLength(0);
+      expect(screen.getByRole("button", { name: "Refresh map data" }).disabled).toBe(false);
+    });
+
+    it("renders toasts in the application's notification region", async () => {
+      globalThis.fetch = failingFetch();
+      render(<App />);
+
+      const region = screen.getByRole("region", { name: "Notifications" });
+      await waitFor(() => expect(within(region).getByRole("alert")).toBeTruthy());
+    });
+
+    it("does not refetch when switching back to a loaded page", async () => {
+      render(<App />);
+      await waitFor(() => expect(document.querySelectorAll(".drillhole-marker").length).toBeGreaterThan(0));
+      const mapRequests = () => fetch.mock.calls.filter(([url]) => String(url).includes("/api/exploration-map"));
+      expect(mapRequests()).toHaveLength(1);
+
+      fireEvent.click(screen.getByRole("button", { name: "Techno Map" }));
+      fireEvent.click(screen.getByRole("button", { name: "Exploration Map" }));
+      await act(async () => {});
+
+      expect(mapRequests()).toHaveLength(1);
+      expect(document.querySelectorAll(".drillhole-marker").length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("manual refresh", () => {
+    const refreshButton = () => screen.getByRole("button", { name: "Refresh map data" });
+    const technoRequests = () => fetch.mock.calls.filter(([url]) => String(url).includes("/api/techno-map"));
+
+    // The page plus the toast region App normally provides.
+    async function renderLoadedTechnoMap() {
+      const result = await renderPage(() => <><TechnoMap /><ToastContainer /></>);
+      await waitFor(() => expect(refreshButton().disabled).toBe(false));
+
+      return result;
+    }
+
+    it("sits in the map area of both pages", async () => {
+      await renderPage(DrillMap);
+      expect(document.querySelector(".map-viewport").contains(refreshButton())).toBe(true);
+      cleanup();
+
+      await renderPage(TechnoMap);
+      expect(document.querySelector(".map-viewport").contains(refreshButton())).toBe(true);
+    });
+
+    it("asks the backend, updates the map and IndexedDB, and confirms", async () => {
+      const { container } = await renderLoadedTechnoMap();
+      const fresh = [{ holeId: "NEW-1", x: 418200, y: 4894200, holePurpose: "PRODUCT" }];
+      globalThis.fetch = vi.fn(() => Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify(fresh)) }));
+
+      fireEvent.click(refreshButton());
+
+      await screen.findByText(MAP_DATA_MESSAGES.refreshed);
+      expect(technoRequests()).toHaveLength(1);
+      expect(markerFor(container, "NEW-1")).toBeTruthy();
+      await waitFor(async () => {
+        expect((await readCachedDataset(DATASET_IDS.technoMap)).records).toEqual(fresh);
+      });
+    });
+
+    it("keeps the drillholes visible while refreshing and ignores repeat clicks", async () => {
+      const { container } = await renderLoadedTechnoMap();
+      globalThis.fetch = vi.fn(() => new Promise(() => {}));
+
+      fireEvent.click(refreshButton());
+      fireEvent.click(refreshButton());
+      fireEvent.click(refreshButton());
+
+      expect(technoRequests()).toHaveLength(1);
+      expect(refreshButton().disabled).toBe(true);
+      expect(container.querySelectorAll(".drillhole-marker")).toHaveLength(RECORDS.length);
+    });
+
+    it("keeps the data and stays usable after a failed refresh", async () => {
+      const { container } = await renderLoadedTechnoMap();
+      globalThis.fetch = vi.fn(() => Promise.reject(new TypeError("Failed to fetch")));
+
+      fireEvent.click(refreshButton());
+
+      await screen.findByText(MAP_DATA_MESSAGES.staleFallback);
+      expect(container.querySelectorAll(".drillhole-marker")).toHaveLength(RECORDS.length);
+      expect(refreshButton().disabled).toBe(false);
+      expect((await readCachedDataset(DATASET_IDS.technoMap)).records).toEqual(RECORDS);
+    });
+
+    it("preserves the current pan and zoom", async () => {
+      const zoomed = { scale: 12, translateX: -340, translateY: 125 };
+      writeMapView("techno-map", zoomed);
+      const { container } = await renderLoadedTechnoMap();
+
+      fireEvent.click(refreshButton());
+      await screen.findByText(MAP_DATA_MESSAGES.refreshed);
+
+      expect(container.querySelector(".map-canvas").style.transform)
+        .toBe("translate(-340px, 125px) scale(12)");
     });
   });
 });

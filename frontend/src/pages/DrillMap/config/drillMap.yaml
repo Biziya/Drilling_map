@@ -1,0 +1,22 @@
+# Exploration Map. Shared settings (zoom, GT bands, colours) live in
+# src/map/config/map.yaml; this file holds only what differs per page.
+id: exploration-map
+title: Exploration Map
+
+# This map's dataset is SEDIMENT/DEVELOP holes, which are neither producers
+# nor injectors, so they keep a plain "drillhole" square.
+fallbackMarkerKind: drillhole
+
+# Accessible role names, read before the hole id ("Producer drillhole GTZO-1").
+markerLabels:
+  rig: Rig
+  producer: Producer drillhole
+  injector: Injector drillhole
+  drillhole: Drillhole
+
+# Legend "Symbol" column. Injector and drillhole draw the same square, so only
+# one of them is listed.
+legendSymbols:
+  - { kind: producer, label: Producer }
+  - { kind: drillhole, label: Drillhole }
+  - { kind: rig, label: Drill Rig }

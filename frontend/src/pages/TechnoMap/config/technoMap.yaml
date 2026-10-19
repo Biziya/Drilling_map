@@ -1,0 +1,20 @@
+# Techno Map. Shared settings (zoom, GT bands, colours) live in
+# src/map/config/map.yaml; this file holds only what differs per page.
+id: techno-map
+title: Techno Map
+
+# This map's dataset is gated to PRODUCT and INJECT, so anything that is not a
+# producer is drawn as an injector.
+fallbackMarkerKind: injector
+
+# Accessible role names, read before the hole id ("Producer drillhole GTZO-1").
+markerLabels:
+  rig: Drill rig
+  producer: Producer drillhole
+  injector: Injector drillhole
+  drillhole: Drillhole
+
+legendSymbols:
+  - { kind: injector, label: Injector }
+  - { kind: producer, label: Producer }
+  - { kind: rig, label: Drill Rig }

@@ -65,11 +65,6 @@ export interface DrillholeApiRecord extends DrillholePascalCaseAliases {
   finalDeviation?: ApiNumeric;
   holePurpose?: ApiText;
   holeStatus?: ApiText;
-
-  /** Classification used by `getDrillholeStatus`, absent from the live API. */
-  status?: ApiText;
-  /** Redox classification, absent from the live API. */
-  redox?: ApiText;
 }
 
 /**

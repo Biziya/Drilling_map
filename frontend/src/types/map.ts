@@ -63,11 +63,6 @@ export interface MapZoomSettings {
   deviationMinZoom: number;
 }
 
-/** Zoom settings for a map page, plus whether it shows its legends. */
-export interface MapPageSettings extends MapZoomSettings {
-  showLegends: boolean;
-}
-
 /** Size the base map is drawn at; `'100%'` until the image reports its size. */
 export type CssLength = number | '100%';
 
@@ -76,11 +71,8 @@ export interface RenderedMapSize {
   height: CssLength;
 }
 
-/** A CSS custom property name. */
-export type CssVariableName = `--${string}`;
-
 /** Inline style that also carries CSS custom properties. */
-export type StyleWithCssVariables = CSSProperties & Partial<Record<CssVariableName, string | number>>;
+export type StyleWithCssVariables = CSSProperties & Partial<Record<`--${string}`, string | number>>;
 
 /** A GT grade band and the colour the map paints it. */
 export interface GtRange {
@@ -91,17 +83,4 @@ export interface GtRange {
 }
 
 /** Shapes a marker symbol can take. */
-export type MarkerShape = 'square' | 'square-outline' | 'circle' | 'diamond' | 'triangle';
-
-/** Fill colour and shape for one marker symbol. */
-export interface MarkerSymbolConfig {
-  color: string;
-  shape: MarkerShape;
-}
-
-/** A drillhole status entry in the status legend configuration. */
-export interface DrillholeStatusConfig {
-  color: string;
-  shape: MarkerShape;
-  label: string;
-}
+export type MarkerShape = 'square' | 'triangle';

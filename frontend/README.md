@@ -82,91 +82,79 @@ frontend/
 ├─ public/                    base-map.svg, rig.svg
 ├─ src/
 │  ├─ main.tsx                entry point, mounts #root
-│  ├─ App.tsx                 layout, sidebar navigation, active page
-│  ├─ appConfig.ts            APP_TITLE, AppPageId
-│  ├─ index.css               global styles
-│  ├─ vite-env.d.ts           typed import.meta.env
+│  ├─ App.tsx                 layout, sidebar, active page, toast region
+│  ├─ index.css               Tailwind entry, theme tokens, base styles
 │  ├─ components/
-│  │  ├─ Sidebar.tsx          page navigation, collapse toggle
-│  │  └─ Sidebar.css
-│  ├─ config/
-│  │  └─ env.ts               safe readers for the VITE_* variables
-│  ├─ types/
-│  │  ├─ drillhole.ts         DrillholeMapItem, DrillholeApiRecord
-│  │  └─ map.ts               Point, MapBounds, MapTransform, MapConfig, …
+│  │  ├─ Sidebar.tsx          navigation, collapse toggle, Online/Offline
+│  │  └─ Toast/               app-wide toast store + container
+│  ├─ config/                 app.yaml, env readers, YAML schema validation
+│  ├─ map/                    the shared map feature — see its README
+│  ├─ pages/
+│  │  ├─ DrillMap/            Exploration Map: page + config/drillMap.yaml
+│  │  └─ TechnoMap/           Techno Map: page + config/technoMap.yaml
 │  ├─ services/
-│  │  ├─ Api/
-│  │  │  ├─ apiResponse.ts    fetch plumbing, error-body parsing
-│  │  │  ├─ drillholeMap.ts   GET /api/exploration-map
-│  │  │  └─ technoMap.ts      GET /api/techno-map
-│  │  └─ cache/
-│  │     └─ drillholeCache.ts IndexedDB cache of the raw responses
-│  ├─ state/
-│  │  └─ mapViewStore.ts      per-page pan/zoom persistence
-│  ├─ utils/
-│  │  └─ dedupeDrillholes.ts  one marker per hole
-│  └─ pages/
-│     ├─ DrillMap/            Exploration Map — see its README
-│     └─ TechnoMap/           Techno Map — see its README
-└─ tests/                     Vitest suite (deliberately JavaScript)
+│  │  ├─ api/                 fetch plumbing, map endpoints, health check
+│  │  └─ cache/               IndexedDB cache of the raw responses
+│  ├─ state/                  module-level stores: map data, map views,
+│  │                          backend status
+│  ├─ types/                  drillhole and map types
+│  └─ utils/                  field readers, dedupe, number formatting
+└─ tests/                     Vitest suite (JavaScript), mirrors src/
 ```
 
-Each map page has its own README describing every file in it:
-
-- [`src/pages/DrillMap/README.md`](src/pages/DrillMap/README.md)
-- [`src/pages/TechnoMap/README.md`](src/pages/TechnoMap/README.md)
+Docs: [`src/map/README.md`](src/map/README.md) (sections, loading, refresh,
+toasts), plus a short README per page.
 
 ---
 
 ## Architecture
 
-### Two independent pages
+### One map, two configurations
 
-`DrillMap` and `TechnoMap` are separate pages with separate endpoints, CSS
-prefixes, cache keys and view-state keys. They also keep **their own copies**
-of the shared hooks and maths modules (`zoomMath`, `mapGeometry`,
-`useMapViewport`, …).
-
-That duplication is deliberate. The test suite runs the same assertions
-against both copies, and `tests/pages/deviationParity.test.jsx` additionally
-asserts the two maps produce *identical* deviation geometry. Changing one
-map's copy alone fails the build. Only genuinely cross-cutting code —
-types, services, cache, dedupe, env — is shared.
+The Exploration and Techno maps are one implementation, `src/map/MapPage`,
+rendered with a per-page YAML file (`id`, title, fallback marker kind, marker
+labels, legend symbols). Shared settings — zoom, GT bands, colours — live in
+`src/map/config/map.yaml`. Both maps therefore zoom, colour and draw
+deviation lines identically by construction.
 
 ### Data flow
 
 ```
-API ──► fetch*  ──► DrillholeApiRecord[]
-                          │
-                    useMapData  ◄──► IndexedDB cache
-                          │
-                    project to xPercent / yPercent
-                          │
-                    dedupe → features → markers + deviation lines
+API ──► fetch*  ──► DrillholeApiRecord[] ──► state/mapDataStore ◄──► IndexedDB
+                                                  │
+                                            useMapData: project to xPercent / yPercent
+                                                  │
+                                            dedupe → features → markers + deviation lines
 ```
 
-### Cache-then-network
+### Stale-while-revalidate
 
-The drillhole endpoints take roughly 5–15 seconds. Rather than holding a
-blank map for that long, `useMapData` starts the IndexedDB read and the
-network request **together**, draws whatever was cached last time
-immediately, and replaces it when the API answers. The header shows
-`· updating` while the request is still in flight.
+The drillhole endpoints take roughly 5–15 seconds. On first opening a map,
+the IndexedDB copy is drawn at once while the backend is asked for fresh data;
+the response replaces both the map and the cache. Data stays in memory across
+page switches (no refetch), at most one request per map runs at a time, and a
+failed request never clears the map or the cache — it raises a toast instead.
+The refresh button at the top-right of each map always asks the backend.
+Details in [`src/map/README.md`](src/map/README.md).
 
 The cache is only ever an optimisation:
 
 - It stores the API response **verbatim** — no filtering, no projecting — so a
   future feature needing `z` or `maxDepth` finds it already cached.
 - It never rejects. Private windows, blocked storage and jsdom all resolve to
-  "no cached data", and the caller falls back to the network path it would
-  have taken anyway.
-- A failed background refresh keeps stale drillholes on screen rather than
-  blanking a usable map.
+  "no cached data", and loading falls back to the network path.
+
+### Notifications
+
+`src/components/Toast` is the single toast system: `showToast(type, message)`
+from anywhere in the UI layer, shown top-centre. Errors last 5 s, warnings and
+successes 3 s; a repeated message restarts its timer instead of stacking, and
+at most three show at once.
 
 ### Pan and cursor-centred zoom
 
 The canvas is transformed with `translate(translateX, translateY) scale(scale)`.
-`zoomMath.panAroundAnchor` solves for the translation that keeps the map point
+`geometry.panAroundAnchor` solves for the translation that keeps the map point
 under the cursor fixed, assuming exactly that composition — **the order is
 load-bearing**.
 
@@ -216,7 +204,7 @@ TypeScript stops at the build, so three boundaries also check at runtime:
 3. **Measurements** — rejected before `Number()` sees them, as above.
 
 Errors are narrowed properly: `catch` binds `unknown`, and `toError` /
-`isAbortError` in `services/Api/apiResponse.ts` replace bare `error.message`
+`isAbortError` in `services/api/http.ts` replace bare `error.message`
 reads.
 
 ---
@@ -245,10 +233,11 @@ worth anything if these stay out.
 npm test
 ```
 
-499 tests across 23 files: unit coverage of the maths, config, coordinate and
-state modules, component tests for markers, symbols and overlays, and
-integration tests that render both pages against a mocked API and a fake
-IndexedDB.
+374 tests across 20 files: unit coverage of the map maths, config,
+coordinates and marker rules; component tests for markers, legend symbols,
+status notice, refresh button and toasts; store tests for stale-while-
+revalidate loading; and integration tests that render both pages against a
+mocked API and a fake IndexedDB.
 
 **The tests are JavaScript on purpose.** They were the regression harness the
 TypeScript migration was verified against — run green before it, after each
@@ -259,10 +248,6 @@ them would have meant changing the harness and the subject at the same time.
 New tests can be written in TypeScript; `vite.config.ts` already includes
 `tests/**/*.test.{js,jsx,ts,tsx}`.
 
-Some suites are parameterised over **both** map modules. If you change a
-shared file in one page folder, change it identically in the other or those
-suites will fail — which is what they are for.
-
 ---
 
 ## Adding things
@@ -272,11 +257,9 @@ in `src/types/drillhole.ts` (plus its PascalCase alias if the API sends one),
 then add the row to each page's tooltip. The cache needs no change — it stores
 the response verbatim.
 
-**A new map page.** Copy a page folder, rename the CSS prefix, custom
-properties, view-state key and cache key, add a `DATASET_IDS` entry, and add
-the page to `APP_PAGE_IDS` in `src/appConfig.ts` and to the switch in
-`App.tsx`.
+**A new map page.** Add a `MapId`, a `DATASET_IDS` entry, a fetcher in
+`services/api/mapData.ts`, a page folder with its YAML config (copy one), and
+the page to `config/app.yaml` and `App.tsx`.
 
-**A marker type or GT band.** Marker kinds live in each page's
-`*MarkerKind.ts`; GT bands in each page's config. Bands must stay identical
-across the two pages — the same grade has to paint the same colour on both.
+**A marker type or GT band.** Marker kinds live in `src/map/utils/markerKind.ts`;
+GT bands in `src/map/config/map.yaml`, shared by both pages.
