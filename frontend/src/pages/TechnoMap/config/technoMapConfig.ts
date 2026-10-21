@@ -67,8 +67,9 @@ const legendLayout = {
   titleFontSize: size,
   labelFontSize: size,
   labelGap: size,
-  gt: object({ width: size, height: size, rowGap: size }),
-  redox: object({ width: size, height: size, rowGap: size }),
+  symbolSize: size,
+  gt: object({ rowGap: size }),
+  redox: object({ rowGap: size }),
 };
 
 /** Rejects a list that misses or repeats one of `ids`, so every filter appears exactly once. */
@@ -102,16 +103,7 @@ export const MAP_CONFIG = parseConfig(
     measurement: object({ color: text }),
     legend: object({
       ...legendLayout,
-      symbols: object({
-        boxWidth: size,
-        boxHeight: size,
-        size,
-        rigIconSize: size,
-        lineWidth: size,
-        lineThickness: size,
-        rowGap: size,
-        columnGap: size,
-      }),
+      symbols: object({ rigIconScale: size, lineThickness: size, rowGap: size, columnGap: size }),
     }),
   }),
   data,

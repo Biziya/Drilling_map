@@ -57,9 +57,11 @@ legendSymbols:
 measurement:
   color: '#dc2626'
 
-# Legend dimensions, in px. Every Symbol entry draws inside one
-# symbols.boxWidth x symbols.boxHeight box, centred, so labels line up; every
-# marker shape is drawn at symbols.size. All values must be 0 or more.
+# Legend dimensions, in px unless noted; all must be 0 or more.
+# symbolSize is the one base size of every legend symbol: GT circles, Redox
+# squares and the type shapes are all symbolSize x symbolSize. Each symbol is
+# centred in a box 2.4 x 1.6 times symbolSize, so labels line up across all
+# three sections, and the rig icon and line/cell swatches scale with it too.
 legend:
   paddingBlock: 12
   paddingInline: 20
@@ -73,11 +75,11 @@ legend:
   labelFontSize: 12.5
   # Between a symbol or swatch and its label.
   labelGap: 9
-  gt: { width: 36, height: 24, rowGap: 5 }
-  redox: { width: 36, height: 24, rowGap: 5 }
+  symbolSize: 15
+  gt: { rowGap: 5 }
+  redox: { rowGap: 5 }
   symbols:
-    boxWidth: 36
-    boxHeight: 24
-    size: 15
-    rigIconSize: 20
+    # Rig icon height as a multiple of symbolSize (a detailed image needs a
+    # little more height to read at the same visual weight).
+    rigIconScale: 1.35
     rowGap: 5

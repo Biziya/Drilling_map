@@ -26,8 +26,9 @@ const legendLayout = {
   titleFontSize: size,
   labelFontSize: size,
   labelGap: size,
-  gt: object({ width: size, height: size, rowGap: size }),
-  redox: object({ width: size, height: size, rowGap: size }),
+  symbolSize: size,
+  gt: object({ rowGap: size }),
+  redox: object({ rowGap: size }),
 };
 
 export const MAP_CONFIG = parseConfig(
@@ -46,7 +47,7 @@ export const MAP_CONFIG = parseConfig(
     measurement: object({ color: text }),
     legend: object({
       ...legendLayout,
-      symbols: object({ boxWidth: size, boxHeight: size, size, rigIconSize: size, rowGap: size }),
+      symbols: object({ rigIconScale: size, rowGap: size }),
     }),
   }),
   data,

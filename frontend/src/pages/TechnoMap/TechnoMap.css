@@ -749,29 +749,24 @@
   line-height: 1.25;
 }
 
+/* GT circles and Redox squares: symbolSize on both sides, never stretched. */
 .techno-map-page .legend-dot,
 .techno-map-page .legend-swatch {
-  flex: 0 0 auto;
+  width: var(--legend-symbol-size);
+  height: var(--legend-symbol-size);
+  aspect-ratio: 1;
   border: 1px solid rgba(20, 34, 28, .2);
 }
 
-.techno-map-page .legend-dot {
-  width: var(--legend-gt-width);
-  height: var(--legend-gt-height);
-  border-radius: 50%;
-}
+.techno-map-page .legend-dot { border-radius: 50%; }
+.techno-map-page .legend-swatch { border-radius: 2px; }
 
-.techno-map-page .legend-swatch {
-  width: var(--legend-redox-width);
-  height: var(--legend-redox-height);
-  border-radius: 2px;
-}
-
-/* Symbol entries: every symbol is centred in one box of the same size, so
-   labels start at the same x in every row and column. */
+/* Every legend entry, in all three sections, centres its symbol in one box
+   derived from symbolSize, so labels start at the same x everywhere and the
+   box always fits the widest swatch (2.4x) and the rig icon. */
 .techno-map-page .map-legend .legend-symbol {
-  width: var(--legend-symbol-box-width);
-  height: var(--legend-symbol-box-height);
+  width: calc(var(--legend-symbol-size) * 2.4);
+  height: calc(var(--legend-symbol-size) * 1.6);
 }
 
 /* Every marker shape is drawn at one size; the white outline scales with it. */
@@ -783,23 +778,23 @@
 
 .techno-map-page .map-legend .legend-rig-icon {
   width: auto;
-  height: var(--legend-rig-size);
-  max-width: var(--legend-symbol-box-width);
-  max-height: var(--legend-symbol-box-height);
+  height: calc(var(--legend-symbol-size) * var(--legend-rig-scale));
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
 }
 .techno-map-page .map-legend .marker-symbol--polygon.marker-symbol--small::before {
   inset: max(1.5px, calc(var(--legend-symbol-size) / 7.5));
 }
 
-/* The wide swatches never outgrow the symbol box, so they stay centred in it. */
+/* Cell and line swatches: wider than tall, still within the symbol box. */
 .techno-map-page .map-legend .layer-swatch-cell {
-  width: min(var(--legend-line-width), var(--legend-symbol-box-width));
+  width: calc(var(--legend-symbol-size) * 1.85);
   height: var(--legend-symbol-size);
 }
 
 .techno-map-page .map-legend .layer-swatch-line {
-  width: min(var(--legend-line-width), var(--legend-symbol-box-width));
+  width: calc(var(--legend-symbol-size) * 1.85);
   height: var(--legend-line-thickness);
 }
 

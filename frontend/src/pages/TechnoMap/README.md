@@ -131,8 +131,11 @@ successfully*.
 
 ## Legend sizes
 
-Every legend dimension (padding, gaps, font sizes, GT and Redox swatches, the
-symbol box, symbol size, rig icon, and the line and cell swatches) is set under `legend:` in
-`config/technoMap.yaml` (px, validated as 0 or more). `Legends/MapLegend.tsx` passes the
-values to the stylesheet as CSS variables. Each Symbol entry is centred in one
-`symbols.boxWidth` x `symbols.boxHeight` box, so labels line up in every column.
+Legend dimensions are set under `legend:` in `config/technoMap.yaml` (px, validated
+as 0 or more) and reach the stylesheet as CSS variables from
+`Legends/MapLegend.tsx`. One base `symbolSize` sizes every legend symbol: GT
+circles and Redox squares are exactly `symbolSize` on both sides, and the type
+shapes match. Each symbol, in all three sections, is centred in a box 2.4 x 1.6
+times `symbolSize`, so labels line up everywhere; the rig icon
+(`symbols.rigIconScale`) and the line and cell swatches scale with it. Changing
+`symbolSize` resizes the whole legend without changing any shape.
