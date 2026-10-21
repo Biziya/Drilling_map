@@ -97,7 +97,12 @@ Legend dimensions are set under `legend:` in `config/drillMap.yaml` (px, validat
 as 0 or more) and reach the stylesheet as CSS variables from
 `Legends/MapLegend.tsx`. One base `symbolSize` sizes every legend symbol: GT
 circles and Redox squares are exactly `symbolSize` on both sides, and the type
-shapes match. Each symbol, in all three sections, is centred in a box 2.4 x 1.6
-times `symbolSize`, so labels line up everywhere; the rig icon
-(`symbols.rigIconScale`) scale with it. Changing
-`symbolSize` resizes the whole legend without changing any shape.
+shapes match. Each symbol, in all three sections, is centred in a box 1.9 x
+`symbolSize` wide and as tall as the rig icon (`symbols.rigIconScale`), so
+labels line up everywhere. Changing `symbolSize` resizes the
+whole legend without changing any shape.
+
+Layout: the sections sit side by side at their content width and wrap onto a
+new line when they do not fit (no fixed columns or heights); the Symbol section
+takes the remaining width. GT bands fill `gt.columns` columns top to bottom, so
+GT is no taller than the Symbol section.

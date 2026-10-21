@@ -72,6 +72,22 @@ describe.each(PAGES)("%s legend sizes", (_page, MapLegend, { MAP_CONFIG }, yamlP
     await expect(import(configPath)).rejects.toThrow(/legend\.symbolSize: expected 0 or more/);
   });
 
+  it("lays the GT bands out in gt.columns columns", () => {
+    render(<MapLegend />);
+
+    expect(variable("--legend-gt-rows")).toBe(String(Math.ceil(MAP_CONFIG.gtRanges.length / MAP_CONFIG.legend.gt.columns)));
+    expect(variable("--legend-gt-column-gap")).toBe(`${MAP_CONFIG.legend.gt.columnGap}px`);
+  });
+
+  it.each([0, 1.5, -2])("rejects %s GT columns", async (columns) => {
+    const actual = (await vi.importActual(yamlPath)).default;
+    vi.doMock(yamlPath, () => ({
+      default: { ...actual, legend: { ...actual.legend, gt: { ...actual.legend.gt, columns } } },
+    }));
+
+    await expect(import(configPath)).rejects.toThrow(/legend\.gt\.columns: expected a whole number of 1 or more/);
+  });
+
   it("rejects a missing size", async () => {
     const actual = (await vi.importActual(yamlPath)).default;
     const legend = { ...actual.legend };

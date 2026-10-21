@@ -709,11 +709,13 @@
   to { transform: rotate(360deg); }
 }
 
+/* Sections sit side by side at their content width and wrap onto a new line
+   when they do not fit; the Symbol section takes whatever width is left. */
 .techno-map-page .map-legend {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(145px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: var(--legend-row-gap) var(--legend-column-gap);
-  min-height: var(--legend-min-height);
   padding: var(--legend-padding-block) var(--legend-padding-inline);
   border-top: 1px solid #dce3de;
   background: rgba(255, 255, 255, .92);
@@ -723,6 +725,7 @@
   margin: 0 0 var(--legend-title-gap);
   color: #33483b;
   font-size: var(--legend-title-size);
+  line-height: 1.2;
   font-weight: 700;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -735,7 +738,17 @@
   list-style: none;
 }
 
-.techno-map-page .map-legend__gt { gap: var(--legend-gt-row-gap); }
+.techno-map-page .map-legend > section { min-width: 0; }
+/* Stays beside GT and Redox while 360px are left (long labels wrap), and only
+   then drops to its own line. */
+.techno-map-page .map-legend > .map-legend__symbols { flex: 1 1 0; min-width: min(100%, 360px); }
+
+/* GT bands run down, then across, in gt.columns columns. */
+.techno-map-page .map-legend__gt {
+  grid-template-rows: repeat(var(--legend-gt-rows), auto);
+  grid-auto-flow: column;
+  gap: var(--legend-gt-row-gap) var(--legend-gt-column-gap);
+}
 .techno-map-page .map-legend__redox { gap: var(--legend-redox-row-gap); }
 .techno-map-page .map-legend__symbols ul { gap: var(--legend-symbol-row-gap); }
 
@@ -746,7 +759,7 @@
   min-width: 0;
   color: #4b5a51;
   font-size: var(--legend-label-size);
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
 /* GT circles and Redox squares: symbolSize on both sides, never stretched. */
@@ -762,11 +775,12 @@
 .techno-map-page .legend-swatch { border-radius: 2px; }
 
 /* Every legend entry, in all three sections, centres its symbol in one box
-   derived from symbolSize, so labels start at the same x everywhere and the
-   box always fits the widest swatch (2.4x) and the rig icon. */
+   derived from symbolSize, so labels start at the same x everywhere. It is
+   just wide enough for the widest swatch (1.85x) and just tall enough for the
+   rig icon, which sets the row height. */
 .techno-map-page .map-legend .legend-symbol {
-  width: calc(var(--legend-symbol-size) * 2.4);
-  height: calc(var(--legend-symbol-size) * 1.6);
+  width: calc(var(--legend-symbol-size) * 1.9);
+  height: max(var(--legend-symbol-size), calc(var(--legend-symbol-size) * var(--legend-rig-scale)));
 }
 
 /* Every marker shape is drawn at one size; the white outline scales with it. */
@@ -816,8 +830,12 @@
 }
 
 /* All 12 layers in a compact grid; hidden ones stay listed, faded. */
-.techno-map-page .map-legend__symbols { grid-column: span 2; }
-.techno-map-page .map-legend__symbols ul { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--legend-symbol-column-gap); }
+/* Three content-width columns that may shrink (labels then wrap) rather than
+   overflow; never stretched across spare width. */
+.techno-map-page .map-legend__symbols ul {
+  grid-template-columns: repeat(3, minmax(0, max-content));
+  column-gap: var(--legend-symbol-column-gap);
+}
 .techno-map-page .map-legend li.is-hidden { opacity: .35; }
 
 .techno-map-page .layer-swatch-cell {
@@ -836,17 +854,12 @@
   transform: rotate(-30deg);
 }
 
-@media (max-width: 1050px) {
-  .techno-map-page .map-legend { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
-}
-
 @media (max-width: 560px) {
   .techno-map-page { --float-inset: 8px; padding: 8px; }
-  .techno-map-page .map-legend__symbols ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .techno-map-page .map-legend__symbols ul { grid-template-columns: repeat(2, minmax(0, max-content)); }
   .techno-map-page .map-header { align-items: flex-start; }
   .techno-map-page .map-header strong { display: none; }
   .techno-map-page .map-legend {
-    grid-template-columns: repeat(2, minmax(120px, 1fr));
     max-height: 32vh;
     overflow-y: auto;
   }

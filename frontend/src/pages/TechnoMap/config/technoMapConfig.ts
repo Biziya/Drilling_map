@@ -57,10 +57,17 @@ const size: Parser<number> = (value, path) => {
   return parsed;
 };
 
+/** A whole number of 1 or more. */
+const count: Parser<number> = (value, path) => {
+  const parsed = number(value, path);
+  if (!Number.isInteger(parsed) || parsed < 1) throw new ConfigError(`${path}: expected a whole number of 1 or more, got ${parsed}`);
+
+  return parsed;
+};
+
 const legendLayout = {
   paddingBlock: size,
   paddingInline: size,
-  minHeight: size,
   columnGap: size,
   rowGap: size,
   titleGap: size,
@@ -68,7 +75,7 @@ const legendLayout = {
   labelFontSize: size,
   labelGap: size,
   symbolSize: size,
-  gt: object({ rowGap: size }),
+  gt: object({ columns: count, rowGap: size, columnGap: size }),
   redox: object({ rowGap: size }),
 };
 

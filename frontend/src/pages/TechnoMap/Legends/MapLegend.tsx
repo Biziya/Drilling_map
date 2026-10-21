@@ -11,7 +11,6 @@ const px = (value: number) => `${value}px`;
 const LEGEND_STYLE: StyleWithCssVariables = {
   '--legend-padding-block': px(legend.paddingBlock),
   '--legend-padding-inline': px(legend.paddingInline),
-  '--legend-min-height': px(legend.minHeight),
   '--legend-column-gap': px(legend.columnGap),
   '--legend-row-gap': px(legend.rowGap),
   '--legend-title-gap': px(legend.titleGap),
@@ -20,7 +19,9 @@ const LEGEND_STYLE: StyleWithCssVariables = {
   '--legend-label-gap': px(legend.labelGap),
   '--legend-symbol-size': px(legend.symbolSize),
   '--legend-rig-scale': legend.symbols.rigIconScale,
+  '--legend-gt-rows': Math.ceil(MAP_CONFIG.gtRanges.length / legend.gt.columns),
   '--legend-gt-row-gap': px(legend.gt.rowGap),
+  '--legend-gt-column-gap': px(legend.gt.columnGap),
   '--legend-redox-row-gap': px(legend.redox.rowGap),
   '--legend-symbol-row-gap': px(legend.symbols.rowGap),
   '--legend-symbol-column-gap': px(legend.symbols.columnGap),

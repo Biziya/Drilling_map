@@ -60,26 +60,27 @@ measurement:
 # Legend dimensions, in px unless noted; all must be 0 or more.
 # symbolSize is the one base size of every legend symbol: GT circles, Redox
 # squares and the type shapes are all symbolSize x symbolSize. Each symbol is
-# centred in a box 2.4 x 1.6 times symbolSize, so labels line up across all
-# three sections, and the rig icon and line/cell swatches scale with it too.
+# centred in a box 1.9 x symbolSize wide and as tall as the rig icon, so labels
+# line up across all three sections; the rig icon and line/cell swatches scale
+# with it too. Sections sit side by side at their content width and wrap.
 legend:
-  paddingBlock: 12
-  paddingInline: 20
-  minHeight: 0
+  paddingBlock: 8
+  paddingInline: 16
   # Between the GT, Redox and Symbol sections, across and (when they wrap) down.
-  columnGap: 32
-  rowGap: 14
+  columnGap: 28
+  rowGap: 8
   # Under each section title.
-  titleGap: 7
+  titleGap: 4
   titleFontSize: 13
   labelFontSize: 12.5
   # Between a symbol or swatch and its label.
-  labelGap: 9
+  labelGap: 6
   symbolSize: 15
-  gt: { rowGap: 5 }
-  redox: { rowGap: 5 }
+  # GT bands fill `columns` columns top to bottom.
+  gt: { columns: 2, rowGap: 3, columnGap: 16 }
+  redox: { rowGap: 3 }
   symbols:
     # Rig icon height as a multiple of symbolSize (a detailed image needs a
     # little more height to read at the same visual weight).
     rigIconScale: 1.35
-    rowGap: 5
+    rowGap: 3
