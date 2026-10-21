@@ -10,6 +10,13 @@ import {
   writeCachedDataset,
 } from "../../../src/services/cache/drillholeCache.js";
 
+// These tests cover backend mode; technoMap.yaml ships with the demo dataset.
+vi.mock("../../../src/pages/TechnoMap/config/technoMapConfig.js", async (importOriginal) => {
+  const actual = await importOriginal();
+
+  return { ...actual, MAP_CONFIG: { ...actual.MAP_CONFIG, dataSource: "backend" } };
+});
+
 const ENDPOINT = "/api/techno-map";
 const OTHER_ENDPOINT = "/api/exploration-map";
 const OTHER_MAP_ID = "exploration-map";

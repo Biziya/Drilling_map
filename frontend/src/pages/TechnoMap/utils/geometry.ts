@@ -1,7 +1,15 @@
 // Pure maths behind the map viewport: fitting the base map, the pan/zoom
 // transform, and zooming about an anchor point.
 
-import type { CssLength, MapTransform, MapZoomSettings, Point, RenderedMapSize, Size } from '../../../types/map';
+import type {
+  CssLength,
+  MapBounds,
+  MapTransform,
+  MapZoomSettings,
+  Point,
+  RenderedMapSize,
+  Size,
+} from '../../../types/map';
 
 /** Used until the base map reports its size. Frozen so renders compare equal. */
 const FILL_VIEWPORT = Object.freeze({ width: '100%', height: '100%' } as const);
@@ -22,6 +30,13 @@ export function computeRenderedMapSize(imageSize: Size, viewportSize: Size): Ren
 /** Reads a rendered dimension as pixels; the `'100%'` fallback reads as 0. */
 export function toPixels(value: CssLength | undefined): number {
   return typeof value === 'number' ? value : 0;
+}
+
+/** The rendered map size in pixels, or null until the base map has reported its size. */
+export function measuredMapSize(rendered: RenderedMapSize): Size | null {
+  return typeof rendered.width === 'number' && typeof rendered.height === 'number'
+    ? { width: rendered.width, height: rendered.height }
+    : null;
 }
 
 /** Top-left corner of the rendered (centred) map within the viewport. */
@@ -90,6 +105,48 @@ export function zoomView(
   const nextScale = resolveScale(view.scale, requestedScale, settings);
 
   return nextScale === view.scale ? view : panAroundAnchor(view, nextScale, anchor, origin);
+}
+
+/** A viewport point as a 0-1 ratio of the base map, under the current view. */
+export function viewportToMapRatio(point: Point, view: MapTransform, origin: Point, mapSize: Size): Point {
+  return {
+    x: (point.x - origin.x - view.translateX) / view.scale / mapSize.width,
+    y: (point.y - origin.y - view.translateY) / view.scale / mapSize.height,
+  };
+}
+
+/** Inverse of viewportToMapRatio: where a map ratio is drawn in the viewport. */
+export function mapRatioToViewport(ratio: Point, view: MapTransform, origin: Point, mapSize: Size): Point {
+  return {
+    x: origin.x + view.translateX + ratio.x * mapSize.width * view.scale,
+    y: origin.y + view.translateY + ratio.y * mapSize.height * view.scale,
+  };
+}
+
+/**
+ * The view that centres `box` (map ratios) in the viewport with `padding` px
+ * to spare, within the zoom limits.
+ */
+export function fitView(
+  box: MapBounds,
+  viewport: Size,
+  mapSize: Size,
+  settings: Pick<MapZoomSettings, 'minZoom' | 'maxZoom'>,
+  padding: number,
+): MapTransform {
+  const width = Math.max((box.maxX - box.minX) * mapSize.width, 1);
+  const height = Math.max((box.maxY - box.minY) * mapSize.height, 1);
+  const fit = Math.min((viewport.width - 2 * padding) / width, (viewport.height - 2 * padding) / height);
+  const scale = Math.min(settings.maxZoom, Math.max(settings.minZoom, fit));
+  const origin = computeMapOrigin(viewport, mapSize);
+  const centreX = ((box.minX + box.maxX) / 2) * mapSize.width;
+  const centreY = ((box.minY + box.maxY) / 2) * mapSize.height;
+
+  return {
+    scale,
+    translateX: viewport.width / 2 - origin.x - centreX * scale,
+    translateY: viewport.height / 2 - origin.y - centreY * scale,
+  };
 }
 
 /** True once the user has zoomed or panned away from the initial view. */

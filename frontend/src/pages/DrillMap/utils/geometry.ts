@@ -24,6 +24,13 @@ export function toPixels(value: CssLength | undefined): number {
   return typeof value === 'number' ? value : 0;
 }
 
+/** The rendered map size in pixels, or null until the base map has reported its size. */
+export function measuredMapSize(rendered: RenderedMapSize): Size | null {
+  return typeof rendered.width === 'number' && typeof rendered.height === 'number'
+    ? { width: rendered.width, height: rendered.height }
+    : null;
+}
+
 /** Top-left corner of the rendered (centred) map within the viewport. */
 export function computeMapOrigin(viewport: Size, rendered: RenderedMapSize): Point {
   const width = typeof rendered.width === 'number' ? rendered.width : viewport.width;
@@ -90,6 +97,22 @@ export function zoomView(
   const nextScale = resolveScale(view.scale, requestedScale, settings);
 
   return nextScale === view.scale ? view : panAroundAnchor(view, nextScale, anchor, origin);
+}
+
+/** A viewport point as a 0-1 ratio of the base map, under the current view. */
+export function viewportToMapRatio(point: Point, view: MapTransform, origin: Point, mapSize: Size): Point {
+  return {
+    x: (point.x - origin.x - view.translateX) / view.scale / mapSize.width,
+    y: (point.y - origin.y - view.translateY) / view.scale / mapSize.height,
+  };
+}
+
+/** Inverse of viewportToMapRatio: where a map ratio is drawn in the viewport. */
+export function mapRatioToViewport(ratio: Point, view: MapTransform, origin: Point, mapSize: Size): Point {
+  return {
+    x: origin.x + view.translateX + ratio.x * mapSize.width * view.scale,
+    y: origin.y + view.translateY + ratio.y * mapSize.height * view.scale,
+  };
 }
 
 /** True once the user has zoomed or panned away from the initial view. */

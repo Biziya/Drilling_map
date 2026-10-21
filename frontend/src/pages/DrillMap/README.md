@@ -17,28 +17,46 @@ DrillMap/
 │  ├─ MapCanvas.tsx         transformed layer: base image + children
 │  ├─ DrillholeFeatures     dedupe → markers + deviation lines
 │  ├─ DrillholeMarker       rig icon OR shape (never both) + tooltip
+│  ├─ MeasurementOverlay    the A–B measurement, in viewport pixels
 │  ├─ MapScaleBar.tsx       metre scale for the current zoom
 │  └─ MapStatus.tsx         small notice: loading / empty / no data / no base map
 ├─ Legends/
 │  ├─ MapLegend.tsx         GT bands, redox, this page's marker symbols
 │  └─ MarkerSymbol.tsx      square/triangle shared by markers and legend
 ├─ Controls/
-│  ├─ MapControls.tsx       zoom in/out, reset, zoom readout
+│  ├─ MapControls.tsx       zoom in/out, reset, measure, export menu, zoom readout
 │  └─ RefreshButton.tsx     header button: fetch fresh data
 ├─ Tooltips/
 │  └─ DrillholeTooltip      the hole's details on hover, focus or click
 ├─ hooks/
 │  ├─ useMapData.ts         automatic loading → status, drillholes, refresh()
-│  └─ useMapViewport.ts     sizing, drag-pan, wheel/button zoom, view persistence
+│  └─ useMapViewport.ts     sizing, drag-pan, zoom, map clicks, view persistence
 ├─ config/
 │  ├─ drillMap.yaml           title, zoom, GT bands, colours, labels, legend
 │  └─ drillMapConfig.ts       validates the YAML; MAP_ID, getGtRange
 └─ utils/                   pure functions
    ├─ coordinates.ts        UTM → map %, deviation endpoints, pixel offsets
-   ├─ geometry.ts           fit, transform, cursor-centred zoom
+   ├─ geometry.ts           fit, transform, cursor-centred zoom, viewport ↔ map
    ├─ markerKind.ts         this page's marker rules
+   ├─ measurement.ts        distance, formatting, click cycle
+   ├─ exportMap.ts          PNG/SVG export of the visible viewport
    └─ scaleBar.ts           a round 1/2/5 distance for the scale bar
 ```
+
+## Layout, measurement and export
+
+Floating layout (same as the Techno Map, without Map Layers): compass top-left,
+toolbar top-right, scale bar bottom-left; the legend sits below the map.
+`--float-inset` and `--float-width` on the DrillMap.css root set the spacing and
+toolbar width.
+
+The ruler places A on the first click and B on the second; the third starts
+over. While measuring, markers stop catching the pointer and show no tooltip,
+so a point can be placed on a marker. A press that moves more than 4 px pans
+instead. Points are stored in UTM metres, so zoom and pan do not change the
+distance. Export draws the visible viewport as SVG (base map embedded, markers
+and measurement as vectors, title, north arrow, scale bar), or PNG at 2×, named
+`ExplorationMap_YYYY-MM-DD_HH-mm`. No export is made without the base map.
 
 Marker priority (`utils/markerKind.ts`): in-progress → rig; PRODUCT →
 triangle (producer); INJECT → square (injector); anything else → square

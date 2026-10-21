@@ -54,6 +54,45 @@ export function convertUtmToMapPosition<TRecord extends UtmProjectable>(
   };
 }
 
+/** A UTM position as a 0-1 ratio of the base map (x right, y down). */
+export function utmToMapRatio({ x, y }: UtmCoordinates, bounds: MapBounds = MAP_UTM_BOUNDS): Point {
+  return {
+    x: (x - bounds.minX) / (bounds.maxX - bounds.minX),
+    y: (bounds.maxY - y) / (bounds.maxY - bounds.minY),
+  };
+}
+
+/** Inverse of utmToMapRatio. */
+export function mapRatioToUtm({ x, y }: Point, bounds: MapBounds = MAP_UTM_BOUNDS): UtmCoordinates {
+  return {
+    x: bounds.minX + x * (bounds.maxX - bounds.minX),
+    y: bounds.maxY - y * (bounds.maxY - bounds.minY),
+  };
+}
+
+/** Average of an outline's vertices: where a polygon's label sits. */
+export function outlineCentre(vertices: readonly UtmCoordinates[]): UtmCoordinates {
+  return {
+    x: vertices.reduce((sum, { x }) => sum + x, 0) / vertices.length,
+    y: vertices.reduce((sum, { y }) => sum + y, 0) / vertices.length,
+  };
+}
+
+/** Smallest box (as map ratios) holding every drillhole, or null for none. */
+export function drillholeExtent(drillholes: readonly MapCoordinates[]): MapBounds | null {
+  if (drillholes.length === 0) return null;
+
+  return drillholes.reduce(
+    (box, { xPercent, yPercent }) => ({
+      minX: Math.min(box.minX, xPercent / 100),
+      maxX: Math.max(box.maxX, xPercent / 100),
+      minY: Math.min(box.minY, yPercent / 100),
+      maxY: Math.max(box.maxY, yPercent / 100),
+    }),
+    { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
+  );
+}
+
 /**
  * UTM position the (exaggerated) deviation line ends at, or null when there
  * is none to draw. Reads every field under any casing the API uses.

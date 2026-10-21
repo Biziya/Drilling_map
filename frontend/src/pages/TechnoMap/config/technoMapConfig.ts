@@ -1,31 +1,105 @@
 import data from './technoMap.yaml';
 import { MAP_IMAGE_PATH, MAP_UTM_BOUNDS } from '../../../config/env';
-import { boolean, dictionary, list, number, object, oneOf, parseConfig, text } from '../../../config/schema';
-import { MARKER_KINDS } from '../utils/markerKind';
+import { ConfigError, boolean, dictionary, list, number, object, oneOf, parseConfig, text } from '../../../config/schema';
+import type { Parser } from '../../../config/schema';
 import type { GtRange, MapId } from '../../../types/map';
 
 /** Keys this page's data and view are stored under. */
 export const MAP_ID: MapId = 'techno-map';
 
+// The identifiers the code relies on. Labels, order and styling are in the YAML.
+export const DRILLHOLE_TYPES = [
+  'development',
+  'exploration',
+  'geotechnical',
+  'injector',
+  'monitoring',
+  'producer',
+  'ra-grade-sampling',
+  'sediment-sampling',
+  'water',
+] as const;
+export type DrillholeType = (typeof DRILLHOLE_TYPES)[number];
+
+export const MAP_FEATURES = ['technological-cells', 'drilling-in-progress', 'deviation-line'] as const;
+export type MapFeature = (typeof MAP_FEATURES)[number];
+
+/** The 12 map filters: one per drillhole type, one per feature layer. */
+export type FilterId = DrillholeType | MapFeature;
+export const FILTER_IDS: readonly FilterId[] = [...DRILLHOLE_TYPES, ...MAP_FEATURES];
+
+/** What a marker can be drawn as: the rig, or one drillhole type's symbol. */
+export const MARKER_KINDS = ['rig', ...DRILLHOLE_TYPES] as const;
+export type MarkerKind = (typeof MARKER_KINDS)[number];
+
+export const MARKER_SHAPES = [
+  'square',
+  'triangle',
+  'circle',
+  'diamond',
+  'triangle-down',
+  'pentagon',
+  'hexagon',
+  'star',
+  'cross',
+] as const;
+export type MarkerShape = (typeof MARKER_SHAPES)[number];
+
+const markerLabels = object(
+  Object.fromEntries(MARKER_KINDS.map((kind) => [kind, text])) as Record<MarkerKind, Parser<string>>,
+);
+
+/** Rejects a list that misses or repeats one of `ids`, so every filter appears exactly once. */
+function coversExactly<T extends { id: string }>(entries: readonly T[], ids: readonly string[], path: string) {
+  const seen = entries.map(({ id }) => id);
+  const problem = ids.find((id) => seen.filter((entry) => entry === id).length !== 1);
+  if (problem) throw new ConfigError(`${path}: '${problem}' must appear exactly once`);
+}
+
 export const MAP_CONFIG = parseConfig(
   object({
     title: text,
-    zoom: object({ minZoom: number, maxZoom: number, zoomStep: number, deviationMinZoom: number }),
+    dataSource: oneOf('mock', 'backend'),
+    zoom: object({ minZoom: number, maxZoom: number, zoomStep: number, deviationMinZoom: number, fitPadding: number }),
     showLegends: boolean,
     deviationExaggeration: number,
     rigIconSrc: text,
-    uniformMarkerColor: text,
-    legendSymbolColor: text,
     gtRanges: list(object({ min: number, max: number, label: text, color: text })),
     redox: dictionary(text),
-    markerLabels: object({ rig: text, producer: text, injector: text }),
-    legendSymbols: list(object({ kind: oneOf(...MARKER_KINDS), label: text })),
+    drillholeTypes: list(object({
+      id: oneOf(...DRILLHOLE_TYPES),
+      label: text,
+      shape: oneOf(...MARKER_SHAPES),
+      color: text,
+      purposes: list(text),
+    })),
+    mapFeatures: list(object({ id: oneOf(...MAP_FEATURES), label: text })),
+    markerLabels,
+    technologicalCells: object({ stroke: text, fill: text }),
+    deviationLine: object({ color: text }),
+    measurement: object({ color: text }),
   }),
   data,
   'technoMap.yaml',
 );
 
+coversExactly(MAP_CONFIG.drillholeTypes, DRILLHOLE_TYPES, 'technoMap.yaml.drillholeTypes');
+coversExactly(MAP_CONFIG.mapFeatures, MAP_FEATURES, 'technoMap.yaml.mapFeatures');
+
 export const MAP_SETTINGS = MAP_CONFIG.zoom;
+
+export type DrillholeTypeConfig = (typeof MAP_CONFIG.drillholeTypes)[number];
+
+/** Each drillhole type's label, shape, colour and purposes, by id. */
+export const DRILLHOLE_TYPE_CONFIG = Object.fromEntries(
+  MAP_CONFIG.drillholeTypes.map((entry) => [entry.id, entry]),
+) as Readonly<Record<DrillholeType, DrillholeTypeConfig>>;
+
+/** Every filter in panel and legend order: the drillhole types, then the feature layers. */
+export const FILTER_ENTRIES: readonly { id: FilterId; label: string }[] = [
+  ...MAP_CONFIG.drillholeTypes,
+  ...MAP_CONFIG.mapFeatures,
+];
 
 // Environment-specific, so these stay in VITE_* variables rather than YAML.
 export const BASE_MAP_SRC = MAP_IMAGE_PATH;

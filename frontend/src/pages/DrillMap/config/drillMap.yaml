@@ -52,3 +52,7 @@ legendSymbols:
   - { kind: producer, label: Producer }
   - { kind: drillhole, label: Drillhole }
   - { kind: rig, label: Drill Rig }
+
+# Distance measurement line, endpoint markers and label border.
+measurement:
+  color: '#dc2626'

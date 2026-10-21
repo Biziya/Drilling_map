@@ -1,10 +1,16 @@
-import MarkerSymbol from './MarkerSymbol';
-import { MAP_CONFIG } from '../config/technoMapConfig';
-import { markerShapeFor } from '../utils/markerKind';
+import LayerSymbol from './LayerSymbol';
+import { FILTER_ENTRIES, MAP_CONFIG } from '../config/technoMapConfig';
+import { ALL_VISIBLE } from '../utils/mapFilters';
+import type { MapFilters } from '../utils/mapFilters';
 
-// Symbols use the same component as the markers, so the legend cannot drift
-// away from what is drawn on the map.
-function MapLegend() {
+export interface MapLegendProps {
+  /** Hidden categories stay listed, faded. */
+  filters?: MapFilters;
+}
+
+// Symbols use the same component as the filter panel, and the same shapes and
+// colours as the markers, so the legend cannot drift from the map.
+function MapLegend({ filters = ALL_VISIBLE }: MapLegendProps) {
   return (
     <aside className="map-legend" aria-label="Map legend">
       <section>
@@ -33,18 +39,12 @@ function MapLegend() {
         </ul>
       </section>
 
-      <section>
+      <section className="map-legend__symbols">
         <h2>Symbol</h2>
         <ul>
-          {MAP_CONFIG.legendSymbols.map(({ kind, label }) => (
-            <li key={kind}>
-              <span className="legend-symbol">
-                {kind === 'rig' ? (
-                  <img className="legend-rig-icon" src={MAP_CONFIG.rigIconSrc} alt="" draggable="false" />
-                ) : (
-                  <MarkerSymbol shape={markerShapeFor(kind)} color={MAP_CONFIG.legendSymbolColor} small />
-                )}
-              </span>
+          {FILTER_ENTRIES.map(({ id, label }) => (
+            <li key={id} className={filters[id] ? undefined : 'is-hidden'}>
+              <LayerSymbol id={id} />
               <span>{label}</span>
             </li>
           ))}

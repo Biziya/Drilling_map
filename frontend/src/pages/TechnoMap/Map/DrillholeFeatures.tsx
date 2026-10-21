@@ -1,31 +1,35 @@
 import { memo, useMemo } from 'react';
 import DrillholeMarker from './DrillholeMarker';
 import { MAP_CONFIG } from '../config/technoMapConfig';
-import { attachDeviationOffsets, projectDrillholes } from '../utils/coordinates';
+import { attachDeviationOffsets } from '../utils/coordinates';
+import { ALL_VISIBLE, selectShownFeatures } from '../utils/mapFilters';
+import type { MapFilters } from '../utils/mapFilters';
 import { resolveMarkerKind } from '../utils/markerKind';
-import { dedupeDrillholes } from '../../../utils/dedupeDrillholes';
 import type { ProjectedDrillhole } from '../../../types/map';
 
 export interface DrillholeFeaturesProps {
   /** Drillholes already projected onto the map. */
   drillholes: readonly ProjectedDrillhole[];
-  /** Whether the current zoom is past the deviation threshold. */
+  /** Whether deviation lines are drawn: zoomed past the threshold, layer switched on. */
   deviationVisible: boolean;
   mapWidth: number;
   mapHeight: number;
+  /** Which types and states are shown (utils/mapFilters). Everything by default. */
+  filters?: MapFilters;
 }
 
 /**
- * Positions every drillhole's marker and deviation line. Deduplicated first,
- * so one hole can never produce both a rig and a shape.
+ * Positions every shown drillhole's marker and deviation line. Deduplicated
+ * first, so one hole can never produce both a rig and a shape.
  */
 function DrillholeFeatures({
   drillholes,
   deviationVisible,
   mapWidth,
   mapHeight,
+  filters = ALL_VISIBLE,
 }: DrillholeFeaturesProps) {
-  const projected = useMemo(() => projectDrillholes(dedupeDrillholes(drillholes)), [drillholes]);
+  const projected = useMemo(() => selectShownFeatures(drillholes, filters), [drillholes, filters]);
   const features = useMemo(
     () => attachDeviationOffsets(projected, { mapWidth, mapHeight }),
     [projected, mapWidth, mapHeight],

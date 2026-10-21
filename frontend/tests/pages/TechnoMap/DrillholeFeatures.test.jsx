@@ -21,12 +21,19 @@ const ariaLabel = (container, kind) => container
   .getAttribute("aria-label");
 
 describe("TechnoMap DrillholeFeatures markers", () => {
-  it("falls back to an injector for a non-production purpose", () => {
-    const { container } = renderFeatures([{ holeId: "A", x: 418000, y: 4894000, holePurpose: "SEDIMENT" }]);
+  it("falls back to an injector for an unknown purpose", () => {
+    const { container } = renderFeatures([{ holeId: "A", x: 418000, y: 4894000, holePurpose: "OBSERVATION" }]);
 
     expect(container.querySelector(".drillhole-marker--injector")).toBeTruthy();
     expect(container.querySelector(".drillhole-marker--drillhole")).toBeNull();
     expect(container.querySelector(".marker-symbol--square")).toBeTruthy();
+  });
+
+  it("draws a sediment sample with its own type and shape", () => {
+    const { container } = renderFeatures([{ holeId: "S", x: 418000, y: 4894000, holePurpose: "SEDIMENT", campaign: "C" }]);
+
+    expect(container.querySelector(".marker-symbol--triangle-down")).toBeTruthy();
+    expect(ariaLabel(container, "sediment-sampling")).toBe("Sediment-sampling drillhole S, C");
   });
 
   it("labels a fallback hole 'Injector drillhole'", () => {

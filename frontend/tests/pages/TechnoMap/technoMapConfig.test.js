@@ -8,6 +8,11 @@ import {
   getGtRange,
 } from "../../../src/pages/TechnoMap/config/technoMapConfig.js";
 import { MARKER_KINDS } from "../../../src/pages/TechnoMap/utils/markerKind.js";
+import {
+  DRILLHOLE_TYPES,
+  FILTER_IDS,
+  MAP_FEATURES,
+} from "../../../src/pages/TechnoMap/config/technoMapConfig.js";
 
 describe("getGtRange", () => {
   it("puts a mid-band value in the right band", () => {
@@ -97,8 +102,8 @@ describe("Techno Map config", () => {
     expect(MAP_CONFIG.title).toBe("Techno Map");
   });
 
-  it("labels its three marker roles, the rig as 'Drill rig'", () => {
-    expect(MAP_CONFIG.markerLabels).toEqual({
+  it("labels the rig 'Drill rig' and keeps the producer and injector labels", () => {
+    expect(MAP_CONFIG.markerLabels).toMatchObject({
       rig: "Drill rig",
       producer: "Producer drillhole",
       injector: "Injector drillhole",
@@ -109,20 +114,34 @@ describe("Techno Map config", () => {
     MARKER_KINDS.forEach((kind) => expect(MAP_CONFIG.markerLabels[kind]).toEqual(expect.any(String)));
   });
 
-  it("lists Injector, Producer and Drill Rig in the legend", () => {
-    expect(MAP_CONFIG.legendSymbols).toEqual([
-      { kind: "injector", label: "Injector" },
-      { kind: "producer", label: "Producer" },
-      { kind: "rig", label: "Drill Rig" },
+  it("defaults to the demo dataset", () => {
+    expect(MAP_CONFIG.dataSource).toBe("mock");
+  });
+
+  it("defines exactly 12 filters: nine drillhole types and three feature layers", () => {
+    expect(FILTER_IDS).toHaveLength(12);
+    expect(MAP_CONFIG.drillholeTypes.map(({ id }) => id)).toEqual([...DRILLHOLE_TYPES]);
+    expect(MAP_CONFIG.mapFeatures.map(({ id }) => id)).toEqual([...MAP_FEATURES]);
+    expect(MAP_CONFIG.drillholeTypes.map(({ label }) => label)).toEqual([
+      "Development", "Exploration", "Geotechnical", "Injector", "Monitoring",
+      "Producer", "Ra-grade-sampling", "Sediment-sampling", "Water",
     ]);
+    expect(MAP_CONFIG.mapFeatures.map(({ label }) => label))
+      .toEqual(["Technological cells", "Drilling in progress", "Deviation line"]);
+  });
+
+  it("gives every drillhole type a distinct colour", () => {
+    const colours = MAP_CONFIG.drillholeTypes.map(({ color }) => color);
+
+    expect(new Set(colours).size).toBe(colours.length);
   });
 
   it("carries the display settings", () => {
     expect(MAP_CONFIG.showLegends).toBe(true);
     expect(MAP_CONFIG.deviationExaggeration).toBe(5);
     expect(MAP_CONFIG.rigIconSrc).toBe("/rig.svg");
-    expect(MAP_CONFIG.uniformMarkerColor).toBe("#000000");
-    expect(MAP_CONFIG.legendSymbolColor).toBe("#111827");
+    expect(MAP_CONFIG.deviationLine.color).toBe("#ff0000");
+    expect(MAP_CONFIG.zoom.fitPadding).toBeGreaterThan(0);
     expect(Object.keys(MAP_CONFIG.redox)).toEqual(["Reduced", "Intermediate", "Oxidized"]);
   });
 

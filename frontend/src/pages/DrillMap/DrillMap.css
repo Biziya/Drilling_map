@@ -4,7 +4,13 @@
    and clip paths. */
 
 
+/* Floating map controls: one inset from the map edges and one toolbar width,
+   matching the Techno Map's layout. */
 .drill-map-page {
+  --float-inset: 14px;
+  --float-width: 220px;
+  --float-radius: 10px;
+
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
@@ -239,16 +245,22 @@
 .drill-map-page .drillhole-marker:focus .drillhole-tooltip,
 .drill-map-page .drillhole-marker.is-open .drillhole-tooltip { display: block; }
 
-.drill-map-page .map-controls {
+.drill-map-page .map-toolbar {
   position: absolute;
-  top: 14px;
-  left: 14px;
+  top: var(--float-inset);
+  right: var(--float-inset);
   z-index: 30;
+  width: var(--float-width);
+  max-width: calc(100% - 2 * var(--float-inset) - 40px);
+}
+
+/* Four equal icon columns around a wider Reset. */
+.drill-map-page .map-controls {
   display: grid;
-  grid-template-columns: 38px 38px auto;
+  grid-template-columns: 1fr 1fr 1.5fr 1fr 1fr;
   overflow: hidden;
   border: 1px solid rgba(33, 53, 42, .16);
-  border-radius: 10px;
+  border-radius: var(--float-radius);
   background: rgba(255, 255, 255, .94);
   box-shadow: 0 5px 16px rgba(15, 31, 21, .13);
   backdrop-filter: blur(8px);
@@ -268,7 +280,93 @@
 .drill-map-page .map-controls button:hover:not(:disabled) { background: #edf4ef; }
 .drill-map-page .map-controls button:focus-visible { outline: 3px solid #2563eb; outline-offset: -3px; }
 .drill-map-page .map-controls button:disabled { color: #a8b1ab; cursor: not-allowed; }
-.drill-map-page .map-controls .map-controls__reset { padding: 0 11px; border-right: 0; font-size: .72rem; }
+.drill-map-page .map-controls .map-controls__reset { padding: 0 11px; font-size: .72rem; }
+
+.drill-map-page .map-controls .map-controls__icon {
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.drill-map-page .map-controls .map-controls__icon:last-of-type { border-right: 0; }
+.drill-map-page .map-controls .map-controls__icon svg { width: 18px; height: 18px; }
+.drill-map-page .map-controls .map-controls__icon.is-active { color: #fff; background: var(--measure-color, #dc2626); }
+.drill-map-page .map-controls .map-controls__icon.is-active:hover { background: var(--measure-color, #dc2626); }
+.drill-map-page .map-controls .map-controls__icon[aria-busy='true'] { cursor: wait; }
+
+/* Opens to the left of the toolbar, over the map. */
+.drill-map-page .map-export-menu {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 6px);
+  display: grid;
+  min-width: 150px;
+  padding: 4px;
+  border: 1px solid rgba(33, 53, 42, .16);
+  border-radius: var(--float-radius);
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 31, 21, .16);
+}
+
+.drill-map-page .map-export-menu button {
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  color: #21352a;
+  background: transparent;
+  font-size: .76rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.drill-map-page .map-export-menu button:hover { background: #edf4ef; }
+.drill-map-page .map-export-menu button:focus-visible { outline: 3px solid #2563eb; outline-offset: -3px; }
+
+/* Distance measurement, drawn in viewport pixels above the map. */
+.drill-map-page .map-viewport.is-measuring { cursor: crosshair; }
+.drill-map-page .map-viewport.is-measuring.is-dragging { cursor: grabbing; }
+
+/* While measuring, presses fall through markers to the map, and no tooltip
+   shows, so any point can be picked, a marker's position included. */
+.drill-map-page .map-viewport.is-measuring .drillhole-marker { pointer-events: none; }
+.drill-map-page .map-viewport.is-measuring .drillhole-marker .drillhole-tooltip { display: none; }
+
+.drill-map-page .measurement-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.drill-map-page .measurement-layer line,
+.drill-map-page .measurement-layer path {
+  fill: none;
+  stroke: var(--measure-color, #dc2626);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.drill-map-page .measurement-layer line { stroke-dasharray: 7 5; }
+
+.drill-map-page .measurement-label {
+  position: absolute;
+  z-index: 4;
+  padding: 3px 7px;
+  border: 1.5px solid var(--measure-color, #dc2626);
+  border-radius: 5px;
+  color: #7f1d1d;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
+  font-size: .74rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transform: translate(-50%, calc(-100% - 6px));
+  pointer-events: none;
+}
 
 .drill-map-page .map-controls__level {
   grid-column: 1 / -1;
@@ -282,8 +380,8 @@
 
 .drill-map-page .north-arrow {
   position: absolute;
-  top: 15px;
-  right: 16px;
+  top: calc(var(--float-inset) + 1px);
+  left: calc(var(--float-inset) + 4px);
   z-index: 5;
   display: grid;
   justify-items: center;
@@ -305,8 +403,8 @@
 
 .drill-map-page .map-scale-bar {
   position: absolute;
-  right: 12px;
-  bottom: 10px;
+  bottom: var(--float-inset);
+  left: var(--float-inset);
   z-index: 5;
   display: grid;
   justify-items: center;
@@ -406,16 +504,16 @@
 .drill-map-page .map-legend {
   display: grid;
   grid-template-columns: repeat(4, minmax(145px, 1fr));
-  gap: clamp(12px, 2vw, 30px);
-  padding: 9px clamp(12px, 1.5vw, 20px) 10px;
+  gap: clamp(14px, 2.2vw, 36px);
+  padding: 12px clamp(14px, 1.8vw, 24px) 13px;
   border-top: 1px solid #dce3de;
   background: rgba(255, 255, 255, .92);
 }
 
 .drill-map-page .map-legend h2 {
-  margin: 0 0 5px;
+  margin: 0 0 7px;
   color: #33483b;
-  font-size: .7rem;
+  font-size: .8rem;
   font-weight: 700;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -423,7 +521,7 @@
 
 .drill-map-page .map-legend ul {
   display: grid;
-  gap: 3px;
+  gap: 5px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -432,9 +530,9 @@
 .drill-map-page .map-legend li {
   display: flex;
   align-items: center;
-  gap: 7px;
-  color: #5a675f;
-  font-size: .66rem;
+  gap: 9px;
+  color: #4b5a51;
+  font-size: .78rem;
   line-height: 1.25;
 }
 
@@ -448,6 +546,14 @@
 
 .drill-map-page .legend-dot { border-radius: 50%; }
 .drill-map-page .legend-swatch { border-radius: 2px; }
+
+/* Legend swatches and symbols share one 36px gutter so labels stay aligned. */
+.drill-map-page .map-legend .legend-dot,
+.drill-map-page .map-legend .legend-swatch,
+.drill-map-page .map-legend .legend-symbol { width: 36px; height: 24px; }
+.drill-map-page .map-legend .legend-rig-icon { height: 24px; max-width: 36px; }
+.drill-map-page .map-legend .marker-symbol--small { width: 13px; height: 13px; border-width: 2px; }
+.drill-map-page .map-legend .marker-symbol--triangle.marker-symbol--small { width: 16px; height: 16px; }
 
 /* Matches the 30px gutter the colour swatches occupy so labels stay aligned. */
 .drill-map-page .legend-symbol {
@@ -470,7 +576,7 @@
 }
 
 @media (max-width: 560px) {
-  .drill-map-page { padding: 8px; }
+  .drill-map-page { --float-inset: 8px; padding: 8px; }
   .drill-map-page .map-header { align-items: flex-start; }
   .drill-map-page .map-header strong { display: none; }
   .drill-map-page .map-legend {
@@ -478,7 +584,6 @@
     max-height: 32vh;
     overflow-y: auto;
   }
-  .drill-map-page .map-scale-bar { right: 8px; bottom: 8px; }
 }
 
 @media (max-height: 700px) {
@@ -496,11 +601,13 @@
   }
 
   .drill-map-page .map-legend h2 {
-    margin-bottom: 3px;
-    font-size: .64rem;
+    margin-bottom: 4px;
+    font-size: .72rem;
   }
 
+  .drill-map-page .map-legend ul { gap: 3px; }
+
   .drill-map-page .map-legend li {
-    font-size: .61rem;
+    font-size: .7rem;
   }
 }

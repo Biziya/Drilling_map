@@ -25,16 +25,18 @@ const HOLE = {
   year: 2026,
 };
 
+// Fill for a hole without GT: one uniform colour on the Exploration Map, the
+// hole type's own colour on the Techno Map.
 const PAGES = [
-  ["DrillMap", DrillDrillholeMarker, drillConfig],
-  ["TechnoMap", TechnoDrillholeMarker, technoConfig],
+  ["DrillMap", DrillDrillholeMarker, drillConfig, () => drillConfig.MAP_CONFIG.uniformMarkerColor],
+  ["TechnoMap", TechnoDrillholeMarker, technoConfig, (kind) => technoConfig.DRILLHOLE_TYPE_CONFIG[kind].color],
 ];
 
 const symbolColour = (container) => container
   .querySelector(".marker-symbol")
   .style.getPropertyValue("--status-color");
 
-describe.each(PAGES)("%s DrillholeMarker", (_page, DrillholeMarker, { MAP_CONFIG, getGtRange }) => {
+describe.each(PAGES)("%s DrillholeMarker", (_page, DrillholeMarker, { MAP_CONFIG, getGtRange }, noGtColour) => {
   const renderMarker = (overrides = {}, kind = "injector", roleLabel = MAP_CONFIG.markerLabels[kind]) => render(
     <DrillholeMarker drillhole={{ ...HOLE, ...overrides }} kind={kind} roleLabel={roleLabel} />,
   );
@@ -124,17 +126,16 @@ describe.each(PAGES)("%s DrillholeMarker", (_page, DrillholeMarker, { MAP_CONFIG
       expect(symbolColour(container)).toBe(getGtRange(0.3198).color);
     });
 
-    it("falls back to the uniform colour when GT is missing", () => {
+    it("falls back to the page's no-GT colour when GT is missing", () => {
       const { container } = renderMarker({ gt: null }, "producer");
 
-      expect(MAP_CONFIG.uniformMarkerColor).toBe("#000000");
-      expect(symbolColour(container)).toBe("#000000");
+      expect(symbolColour(container)).toBe(noGtColour("producer"));
     });
 
     it("does not paint a blank GT as a real low-grade reading", () => {
       const { container } = renderMarker({ gt: "  " }, "injector");
 
-      expect(symbolColour(container)).toBe("#000000");
+      expect(symbolColour(container)).toBe(noGtColour("injector"));
     });
   });
 

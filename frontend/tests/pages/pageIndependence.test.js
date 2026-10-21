@@ -115,7 +115,7 @@ describe("page config independence", () => {
     copy.title = "Changed";
     copy.zoom.deviationMinZoom = 99;
     copy.gtRanges[0].color = "#123456";
-    copy.legendSymbols.pop();
+    copy.drillholeTypes.pop();
 
     expect(drillConfig.MAP_CONFIG).toEqual(before);
     expect(drillConfig.MAP_CONFIG.title).toBe("Exploration Map");

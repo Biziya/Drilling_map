@@ -20,6 +20,7 @@ export const MAP_CONFIG = parseConfig(
     redox: dictionary(text),
     markerLabels: object({ rig: text, producer: text, injector: text, drillhole: text }),
     legendSymbols: list(object({ kind: oneOf(...MARKER_KINDS), label: text })),
+    measurement: object({ color: text }),
   }),
   data,
   'drillMap.yaml',

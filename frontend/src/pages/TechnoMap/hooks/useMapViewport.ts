@@ -1,5 +1,6 @@
 // Viewport behaviour for a map: sizing, drag-to-pan, wheel/button/double-click
-// zoom about a point, and persisting the view across page switches.
+// zoom about a point, clicks on the map, fitting a box into view, and
+// persisting the view across page switches and browser refreshes.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
@@ -8,12 +9,24 @@ import type {
   RefObject,
   SyntheticEvent,
 } from 'react';
-import { computeMapOrigin, computeRenderedMapSize, zoomView } from '../utils/geometry';
+import {
+  computeMapOrigin,
+  computeRenderedMapSize,
+  fitView,
+  measuredMapSize,
+  viewportToMapRatio,
+  zoomView,
+} from '../utils/geometry';
+import { readStored, writeStored } from '../utils/storage';
 import { readMapView, writeMapView } from '../../../state/mapViewStore';
-import type { MapId, MapTransform, MapZoomSettings, Point, Size } from '../../../types/map';
+import type { MapBounds, MapId, MapTransform, MapZoomSettings, Point, Size } from '../../../types/map';
 
 const NO_SIZE: Size = { width: 0, height: 0 };
 const PRIMARY_BUTTON = 0;
+/** A press that travels further than this (px) is a drag, not a click. */
+const CLICK_TOLERANCE = 4;
+/** Browser storage is written once the view settles, not on every frame. */
+const STORE_DELAY_MS = 250;
 
 /** Tracks an element's size, re-rendering only when it actually changes. */
 function useElementSize(elementRef: RefObject<HTMLElement | null>): Size {
@@ -45,15 +58,49 @@ function pointWithin(element: Element, event: { clientX: number; clientY: number
   return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 }
 
+function isStoredView(value: unknown): value is MapTransform {
+  const view = value as Partial<MapTransform> | null;
+  const numbers = [view?.scale, view?.translateX, view?.translateY];
+
+  return numbers.every((n) => typeof n === 'number' && Number.isFinite(n)) && (view?.scale ?? 0) > 0;
+}
+
+/** The view left earlier this session, else the one stored before the last browser refresh. */
+function restoreView(key: MapId, fallback: MapTransform, settings: MapZoomSettings): MapTransform {
+  const inSession = readMapView(key, null);
+  if (inSession) return inSession;
+
+  const stored = readStored(`${key}:view`);
+  if (!isStoredView(stored)) return fallback;
+
+  return { ...stored, scale: Math.min(settings.maxZoom, Math.max(settings.minZoom, stored.scale)) };
+}
+
 export interface MapViewportOptions {
-  settings: MapZoomSettings;
+  settings: MapZoomSettings & { fitPadding: number };
   /** Key the view is persisted under, unique per map. */
   viewKey: MapId;
   /** Elements a drag must not start on (markers, controls), as a CSS selector. */
   dragIgnoreSelector: string;
+  /** Floating panels that keep the wheel and double-click for themselves. */
+  overlaySelector: string;
+  /** Box (map ratios) Reset fits into view; without one, Reset restores the initial view. */
+  fitBox?: MapBounds | null;
+  /**
+   * Called with the map position (0-1 ratios) of a click that did not drag.
+   * While set, double-click does not zoom, so two quick clicks stay two clicks.
+   */
+  onMapClick?: ((ratio: Point) => void) | undefined;
 }
 
-export function useMapViewport({ settings, viewKey, dragIgnoreSelector }: MapViewportOptions) {
+export function useMapViewport({
+  settings,
+  viewKey,
+  dragIgnoreSelector,
+  overlaySelector,
+  fitBox = null,
+  onMapClick,
+}: MapViewportOptions) {
   const initialView = useMemo<MapTransform>(
     () => ({ scale: settings.minZoom, translateX: 0, translateY: 0 }),
     [settings.minZoom],
@@ -65,9 +112,10 @@ export function useMapViewport({ settings, viewKey, dragIgnoreSelector }: MapVie
 
   // Pointer and wheel events fire faster than React can usefully render, so
   // the live view sits in a ref and is committed to state once per frame.
-  const viewRef = useRef<MapTransform>(readMapView(viewKey, initialView));
+  const [restoredView] = useState(() => restoreView(viewKey, initialView, settings));
+  const viewRef = useRef<MapTransform>(restoredView);
   const frameRef = useRef<number | null>(null);
-  const [view, setView] = useState(viewRef.current);
+  const [view, setView] = useState(restoredView);
 
   const updateView = useCallback((updater: (current: MapTransform) => MapTransform) => {
     const next = updater(viewRef.current);
@@ -82,13 +130,20 @@ export function useMapViewport({ settings, viewKey, dragIgnoreSelector }: MapVie
 
   // Restored on mount; the last pan/zoom (which can lag a frame behind state)
   // is flushed on unmount.
-  useEffect(() => writeMapView(viewKey, view), [view, viewKey]);
+  useEffect(() => {
+    writeMapView(viewKey, view);
+    const timer = window.setTimeout(() => writeStored(`${viewKey}:view`, view), STORE_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [view, viewKey]);
   useEffect(() => () => {
     if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
     writeMapView(viewKey, viewRef.current);
+    writeStored(`${viewKey}:view`, viewRef.current);
   }, [viewKey]);
 
   const renderedMapSize = useMemo(() => computeRenderedMapSize(imageSize, viewportSize), [imageSize, viewportSize]);
+  const mapOrigin = useMemo(() => computeMapOrigin(viewportSize, renderedMapSize), [viewportSize, renderedMapSize]);
 
   /** Zooms keeping `anchor` fixed; without an anchor, zooms about the centre. */
   const zoomBy = useCallback((delta: number, anchor?: Point) => {
@@ -109,6 +164,8 @@ export function useMapViewport({ settings, viewKey, dragIgnoreSelector }: MapVie
     if (!viewport) return undefined;
 
     const handleWheel = (event: WheelEvent) => {
+      // A floating panel scrolls itself; it does not zoom the map underneath.
+      if (event.target instanceof Element && event.target.closest(overlaySelector)) return;
       event.preventDefault();
       zoomBy(event.deltaY < 0 ? settings.zoomStep : -settings.zoomStep, pointWithin(viewport, event));
     };
@@ -116,11 +173,12 @@ export function useMapViewport({ settings, viewKey, dragIgnoreSelector }: MapVie
     viewport.addEventListener('wheel', handleWheel, { passive: false });
 
     return () => viewport.removeEventListener('wheel', handleWheel);
-  }, [settings.zoomStep, zoomBy]);
+  }, [overlaySelector, settings.zoomStep, zoomBy]);
 
   // Drag-to-pan. The pointer is captured, so a fast drag that leaves the
-  // viewport keeps panning instead of stopping dead.
-  const dragRef = useRef<{ pointerId: number; start: Point; origin: Point } | null>(null);
+  // viewport keeps panning instead of stopping dead. `moved` turns true once
+  // the press travels past the click tolerance; until then it may be a click.
+  const dragRef = useRef<{ pointerId: number; start: Point; origin: Point; moved: boolean } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const handlers = {
@@ -133,6 +191,7 @@ export function useMapViewport({ settings, viewKey, dragIgnoreSelector }: MapVie
         pointerId: event.pointerId,
         start: { x: event.clientX, y: event.clientY },
         origin: { x: viewRef.current.translateX, y: viewRef.current.translateY },
+        moved: false,
       };
       setIsDragging(true);
     },
@@ -140,6 +199,7 @@ export function useMapViewport({ settings, viewKey, dragIgnoreSelector }: MapVie
       const drag = dragRef.current;
       if (drag?.pointerId !== event.pointerId) return;
 
+      drag.moved ||= Math.hypot(event.clientX - drag.start.x, event.clientY - drag.start.y) > CLICK_TOLERANCE;
       updateView((current) => ({
         ...current,
         translateX: drag.origin.x + event.clientX - drag.start.x,
@@ -147,15 +207,23 @@ export function useMapViewport({ settings, viewKey, dragIgnoreSelector }: MapVie
       }));
     },
     onPointerUp(this: void, event: ReactPointerEvent<HTMLElement>) {
-      if (dragRef.current?.pointerId !== event.pointerId) return;
+      const drag = dragRef.current;
+      if (drag?.pointerId !== event.pointerId) return;
 
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
       dragRef.current = null;
       setIsDragging(false);
+
+      const mapSize = measuredMapSize(renderedMapSize);
+      if (event.type !== 'pointerup' || drag.moved || !onMapClick || !mapSize) return;
+      const point = pointWithin(event.currentTarget, event);
+      onMapClick(viewportToMapRatio(point, viewRef.current, mapOrigin, mapSize));
     },
     onDoubleClick(event: ReactMouseEvent<HTMLElement>) {
+      if (onMapClick) return;
+      if (event.target instanceof Element && event.target.closest(overlaySelector)) return;
       zoomBy(settings.zoomStep, pointWithin(event.currentTarget, event));
     },
   };
@@ -164,6 +232,9 @@ export function useMapViewport({ settings, viewKey, dragIgnoreSelector }: MapVie
     viewportRef,
     view,
     renderedMapSize,
+    /** Top-left of the untransformed map within the viewport. */
+    mapOrigin,
+    viewportSize,
     isDragging,
     viewportHandlers: { ...handlers, onPointerCancel: handlers.onPointerUp },
     image: {
@@ -177,7 +248,13 @@ export function useMapViewport({ settings, viewKey, dragIgnoreSelector }: MapVie
     controls: {
       zoomIn: () => zoomBy(settings.zoomStep),
       zoomOut: () => zoomBy(-settings.zoomStep),
-      reset: () => updateView(() => initialView),
+      /** Fits `fitBox` into view, or restores the initial view without one. */
+      reset: () => {
+        const mapSize = measuredMapSize(renderedMapSize);
+        updateView(() => (fitBox && mapSize
+          ? fitView(fitBox, viewportSize, mapSize, settings, settings.fitPadding)
+          : initialView));
+      },
     },
   };
 }

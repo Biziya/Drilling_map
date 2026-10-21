@@ -15,6 +15,13 @@ import {
   writeCachedDataset,
 } from "../../src/services/cache/drillholeCache.js";
 
+// These tests cover backend mode; technoMap.yaml ships with the demo dataset.
+vi.mock("../../src/pages/TechnoMap/config/technoMapConfig.js", async (importOriginal) => {
+  const actual = await importOriginal();
+
+  return { ...actual, MAP_CONFIG: { ...actual.MAP_CONFIG, dataSource: "backend" } };
+});
+
 const RECORDS = [
   // PRODUCT -> triangle
   { holeId: "P-1", x: 418000, y: 4894000, holePurpose: "PRODUCT", holeStatus: "VALIDATED", gt: 0.18 },
@@ -119,7 +126,7 @@ describe("map pages", () => {
 
       expect(legend.textContent).toContain("Injector");
       expect(legend.textContent).toContain("Producer");
-      expect(legend.textContent).toContain("Drill Rig");
+      expect(legend.textContent).toContain("Drilling in progress");
       expect(legend.querySelector(".marker-symbol--square")).toBeTruthy();
       expect(legend.querySelector(".marker-symbol--triangle")).toBeTruthy();
       expect(legend.querySelector(".legend-rig-icon")).toBeTruthy();

@@ -3,6 +3,12 @@
 
 title: Techno Map
 
+# Where the drillholes come from:
+#   mock    - the fixed demo dataset in mock/mockData.ts. No backend request,
+#             nothing written to IndexedDB, and a "Demo" badge by the title.
+#   backend - GET /api/techno-map, cached in IndexedDB under techno-map.
+dataSource: mock
+
 zoom:
   minZoom: 1
   maxZoom: 90
@@ -10,6 +16,8 @@ zoom:
   # Zoom the wheel/button steps snap to, and the zoom from which deviation
   # lines are drawn.
   deviationMinZoom: 10
+  # Space kept around the drillholes when Reset fits them into view, in px.
+  fitPadding: 48
 
 showLegends: true
 
@@ -17,11 +25,6 @@ showLegends: true
 deviationExaggeration: 5
 
 rigIconSrc: /rig.svg
-
-# Fill for a marker with no usable GT reading.
-uniformMarkerColor: '#000000'
-# Neutral fill for the legend's shape swatches.
-legendSymbolColor: '#111827'
 
 # GT bands, lowest first. Each band includes its lower bound; the last band
 # also includes its upper bound so the top of the scale is covered.
@@ -39,13 +42,47 @@ redox:
   Intermediate: '#ffffbe'
   Oxidized: '#dedec0'
 
+# Drillhole types, in filter-panel and legend order. `purposes` are the
+# HolePurpose values that mean this type; a purpose matching none of them is
+# drawn as an injector. A marker is filled with its GT band colour, or with
+# `color` when the hole has no GT reading. Shapes: square, triangle, circle,
+# diamond, triangle-down, pentagon, hexagon, star, cross.
+drillholeTypes:
+  - { id: development, label: Development, shape: circle, color: '#7c3aed', purposes: [DEVELOP, DEVELOPMENT] }
+  - { id: exploration, label: Exploration, shape: diamond, color: '#475569', purposes: [EXPLORE, EXPLORATION] }
+  - { id: geotechnical, label: Geotechnical, shape: pentagon, color: '#92400e', purposes: [GEOTECH, GEOTECHNICAL] }
+  - { id: injector, label: Injector, shape: square, color: '#1d4ed8', purposes: [INJECT, INJECTOR] }
+  - { id: monitoring, label: Monitoring, shape: hexagon, color: '#db2777', purposes: [MONITOR, MONITORING] }
+  - { id: producer, label: Producer, shape: triangle, color: '#ea580c', purposes: [PRODUCT, PRODUCER] }
+  - { id: ra-grade-sampling, label: Ra-grade-sampling, shape: star, color: '#65a30d', purposes: [RASAMPLE, RA-GRADE-SAMPLING] }
+  - { id: sediment-sampling, label: Sediment-sampling, shape: triangle-down, color: '#ca8a04', purposes: [SEDIMENT, SEDIMENT-SAMPLING] }
+  - { id: water, label: Water, shape: cross, color: '#0891b2', purposes: [WATER] }
+
+# Map feature layers, in filter-panel and legend order.
+mapFeatures:
+  - { id: technological-cells, label: Technological cells }
+  - { id: drilling-in-progress, label: Drilling in progress }
+  - { id: deviation-line, label: Deviation line }
+
 # Accessible role names, read before the hole id ("Producer drillhole GTZO-1").
 markerLabels:
   rig: Drill rig
-  producer: Producer drillhole
+  development: Development drillhole
+  exploration: Exploration drillhole
+  geotechnical: Geotechnical drillhole
   injector: Injector drillhole
+  monitoring: Monitoring drillhole
+  producer: Producer drillhole
+  ra-grade-sampling: Ra-grade-sampling drillhole
+  sediment-sampling: Sediment-sampling drillhole
+  water: Water drillhole
 
-legendSymbols:
-  - { kind: injector, label: Injector }
-  - { kind: producer, label: Producer }
-  - { kind: rig, label: Drill Rig }
+technologicalCells:
+  stroke: '#166534'
+  fill: 'rgba(34, 197, 94, 0.12)'
+
+deviationLine:
+  color: '#ff0000'
+
+measurement:
+  color: '#dc2626'

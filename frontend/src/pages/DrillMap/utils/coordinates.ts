@@ -54,6 +54,22 @@ export function convertUtmToMapPosition<TRecord extends UtmProjectable>(
   };
 }
 
+/** A UTM position as a 0-1 ratio of the base map (x right, y down). */
+export function utmToMapRatio({ x, y }: UtmCoordinates, bounds: MapBounds = MAP_UTM_BOUNDS): Point {
+  return {
+    x: (x - bounds.minX) / (bounds.maxX - bounds.minX),
+    y: (bounds.maxY - y) / (bounds.maxY - bounds.minY),
+  };
+}
+
+/** Inverse of utmToMapRatio. */
+export function mapRatioToUtm({ x, y }: Point, bounds: MapBounds = MAP_UTM_BOUNDS): UtmCoordinates {
+  return {
+    x: bounds.minX + x * (bounds.maxX - bounds.minX),
+    y: bounds.maxY - y * (bounds.maxY - bounds.minY),
+  };
+}
+
 /**
  * UTM position the (exaggerated) deviation line ends at, or null when there
  * is none to draw. Reads every field under any casing the API uses.

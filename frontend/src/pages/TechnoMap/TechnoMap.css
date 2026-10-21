@@ -4,7 +4,15 @@
    and clip paths. */
 
 
+/* Floating map controls: one inset from the map edges, one width shared by the
+   toolbar and the Map Layers panel so their right edges and widths line up. */
 .techno-map-page {
+  --float-inset: 14px;
+  --float-width: 220px;
+  --float-radius: 10px;
+  /* Toolbar height (38px buttons + zoom readout) plus the gap kept below it. */
+  --toolbar-clearance: 70px;
+
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
@@ -22,6 +30,26 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 24px;
+}
+
+.techno-map-page .map-header__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.techno-map-page .map-demo-badge {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: 1px solid #e3c77a;
+  border-radius: 999px;
+  color: #7a5b0b;
+  background: #fdf4d7;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
 }
 
 .techno-map-page .map-header h1 {
@@ -105,7 +133,7 @@
 }
 
 .techno-map-page .deviation-line-vector line {
-  stroke: #ff0000;
+  stroke: var(--deviation-color, #ff0000);
   stroke-width: var(--inverse-map-scale, 1);
   stroke-linecap: round;
 }
@@ -180,7 +208,27 @@
   clip-path: polygon(50% 0, 100% 100%, 0 100%);
   content: '';
 }
+.techno-map-page .marker-symbol--circle { border-radius: 50%; }
 
+/* Every other shape: a white outline clipped to --marker-clip with the fill
+   inset inside it, the same technique as the triangle. */
+.techno-map-page .marker-symbol--polygon {
+  width: 15px;
+  height: 15px;
+  border: 0;
+  background: #fff;
+  box-shadow: none;
+  clip-path: var(--marker-clip);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .45));
+}
+
+.techno-map-page .marker-symbol--polygon::before {
+  position: absolute;
+  inset: 2px;
+  background: var(--status-color);
+  clip-path: var(--marker-clip);
+  content: '';
+}
 
 .techno-map-page .marker-symbol--small {
   position: relative;
@@ -194,9 +242,87 @@
   transform: none;
 }
 
-.techno-map-page .marker-symbol--triangle.marker-symbol--small {
-  width: 11px;
-  height: 11px;
+.techno-map-page .marker-symbol--triangle.marker-symbol--small,
+.techno-map-page .marker-symbol--polygon.marker-symbol--small {
+  width: 12px;
+  height: 12px;
+}
+
+.techno-map-page .marker-symbol--polygon.marker-symbol--small::before { inset: 1.5px; }
+
+/* Technological cells: outlines and labels that keep their screen size at any zoom. */
+.techno-map-page .tech-cell-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.techno-map-page .tech-cell-layer polygon {
+  fill: var(--cell-fill);
+  stroke: var(--cell-stroke);
+  stroke-width: calc(1.5 * var(--inverse-map-scale, 1));
+  stroke-linejoin: round;
+}
+
+.techno-map-page .tech-cell-label {
+  position: absolute;
+  z-index: 1;
+  color: var(--cell-stroke);
+  font-size: .68rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff;
+  transform: scale(var(--inverse-map-scale, 1)) translate(-50%, -50%);
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+/* Distance measurement, drawn in viewport pixels above the map. */
+.techno-map-page .map-viewport.is-measuring { cursor: crosshair; }
+.techno-map-page .map-viewport.is-measuring.is-dragging { cursor: grabbing; }
+
+/* While measuring, presses fall through markers to the map, and no tooltip
+   shows, so any point can be picked, a marker's position included. */
+.techno-map-page .map-viewport.is-measuring .drillhole-marker { pointer-events: none; }
+.techno-map-page .map-viewport.is-measuring .drillhole-marker .drillhole-tooltip { display: none; }
+
+.techno-map-page .measurement-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.techno-map-page .measurement-layer line,
+.techno-map-page .measurement-layer path {
+  fill: none;
+  stroke: var(--measure-color, #dc2626);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.techno-map-page .measurement-layer line { stroke-dasharray: 7 5; }
+
+.techno-map-page .measurement-label {
+  position: absolute;
+  z-index: 4;
+  padding: 3px 7px;
+  border: 1.5px solid var(--measure-color, #dc2626);
+  border-radius: 5px;
+  color: #7f1d1d;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
+  font-size: .74rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transform: translate(-50%, calc(-100% - 6px));
+  pointer-events: none;
 }
 
 .techno-map-page .drillhole-tooltip {
@@ -239,16 +365,22 @@
 .techno-map-page .drillhole-marker:focus .drillhole-tooltip,
 .techno-map-page .drillhole-marker.is-open .drillhole-tooltip { display: block; }
 
-.techno-map-page .map-controls {
+.techno-map-page .map-toolbar {
   position: absolute;
-  top: 14px;
-  left: 14px;
+  top: var(--float-inset);
+  right: var(--float-inset);
   z-index: 30;
+  width: var(--float-width);
+  max-width: calc(100% - 2 * var(--float-inset) - 40px);
+}
+
+/* Four equal icon columns around a wider Reset. */
+.techno-map-page .map-controls {
   display: grid;
-  grid-template-columns: 38px 38px auto;
+  grid-template-columns: 1fr 1fr 1.5fr 1fr 1fr;
   overflow: hidden;
   border: 1px solid rgba(33, 53, 42, .16);
-  border-radius: 10px;
+  border-radius: var(--float-radius);
   background: rgba(255, 255, 255, .94);
   box-shadow: 0 5px 16px rgba(15, 31, 21, .13);
   backdrop-filter: blur(8px);
@@ -268,7 +400,181 @@
 .techno-map-page .map-controls button:hover:not(:disabled) { background: #edf4ef; }
 .techno-map-page .map-controls button:focus-visible { outline: 3px solid #2563eb; outline-offset: -3px; }
 .techno-map-page .map-controls button:disabled { color: #a8b1ab; cursor: not-allowed; }
-.techno-map-page .map-controls .map-controls__reset { padding: 0 11px; border-right: 0; font-size: .72rem; }
+.techno-map-page .map-controls .map-controls__reset { padding: 0 11px; font-size: .72rem; }
+
+.techno-map-page .map-controls .map-controls__icon {
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.techno-map-page .map-controls .map-controls__icon:last-of-type { border-right: 0; }
+.techno-map-page .map-controls .map-controls__icon svg { width: 18px; height: 18px; }
+.techno-map-page .map-controls .map-controls__icon.is-active { color: #fff; background: var(--measure-color, #dc2626); }
+.techno-map-page .map-controls .map-controls__icon.is-active:hover { background: var(--measure-color, #dc2626); }
+.techno-map-page .map-controls .map-controls__icon[aria-busy='true'] { cursor: wait; }
+
+/* Opens to the left of the toolbar, over the map rather than the panels. */
+.techno-map-page .map-export-menu {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 6px);
+  display: grid;
+  min-width: 150px;
+  padding: 4px;
+  border: 1px solid rgba(33, 53, 42, .16);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 31, 21, .16);
+}
+
+.techno-map-page .map-export-menu button {
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  color: #21352a;
+  background: transparent;
+  font-size: .76rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.techno-map-page .map-export-menu button:hover { background: #edf4ef; }
+.techno-map-page .map-export-menu button:focus-visible { outline: 3px solid #2563eb; outline-offset: -3px; }
+
+/* Floating "Map Layers" filter panel, bottom-right, below the toolbar and
+   right of the scale bar; it scrolls rather than reach either. */
+.techno-map-page .map-layers {
+  position: absolute;
+  right: var(--float-inset);
+  bottom: var(--float-inset);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  width: var(--float-width);
+  max-width: calc(100% - 2 * var(--float-inset) - 150px);
+  max-height: calc(100% - 2 * var(--float-inset) - var(--toolbar-clearance));
+  overflow: hidden;
+  border: 1px solid rgba(33, 53, 42, .16);
+  border-radius: var(--float-radius);
+  color: #21352a;
+  background: rgba(255, 255, 255, .95);
+  box-shadow: 0 5px 16px rgba(15, 31, 21, .13);
+  backdrop-filter: blur(8px);
+  cursor: auto;
+}
+
+
+.techno-map-page .map-layers__header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 10px 0 12px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font-size: .76rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.techno-map-page .map-layers__header:hover { background: #edf4ef; }
+.techno-map-page .map-layers__header:focus-visible { outline: 3px solid #2563eb; outline-offset: -3px; }
+.techno-map-page .map-layers__title { flex: 1 1 auto; white-space: nowrap; }
+
+.techno-map-page .map-layers__count {
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: #496052;
+  background: #edf1ee;
+  font-size: .64rem;
+}
+
+.techno-map-page .map-layers__chevron {
+  width: 15px;
+  height: 15px;
+  transition: transform .15s ease;
+}
+
+.techno-map-page .map-layers.is-collapsed .map-layers__chevron { transform: rotate(-90deg); }
+
+.techno-map-page .map-layers__body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid #dbe2dd;
+}
+
+.techno-map-page .map-layers__group {
+  margin: 0;
+  padding: 6px 8px 4px;
+  border: 0;
+}
+
+.techno-map-page .map-layers__group + .map-layers__group { border-top: 1px solid #edf1ee; }
+
+.techno-map-page .map-layers__group legend {
+  padding: 2px 4px 4px;
+  color: #33483b;
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.techno-map-page .map-layers__item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 4px;
+  border-radius: 6px;
+  color: #33463a;
+  font-size: .72rem;
+  cursor: pointer;
+}
+
+.techno-map-page .map-layers__item:hover { background: #f1f5f2; }
+
+.techno-map-page .map-layers__item input {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #285b3e;
+  cursor: pointer;
+}
+
+.techno-map-page .map-layers__item .legend-symbol { width: 22px; height: 18px; }
+.techno-map-page .map-layers__item .legend-rig-icon { height: 18px; }
+
+.techno-map-page .map-layers__footer {
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 7px 8px 8px;
+  border-top: 1px solid #dbe2dd;
+  background: rgba(255, 255, 255, .97);
+}
+
+.techno-map-page .map-layers__footer button {
+  padding: 6px 0;
+  border: 1px solid #d3ddd6;
+  border-radius: 7px;
+  color: #21352a;
+  background: #fff;
+  font-size: .7rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.techno-map-page .map-layers__footer button:hover { background: #edf4ef; }
+.techno-map-page .map-layers__footer button:focus-visible { outline: 3px solid #2563eb; outline-offset: 1px; }
 
 .techno-map-page .map-controls__level {
   grid-column: 1 / -1;
@@ -282,8 +588,8 @@
 
 .techno-map-page .north-arrow {
   position: absolute;
-  top: 15px;
-  right: 16px;
+  top: calc(var(--float-inset) + 1px);
+  left: calc(var(--float-inset) + 4px);
   z-index: 5;
   display: grid;
   justify-items: center;
@@ -305,8 +611,8 @@
 
 .techno-map-page .map-scale-bar {
   position: absolute;
-  right: 12px;
-  bottom: 10px;
+  bottom: var(--float-inset);
+  left: var(--float-inset);
   z-index: 5;
   display: grid;
   justify-items: center;
@@ -406,16 +712,16 @@
 .techno-map-page .map-legend {
   display: grid;
   grid-template-columns: repeat(4, minmax(145px, 1fr));
-  gap: clamp(12px, 2vw, 30px);
-  padding: 9px clamp(12px, 1.5vw, 20px) 10px;
+  gap: clamp(14px, 2.2vw, 36px);
+  padding: 12px clamp(14px, 1.8vw, 24px) 13px;
   border-top: 1px solid #dce3de;
   background: rgba(255, 255, 255, .92);
 }
 
 .techno-map-page .map-legend h2 {
-  margin: 0 0 5px;
+  margin: 0 0 7px;
   color: #33483b;
-  font-size: .7rem;
+  font-size: .8rem;
   font-weight: 700;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -423,7 +729,7 @@
 
 .techno-map-page .map-legend ul {
   display: grid;
-  gap: 3px;
+  gap: 5px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -432,9 +738,9 @@
 .techno-map-page .map-legend li {
   display: flex;
   align-items: center;
-  gap: 7px;
-  color: #5a675f;
-  font-size: .66rem;
+  gap: 9px;
+  color: #4b5a51;
+  font-size: .78rem;
   line-height: 1.25;
 }
 
@@ -448,6 +754,18 @@
 
 .techno-map-page .legend-dot { border-radius: 50%; }
 .techno-map-page .legend-swatch { border-radius: 2px; }
+
+/* Legend swatches and symbols share one 36px gutter so labels stay aligned. */
+.techno-map-page .map-legend .legend-dot,
+.techno-map-page .map-legend .legend-swatch,
+.techno-map-page .map-legend .legend-symbol { width: 36px; height: 24px; }
+.techno-map-page .map-legend .legend-rig-icon { height: 24px; max-width: 36px; }
+.techno-map-page .map-legend .marker-symbol--small { width: 13px; height: 13px; border-width: 2px; }
+.techno-map-page .map-legend .marker-symbol--triangle.marker-symbol--small,
+.techno-map-page .map-legend .marker-symbol--polygon.marker-symbol--small { width: 16px; height: 16px; }
+.techno-map-page .map-legend .marker-symbol--polygon.marker-symbol--small::before { inset: 2px; }
+.techno-map-page .map-legend .layer-swatch-cell { width: 28px; height: 18px; }
+.techno-map-page .map-legend .layer-swatch-line { width: 28px; height: 2.5px; }
 
 /* Matches the 30px gutter the colour swatches occupy so labels stay aligned. */
 .techno-map-page .legend-symbol {
@@ -465,12 +783,34 @@
   max-width: 30px;
 }
 
+/* All 12 layers in a compact grid; hidden ones stay listed, faded. */
+.techno-map-page .map-legend__symbols { grid-column: span 2; }
+.techno-map-page .map-legend__symbols ul { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 16px; }
+.techno-map-page .map-legend li.is-hidden { opacity: .35; }
+
+.techno-map-page .layer-swatch-cell {
+  width: 22px;
+  height: 14px;
+  border: 1.5px solid var(--cell-stroke);
+  border-radius: 2px;
+  background: var(--cell-fill);
+}
+
+.techno-map-page .layer-swatch-line {
+  width: 22px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--deviation-color, #ff0000);
+  transform: rotate(-30deg);
+}
+
 @media (max-width: 1050px) {
   .techno-map-page .map-legend { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
 }
 
 @media (max-width: 560px) {
-  .techno-map-page { padding: 8px; }
+  .techno-map-page { --float-inset: 8px; padding: 8px; }
+  .techno-map-page .map-legend__symbols ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .techno-map-page .map-header { align-items: flex-start; }
   .techno-map-page .map-header strong { display: none; }
   .techno-map-page .map-legend {
@@ -478,7 +818,6 @@
     max-height: 32vh;
     overflow-y: auto;
   }
-  .techno-map-page .map-scale-bar { right: 8px; bottom: 8px; }
 }
 
 @media (max-height: 700px) {
@@ -496,11 +835,13 @@
   }
 
   .techno-map-page .map-legend h2 {
-    margin-bottom: 3px;
-    font-size: .64rem;
+    margin-bottom: 4px;
+    font-size: .72rem;
   }
 
+  .techno-map-page .map-legend ul { gap: 3px; }
+
   .techno-map-page .map-legend li {
-    font-size: .61rem;
+    font-size: .7rem;
   }
 }

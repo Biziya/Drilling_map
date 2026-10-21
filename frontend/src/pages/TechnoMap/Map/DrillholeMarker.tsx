@@ -1,7 +1,7 @@
 import { memo, useState } from 'react';
 import MarkerSymbol from '../Legends/MarkerSymbol';
 import DrillholeTooltip from '../Tooltips/DrillholeTooltip';
-import { MAP_CONFIG, getGtRange } from '../config/technoMapConfig';
+import { DRILLHOLE_TYPE_CONFIG, MAP_CONFIG, getGtRange } from '../config/technoMapConfig';
 import { markerShapeFor } from '../utils/markerKind';
 import type { MarkerKind } from '../utils/markerKind';
 import { readDrillholeText, readDrillholeValue } from '../../../utils/drillholeFields';
@@ -15,8 +15,9 @@ export interface DrillholeMarkerProps {
 }
 
 /**
- * One clickable marker: the rig icon OR a GT-coloured shape, never both,
- * plus its tooltip. Clicking toggles the tooltip; blurring closes it.
+ * One clickable marker: the rig icon OR its type's shape, never both, plus its
+ * tooltip. The shape is filled with the GT band colour, or the type's colour
+ * when the hole has no GT. Clicking toggles the tooltip; blurring closes it.
  */
 function DrillholeMarker({ drillhole, kind, roleLabel }: DrillholeMarkerProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -40,7 +41,7 @@ function DrillholeMarker({ drillhole, kind, roleLabel }: DrillholeMarkerProps) {
       ) : (
         <MarkerSymbol
           shape={markerShapeFor(kind)}
-          color={getGtRange(readDrillholeValue(drillhole, 'gt'))?.color ?? MAP_CONFIG.uniformMarkerColor}
+          color={getGtRange(readDrillholeValue(drillhole, 'gt'))?.color ?? DRILLHOLE_TYPE_CONFIG[kind].color}
         />
       )}
       <DrillholeTooltip drillhole={drillhole} />
