@@ -49,6 +49,28 @@ const markerLabels = object(
   Object.fromEntries(MARKER_KINDS.map((kind) => [kind, text])) as Record<MarkerKind, Parser<string>>,
 );
 
+/** A legend dimension in px: a finite number, never negative. */
+const size: Parser<number> = (value, path) => {
+  const parsed = number(value, path);
+  if (parsed < 0) throw new ConfigError(`${path}: expected 0 or more, got ${parsed}`);
+
+  return parsed;
+};
+
+const legendLayout = {
+  paddingBlock: size,
+  paddingInline: size,
+  minHeight: size,
+  columnGap: size,
+  rowGap: size,
+  titleGap: size,
+  titleFontSize: size,
+  labelFontSize: size,
+  labelGap: size,
+  gt: object({ width: size, height: size, rowGap: size }),
+  redox: object({ width: size, height: size, rowGap: size }),
+};
+
 /** Rejects a list that misses or repeats one of `ids`, so every filter appears exactly once. */
 function coversExactly<T extends { id: string }>(entries: readonly T[], ids: readonly string[], path: string) {
   const seen = entries.map(({ id }) => id);
@@ -78,6 +100,19 @@ export const MAP_CONFIG = parseConfig(
     technologicalCells: object({ stroke: text, fill: text }),
     deviationLine: object({ color: text }),
     measurement: object({ color: text }),
+    legend: object({
+      ...legendLayout,
+      symbols: object({
+        boxWidth: size,
+        boxHeight: size,
+        size,
+        rigIconSize: size,
+        lineWidth: size,
+        lineThickness: size,
+        rowGap: size,
+        columnGap: size,
+      }),
+    }),
   }),
   data,
   'technoMap.yaml',

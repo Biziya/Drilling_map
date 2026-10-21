@@ -504,16 +504,17 @@
 .drill-map-page .map-legend {
   display: grid;
   grid-template-columns: repeat(4, minmax(145px, 1fr));
-  gap: clamp(14px, 2.2vw, 36px);
-  padding: 12px clamp(14px, 1.8vw, 24px) 13px;
+  gap: var(--legend-row-gap) var(--legend-column-gap);
+  min-height: var(--legend-min-height);
+  padding: var(--legend-padding-block) var(--legend-padding-inline);
   border-top: 1px solid #dce3de;
   background: rgba(255, 255, 255, .92);
 }
 
 .drill-map-page .map-legend h2 {
-  margin: 0 0 7px;
+  margin: 0 0 var(--legend-title-gap);
   color: #33483b;
-  font-size: .8rem;
+  font-size: var(--legend-title-size);
   font-weight: 700;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -521,41 +522,66 @@
 
 .drill-map-page .map-legend ul {
   display: grid;
-  gap: 5px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.drill-map-page .map-legend__gt { gap: var(--legend-gt-row-gap); }
+.drill-map-page .map-legend__redox { gap: var(--legend-redox-row-gap); }
+.drill-map-page .map-legend__symbols ul { gap: var(--legend-symbol-row-gap); }
+
 .drill-map-page .map-legend li {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--legend-label-gap);
+  min-width: 0;
   color: #4b5a51;
-  font-size: .78rem;
+  font-size: var(--legend-label-size);
   line-height: 1.25;
 }
 
 .drill-map-page .legend-dot,
 .drill-map-page .legend-swatch {
   flex: 0 0 auto;
-  width: 30px;
-  height: 20px;
   border: 1px solid rgba(20, 34, 28, .2);
 }
 
-.drill-map-page .legend-dot { border-radius: 50%; }
-.drill-map-page .legend-swatch { border-radius: 2px; }
+.drill-map-page .legend-dot {
+  width: var(--legend-gt-width);
+  height: var(--legend-gt-height);
+  border-radius: 50%;
+}
 
-/* Legend swatches and symbols share one 36px gutter so labels stay aligned. */
-.drill-map-page .map-legend .legend-dot,
-.drill-map-page .map-legend .legend-swatch,
-.drill-map-page .map-legend .legend-symbol { width: 36px; height: 24px; }
-.drill-map-page .map-legend .legend-rig-icon { height: 24px; max-width: 36px; }
-.drill-map-page .map-legend .marker-symbol--small { width: 13px; height: 13px; border-width: 2px; }
-.drill-map-page .map-legend .marker-symbol--triangle.marker-symbol--small { width: 16px; height: 16px; }
+.drill-map-page .legend-swatch {
+  width: var(--legend-redox-width);
+  height: var(--legend-redox-height);
+  border-radius: 2px;
+}
 
-/* Matches the 30px gutter the colour swatches occupy so labels stay aligned. */
+/* Symbol entries: every symbol is centred in one box of the same size, so
+   labels start at the same x in every row and column. */
+.drill-map-page .map-legend .legend-symbol {
+  width: var(--legend-symbol-box-width);
+  height: var(--legend-symbol-box-height);
+}
+
+/* Every marker shape is drawn at one size; the white outline scales with it. */
+.drill-map-page .map-legend .marker-symbol--small {
+  width: var(--legend-symbol-size);
+  height: var(--legend-symbol-size);
+  border-width: max(1.5px, calc(var(--legend-symbol-size) / 7.5));
+}
+
+.drill-map-page .map-legend .legend-rig-icon {
+  width: auto;
+  height: var(--legend-rig-size);
+  max-width: var(--legend-symbol-box-width);
+  max-height: var(--legend-symbol-box-height);
+  object-fit: contain;
+}
+
+/* Base symbol box and rig icon; the legend sizes them from YAML above. */
 .drill-map-page .legend-symbol {
   display: grid;
   flex: 0 0 auto;
@@ -596,18 +622,17 @@
     font-size: 1.25rem;
   }
 
+  /* Short windows: the YAML sizes, tightened. */
   .drill-map-page .map-legend {
-    padding-block: 6px;
+    padding-block: calc(var(--legend-padding-block) / 2);
   }
 
   .drill-map-page .map-legend h2 {
-    margin-bottom: 4px;
-    font-size: .72rem;
+    margin-bottom: calc(var(--legend-title-gap) / 2);
+    font-size: calc(var(--legend-title-size) * .9);
   }
 
-  .drill-map-page .map-legend ul { gap: 3px; }
-
   .drill-map-page .map-legend li {
-    font-size: .7rem;
+    font-size: calc(var(--legend-label-size) * .9);
   }
 }

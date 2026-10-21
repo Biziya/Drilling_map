@@ -128,3 +128,11 @@ without a request. While it runs only the icon spins (clockwise; not under
 reduced motion) and further clicks are ignored; drillholes, filters, pan, zoom
 and measurement stay as they are. Success shows *Map data refreshed
 successfully*.
+
+## Legend sizes
+
+Every legend dimension (padding, gaps, font sizes, GT and Redox swatches, the
+symbol box, symbol size, rig icon, and the line and cell swatches) is set under `legend:` in
+`config/technoMap.yaml` (px, validated as 0 or more). `Legends/MapLegend.tsx` passes the
+values to the stylesheet as CSS variables. Each Symbol entry is centred in one
+`symbols.boxWidth` x `symbols.boxHeight` box, so labels line up in every column.

@@ -1,11 +1,34 @@
 import data from './drillMap.yaml';
 import { MAP_IMAGE_PATH, MAP_UTM_BOUNDS } from '../../../config/env';
-import { boolean, dictionary, list, number, object, oneOf, parseConfig, text } from '../../../config/schema';
+import { ConfigError, boolean, dictionary, list, number, object, oneOf, parseConfig, text } from '../../../config/schema';
+import type { Parser } from '../../../config/schema';
 import { MARKER_KINDS } from '../utils/markerKind';
 import type { GtRange, MapId } from '../../../types/map';
 
 /** Keys this page's data and view are stored under. */
 export const MAP_ID: MapId = 'exploration-map';
+
+/** A legend dimension in px: a finite number, never negative. */
+const size: Parser<number> = (value, path) => {
+  const parsed = number(value, path);
+  if (parsed < 0) throw new ConfigError(`${path}: expected 0 or more, got ${parsed}`);
+
+  return parsed;
+};
+
+const legendLayout = {
+  paddingBlock: size,
+  paddingInline: size,
+  minHeight: size,
+  columnGap: size,
+  rowGap: size,
+  titleGap: size,
+  titleFontSize: size,
+  labelFontSize: size,
+  labelGap: size,
+  gt: object({ width: size, height: size, rowGap: size }),
+  redox: object({ width: size, height: size, rowGap: size }),
+};
 
 export const MAP_CONFIG = parseConfig(
   object({
@@ -21,6 +44,10 @@ export const MAP_CONFIG = parseConfig(
     markerLabels: object({ rig: text, producer: text, injector: text, drillhole: text }),
     legendSymbols: list(object({ kind: oneOf(...MARKER_KINDS), label: text })),
     measurement: object({ color: text }),
+    legend: object({
+      ...legendLayout,
+      symbols: object({ boxWidth: size, boxHeight: size, size, rigIconSize: size, rowGap: size }),
+    }),
   }),
   data,
   'drillMap.yaml',

@@ -86,3 +86,31 @@ deviationLine:
 
 measurement:
   color: '#dc2626'
+
+# Legend dimensions, in px. Every Symbol entry draws inside one
+# symbols.boxWidth x symbols.boxHeight box, centred, so labels line up; every
+# marker shape is drawn at symbols.size. All values must be 0 or more.
+legend:
+  paddingBlock: 12
+  paddingInline: 20
+  minHeight: 0
+  # Between the GT, Redox and Symbol sections, across and (when they wrap) down.
+  columnGap: 32
+  rowGap: 14
+  # Under each section title.
+  titleGap: 7
+  titleFontSize: 13
+  labelFontSize: 12.5
+  # Between a symbol or swatch and its label.
+  labelGap: 9
+  gt: { width: 36, height: 24, rowGap: 5 }
+  redox: { width: 36, height: 24, rowGap: 5 }
+  symbols:
+    boxWidth: 36
+    boxHeight: 24
+    size: 15
+    rigIconSize: 20
+    lineWidth: 28
+    lineThickness: 2.5
+    rowGap: 5
+    columnGap: 16
