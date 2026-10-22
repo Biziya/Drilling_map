@@ -1,13 +1,16 @@
 import { useState } from 'react';
+import BaseMapSwitcher from './Controls/BaseMapSwitcher';
 import MapControls from './Controls/MapControls';
 import RefreshButton from './Controls/RefreshButton';
 import MapLegend from './Legends/MapLegend';
+import CoordinateGrid from './Map/CoordinateGrid';
 import DrillholeFeatures from './Map/DrillholeFeatures';
 import MapCanvas from './Map/MapCanvas';
 import MapScaleBar from './Map/MapScaleBar';
 import MapStatus from './Map/MapStatus';
 import MeasurementOverlay from './Map/MeasurementOverlay';
 import { MAP_CONFIG, MAP_ID, MAP_SETTINGS } from './config/drillMapConfig';
+import { useBaseMap } from './hooks/useBaseMap';
 import { useMapData } from './hooks/useMapData';
 import { useMapViewport } from './hooks/useMapViewport';
 import { mapRatioToUtm } from './utils/coordinates';
@@ -29,6 +32,7 @@ const PAGE_STYLE: StyleWithCssVariables = { '--measure-color': MAP_CONFIG.measur
 /** Exploration Map: SEDIMENT/DEVELOP holes from /api/exploration-map. */
 function DrillMap() {
   const { status, drillholes, isFetching, failure, refresh } = useMapData();
+  const { baseMap, setBaseMap } = useBaseMap();
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [measurement, setMeasurement] = useState<UtmCoordinates[]>([]);
   const [isExporting, setIsExporting] = useState(false);
@@ -58,7 +62,7 @@ function DrillMap() {
 
     setIsExporting(true);
     try {
-      await exportMap(format, { viewport: viewportSize, view, mapOrigin, mapSize, drillholes, measurement, title: MAP_CONFIG.title });
+      await exportMap(format, { viewport: viewportSize, view, mapOrigin, mapSize, drillholes, measurement, title: MAP_CONFIG.title, baseMap });
       showToast('success', 'Map exported successfully');
     } catch {
       showToast('error', 'Map export failed.');
@@ -73,16 +77,22 @@ function DrillMap() {
         <h1>{MAP_CONFIG.title}</h1>
         <div className="mb-[3px] flex shrink-0 items-center gap-2">
           <RefreshButton isRefreshing={isFetching} onRefresh={refresh} />
+          <BaseMapSwitcher value={baseMap} onChange={setBaseMap} />
           <strong>{drillholes.length} drillholes</strong>
         </div>
       </header>
 
       <div className="map-panel">
         <div ref={viewportRef} className={`map-viewport${viewportState}`} {...viewportHandlers}>
+          {/* Only the background changes with the base map; the view and every feature stay put. */}
+          {baseMap === 'white-grid' && !image.hasFailed && (
+            <CoordinateGrid viewport={viewportSize} view={view} mapOrigin={mapOrigin} mapSize={mapSize} />
+          )}
           <MapCanvas
             style={buildCanvasTransformStyle(view, renderedMapSize)}
             onImageLoad={image.onLoad}
             onImageError={image.onError}
+            showImage={baseMap === 'geological'}
           >
             {!image.hasFailed && (
               <DrillholeFeatures

@@ -15,6 +15,7 @@ DrillMap/
 ├─ DrillMap.css              styles, every selector scoped under .drill-map-page
 ├─ Map/
 │  ├─ MapCanvas.tsx         transformed layer: base image + children
+│  ├─ CoordinateGrid.tsx    white grid base map: Easting/Northing lines + labels
 │  ├─ DrillholeFeatures     dedupe → markers + deviation lines
 │  ├─ DrillholeMarker       rig icon OR shape (never both) + tooltip
 │  ├─ MeasurementOverlay    the A–B measurement, in viewport pixels
@@ -25,22 +26,26 @@ DrillMap/
 │  └─ MarkerSymbol.tsx      square/triangle shared by markers and legend
 ├─ Controls/
 │  ├─ MapControls.tsx       zoom in/out, reset, measure, export menu, zoom readout
-│  └─ RefreshButton.tsx     header button: fetch fresh data
+│  ├─ RefreshButton.tsx     header button: fetch fresh data
+│  └─ BaseMapSwitcher.tsx   header menu right of Refresh: Geological / White Grid
 ├─ Tooltips/
 │  └─ DrillholeTooltip      the hole's details on hover, focus or click
 ├─ hooks/
+│  ├─ useBaseMap.ts         the selected base map, remembered in localStorage
 │  ├─ useMapData.ts         automatic loading → status, drillholes, refresh()
 │  └─ useMapViewport.ts     sizing, drag-pan, zoom, map clicks, view persistence
 ├─ config/
 │  ├─ drillMap.yaml           title, zoom, GT bands, colours, labels, legend
 │  └─ drillMapConfig.ts       validates the YAML; MAP_ID, getGtRange
 └─ utils/                   pure functions
+   ├─ coordinateGrid.ts     white grid lines/labels for the view (screen + export)
    ├─ coordinates.ts        UTM → map %, deviation endpoints, pixel offsets
    ├─ geometry.ts           fit, transform, cursor-centred zoom, viewport ↔ map
    ├─ markerKind.ts         this page's marker rules
    ├─ measurement.ts        distance, formatting, click cycle
    ├─ exportMap.ts          PNG/SVG export of the visible viewport
-   └─ scaleBar.ts           a round 1/2/5 distance for the scale bar
+   ├─ scaleBar.ts           a round 1/2/5 distance for the scale bar
+   └─ storage.ts            localStorage read/write that never throws
 ```
 
 ## Layout, measurement and export
@@ -85,11 +90,30 @@ There is no polling.
 
 ## Refresh
 
-`Controls/RefreshButton` sits in the header, immediately before the drillhole
-count. It always asks the backend. While the request runs only the icon
+`Controls/RefreshButton` sits in the header, followed by the base map switcher
+and the drillhole count. It always asks the backend. While the request runs only the icon
 spins (clockwise; not under reduced motion) and further clicks are ignored;
 the drillholes, pan and zoom stay as they are. Success shows *Map data
 refreshed successfully*.
+
+## Base map
+
+`Controls/BaseMapSwitcher` (layers icon, right of Refresh) opens a menu of
+the backgrounds in `baseMap.options` (`config/drillMap.yaml`), the current one
+ticked: **Geological Map** (the surveyed image) and **White Grid Map**.
+Switching changes only the background; view, features, filters and the
+measurement stay as they are. The choice persists under `exploration-map:base-map`
+(localStorage) and falls back to `baseMap.default` (geological).
+
+The geological image stays loaded and laid out while hidden: its size is what
+every feature is placed against, so nothing moves. `Map/CoordinateGrid` draws
+under the canvas, in viewport pixels, from `utils/coordinateGrid.ts`: a white
+sheet over exactly the UTM bounds, lines every 1/2/5 x 10^n metres (the
+smallest step at least `whiteGrid.minLineSpacing` px apart, so it refines on
+zoom), eastings along the top and northings along the left. Positions go
+through the same UTM → map ratio → viewport functions as the markers. The
+export draws the same grid instead of embedding the image. Colours, line
+width, label size and spacing are under `baseMap.whiteGrid`.
 
 ## Legend sizes
 

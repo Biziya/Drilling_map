@@ -45,6 +45,10 @@ export const MARKER_SHAPES = [
 ] as const;
 export type MarkerShape = (typeof MARKER_SHAPES)[number];
 
+/** Backgrounds the map can be drawn on. Labels, order and the default are in the YAML. */
+export const BASE_MAP_IDS = ['geological', 'white-grid'] as const;
+export type BaseMapId = (typeof BASE_MAP_IDS)[number];
+
 const markerLabels = object(
   Object.fromEntries(MARKER_KINDS.map((kind) => [kind, text])) as Record<MarkerKind, Parser<string>>,
 );
@@ -53,6 +57,14 @@ const markerLabels = object(
 const size: Parser<number> = (value, path) => {
   const parsed = number(value, path);
   if (parsed < 0) throw new ConfigError(`${path}: expected 0 or more, got ${parsed}`);
+
+  return parsed;
+};
+
+/** A grid dimension in px: a finite number above 0. */
+const positive: Parser<number> = (value, path) => {
+  const parsed = number(value, path);
+  if (parsed <= 0) throw new ConfigError(`${path}: expected more than 0, got ${parsed}`);
 
   return parsed;
 };
@@ -86,11 +98,31 @@ function coversExactly<T extends { id: string }>(entries: readonly T[], ids: rea
   if (problem) throw new ConfigError(`${path}: '${problem}' must appear exactly once`);
 }
 
+/** Rejects an empty or repeating option list, or a default that is not one of the options. */
+function checkBaseMapOptions({ options, default: fallback }: { options: readonly { id: string }[]; default: string }, path: string) {
+  if (options.length === 0) throw new ConfigError(`${path}.options: expected at least one base map`);
+  const repeated = options.find(({ id }, index) => options.findIndex((entry) => entry.id === id) !== index);
+  if (repeated) throw new ConfigError(`${path}.options: '${repeated.id}' must appear only once`);
+  if (!options.some(({ id }) => id === fallback)) throw new ConfigError(`${path}.default: '${fallback}' is not one of the options`);
+}
+
 export const MAP_CONFIG = parseConfig(
   object({
     title: text,
     dataSource: oneOf('mock', 'backend'),
     zoom: object({ minZoom: number, maxZoom: number, zoomStep: number, deviationMinZoom: number, fitPadding: number }),
+    baseMap: object({
+      options: list(object({ id: oneOf(...BASE_MAP_IDS), label: text })),
+      default: oneOf(...BASE_MAP_IDS),
+      whiteGrid: object({
+        background: text,
+        lineColor: text,
+        lineWidth: positive,
+        labelColor: text,
+        labelFontSize: positive,
+        minLineSpacing: positive,
+      }),
+    }),
     showLegends: boolean,
     deviationExaggeration: number,
     rigIconSrc: text,
@@ -119,6 +151,7 @@ export const MAP_CONFIG = parseConfig(
 
 coversExactly(MAP_CONFIG.drillholeTypes, DRILLHOLE_TYPES, 'technoMap.yaml.drillholeTypes');
 coversExactly(MAP_CONFIG.mapFeatures, MAP_FEATURES, 'technoMap.yaml.mapFeatures');
+checkBaseMapOptions(MAP_CONFIG.baseMap, 'technoMap.yaml.baseMap');
 
 export const MAP_SETTINGS = MAP_CONFIG.zoom;
 

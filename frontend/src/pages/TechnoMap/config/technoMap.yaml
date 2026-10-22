@@ -19,6 +19,29 @@ zoom:
   # Space kept around the drillholes when Reset fits them into view, in px.
   fitPadding: 48
 
+# Backgrounds offered by the header's base map switcher, in menu order, and
+# the one shown on a first visit. The choice is remembered for this page only.
+#   geological - the surveyed base map image (VITE_MAP_IMAGE_PATH).
+#   white-grid - a white sheet with an Easting/Northing grid over the same
+#                UTM bounds, so every feature stays exactly where it is.
+baseMap:
+  options:
+    - { id: geological, label: Geological Map }
+    - { id: white-grid, label: White Grid Map }
+  default: geological
+  # White grid appearance; sizes in px, all above 0. Lines and labels keep
+  # their size at every zoom.
+  whiteGrid:
+    background: '#ffffff'
+    lineColor: '#d5dbe0'
+    lineWidth: 1
+    labelColor: '#5b6770'
+    labelFontSize: 10.5
+    # Smallest on-screen gap between grid lines. The step in metres is the
+    # smallest 1/2/5 x 10^n value that keeps at least this gap, so the grid
+    # refines as the map is zoomed in.
+    minLineSpacing: 90
+
 showLegends: true
 
 # Display-only multiplier: a few metres of deviation is invisible at map scale.

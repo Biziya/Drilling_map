@@ -1,15 +1,18 @@
 import { useMemo, useState } from 'react';
+import BaseMapSwitcher from './Controls/BaseMapSwitcher';
 import LayerPanel from './Controls/LayerPanel';
 import MapControls from './Controls/MapControls';
 import RefreshButton from './Controls/RefreshButton';
 import MapLegend from './Legends/MapLegend';
 import DrillholeFeatures from './Map/DrillholeFeatures';
+import CoordinateGrid from './Map/CoordinateGrid';
 import MapCanvas from './Map/MapCanvas';
 import MapScaleBar from './Map/MapScaleBar';
 import MapStatus from './Map/MapStatus';
 import MeasurementOverlay from './Map/MeasurementOverlay';
 import TechnoCells from './Map/TechnoCells';
 import { MAP_CONFIG, MAP_ID, MAP_SETTINGS } from './config/technoMapConfig';
+import { useBaseMap } from './hooks/useBaseMap';
 import { useMapData } from './hooks/useMapData';
 import { useMapFilters } from './hooks/useMapFilters';
 import { useMapViewport } from './hooks/useMapViewport';
@@ -39,6 +42,7 @@ const PAGE_STYLE: StyleWithCssVariables = {
 function TechnoMap() {
   const { status, drillholes, cells, isFetching, failure, isDemo, refresh } = useMapData();
   const { filters, setFilter, setAll } = useMapFilters();
+  const { baseMap, setBaseMap } = useBaseMap();
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [measurement, setMeasurement] = useState<UtmCoordinates[]>([]);
   const [isExporting, setIsExporting] = useState(false);
@@ -82,6 +86,7 @@ function TechnoMap() {
         filters,
         measurement,
         title: isDemo ? `${MAP_CONFIG.title} (Demo data)` : MAP_CONFIG.title,
+        baseMap,
       });
       showToast('success', 'Map exported successfully');
     } catch {
@@ -100,16 +105,22 @@ function TechnoMap() {
         </div>
         <div className="mb-[3px] flex shrink-0 items-center gap-2">
           <RefreshButton isRefreshing={isFetching} onRefresh={refresh} />
+          <BaseMapSwitcher value={baseMap} onChange={setBaseMap} />
           <strong>{drillholes.length} drillholes</strong>
         </div>
       </header>
 
       <div className="map-panel">
         <div ref={viewportRef} className={`map-viewport${viewportState}`} {...viewportHandlers}>
+          {/* Only the background changes with the base map; the view and every feature stay put. */}
+          {baseMap === 'white-grid' && !image.hasFailed && (
+            <CoordinateGrid viewport={viewportSize} view={view} mapOrigin={mapOrigin} mapSize={mapSize} />
+          )}
           <MapCanvas
             style={buildCanvasTransformStyle(view, renderedMapSize)}
             onImageLoad={image.onLoad}
             onImageError={image.onError}
+            showImage={baseMap === 'geological'}
           >
             {!image.hasFailed && (
               <>

@@ -20,6 +20,7 @@ TechnoMap/
 ├─ TechnoMap.css              styles, every selector scoped under .techno-map-page
 ├─ Map/
 │  ├─ MapCanvas.tsx         transformed layer: base image + children
+│  ├─ CoordinateGrid.tsx    white grid base map: Easting/Northing lines + labels
 │  ├─ TechnoCells.tsx       technological cell outlines and labels
 │  ├─ DrillholeFeatures     dedupe → filter → markers + deviation lines
 │  ├─ DrillholeMarker       rig icon OR shape (never both) + tooltip
@@ -33,10 +34,12 @@ TechnoMap/
 ├─ Controls/
 │  ├─ MapControls.tsx       zoom in/out, reset, measure, export menu, zoom readout
 │  ├─ LayerPanel.tsx        floating "Map Layers" panel: 12 filters, Show/Hide All
-│  └─ RefreshButton.tsx     header button: reload the data
+│  ├─ RefreshButton.tsx     header button: reload the data
+│  └─ BaseMapSwitcher.tsx   header menu right of Refresh: Geological / White Grid
 ├─ Tooltips/
 │  └─ DrillholeTooltip      the hole's details on hover, focus or click
 ├─ hooks/
+│  ├─ useBaseMap.ts         the selected base map, remembered in localStorage
 │  ├─ useMapData.ts         demo data, or automatic loading → status, refresh()
 │  ├─ useMapFilters.ts      the 12 filters, remembered in localStorage
 │  └─ useMapViewport.ts     sizing, drag-pan, zoom, map clicks, fit, view persistence
@@ -46,6 +49,7 @@ TechnoMap/
 │  ├─ technoMap.yaml        data source, zoom, GT bands, types, layers, colours
 │  └─ technoMapConfig.ts    validates the YAML; ids, MAP_ID, getGtRange
 └─ utils/                   pure functions
+   ├─ coordinateGrid.ts     white grid lines/labels for the view (screen + export)
    ├─ coordinates.ts        UTM ↔ map ratio, deviation endpoints, extent
    ├─ geometry.ts           fit, transform, cursor-centred zoom, viewport ↔ map
    ├─ markerKind.ts         purpose → type, marker priority
@@ -122,12 +126,31 @@ empty in backend mode.
 
 ## Refresh
 
-`Controls/RefreshButton` sits in the header, immediately before the drillhole
-count. Backend mode asks the backend; mock mode reloads the fixed demo data
+`Controls/RefreshButton` sits in the header, followed by the base map switcher
+and the drillhole count. Backend mode asks the backend; mock mode reloads the fixed demo data
 without a request. While it runs only the icon spins (clockwise; not under
 reduced motion) and further clicks are ignored; drillholes, filters, pan, zoom
 and measurement stay as they are. Success shows *Map data refreshed
 successfully*.
+
+## Base map
+
+`Controls/BaseMapSwitcher` (layers icon, right of Refresh) opens a menu of
+the backgrounds in `baseMap.options` (`config/technoMap.yaml`), the current one
+ticked: **Geological Map** (the surveyed image) and **White Grid Map**.
+Switching changes only the background; view, features, filters and the
+measurement stay as they are. The choice persists under `techno-map:base-map`
+(localStorage) and falls back to `baseMap.default` (geological).
+
+The geological image stays loaded and laid out while hidden: its size is what
+every feature is placed against, so nothing moves. `Map/CoordinateGrid` draws
+under the canvas, in viewport pixels, from `utils/coordinateGrid.ts`: a white
+sheet over exactly the UTM bounds, lines every 1/2/5 x 10^n metres (the
+smallest step at least `whiteGrid.minLineSpacing` px apart, so it refines on
+zoom), eastings along the top and northings along the left. Positions go
+through the same UTM → map ratio → viewport functions as the markers. The
+export draws the same grid instead of embedding the image. Colours, line
+width, label size and spacing are under `baseMap.whiteGrid`.
 
 ## Legend sizes
 

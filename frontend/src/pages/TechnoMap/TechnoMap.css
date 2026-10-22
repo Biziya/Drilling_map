@@ -116,6 +116,24 @@
   -webkit-user-drag: none;
 }
 
+/* Another base map is shown: the image keeps its box (features are placed
+   against it) and only stops painting. */
+.techno-map-page .base-map.is-hidden { visibility: hidden; }
+
+/* White grid base map: viewport-sized, before the canvas in the DOM so it
+   paints under every feature, and never takes the pointer. Colours and sizes
+   come from technoMap.yaml as SVG attributes. */
+.techno-map-page .coordinate-grid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .techno-map-page .drillhole-feature {
   position: absolute;
   width: 0;

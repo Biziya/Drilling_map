@@ -1,13 +1,15 @@
 // PNG and SVG export of the visible viewport.
 //
 // Both formats come from one SVG document built from the same data and rules
-// as the screen: base map (embedded, since an export must stand alone),
-// technological cells, deviation lines, markers, the measurement, then the
+// as the screen: the selected base map (the geological image, embedded since
+// an export must stand alone, or the white coordinate grid), technological cells, deviation lines, markers, the measurement, then the
 // title, north arrow and scale bar. Floating UI (toolbar, filter panel,
 // tooltips) is simply never drawn. PNG rasterises that SVG at 2x.
 
 import { BASE_MAP_SRC, DRILLHOLE_TYPE_CONFIG, MAP_CONFIG, MAP_UTM_BOUNDS, getGtRange } from '../config/technoMapConfig';
+import type { BaseMapId } from '../config/technoMapConfig';
 import type { TechnoCell } from '../mock/mockData';
+import { computeCoordinateGrid } from './coordinateGrid';
 import { outlineCentre, utmToMapRatio } from './coordinates';
 import { mapRatioToViewport } from './geometry';
 import { selectShownFeatures } from './mapFilters';
@@ -32,11 +34,14 @@ export interface MapSnapshot {
   filters: MapFilters;
   measurement: readonly UtmCoordinates[];
   title: string;
+  /** Background shown on screen; the geological image when omitted. */
+  baseMap?: BaseMapId;
 }
 
 /** Images embedded in the export, as data URLs. */
 export interface ExportAssets {
-  baseMap: string;
+  /** The geological image; null when the white grid is drawn instead. */
+  baseMap: string | null;
   rigIcon: string;
 }
 
@@ -107,6 +112,31 @@ function titleSvg(title: string): string {
     + `<text x="26" y="37" font-family="${FONT}" font-size="17" font-weight="700" fill="#1b2d23">${escapeXml(title)}</text>`;
 }
 
+/** The white grid base map, from the same lines and labels as the screen. */
+function coordinateGridSvg({ viewport, view, mapOrigin, mapSize }: MapSnapshot): string {
+  const style = MAP_CONFIG.baseMap.whiteGrid;
+  const grid = computeCoordinateGrid({
+    viewport,
+    view,
+    mapOrigin,
+    mapSize,
+    minLineSpacing: style.minLineSpacing,
+    labelFontSize: style.labelFontSize,
+  });
+  if (!grid) return '';
+
+  const { sheet, lines, labels } = grid;
+
+  return `<rect x="${n(sheet.left)}" y="${n(sheet.top)}" width="${n(sheet.right - sheet.left)}" height="${n(sheet.bottom - sheet.top)}" fill="${style.background}"/>`
+    + `<g stroke="${style.lineColor}" stroke-width="${style.lineWidth}" shape-rendering="crispEdges">`
+    + lines.map(({ x1, y1, x2, y2 }) => `<line x1="${n(x1)}" y1="${n(y1)}" x2="${n(x2)}" y2="${n(y2)}"/>`).join('')
+    + '</g>'
+    + `<g font-family="${FONT}" font-size="${style.labelFontSize}" font-weight="600" fill="${style.labelColor}" `
+    + `stroke="${style.background}" stroke-width="3" paint-order="stroke">`
+    + labels.map(({ text, x, y }) => `<text x="${n(x)}" y="${n(y)}">${escapeXml(text)}</text>`).join('')
+    + '</g>';
+}
+
 function measurementSvg(points: readonly UtmCoordinates[], toScreen: (point: UtmCoordinates) => Point): string {
   const color = MAP_CONFIG.measurement.color;
   const [start, end] = points;
@@ -139,8 +169,10 @@ export function buildMapSvg(snapshot: MapSnapshot, assets: ExportAssets, pixelRa
 
   const parts: string[] = [
     `<rect width="${viewport.width}" height="${viewport.height}" fill="${VIEWPORT_BACKGROUND}"/>`,
-    `<image href="${assets.baseMap}" x="${n(mapOrigin.x + view.translateX)}" y="${n(mapOrigin.y + view.translateY)}" `
-      + `width="${n(mapSize.width * view.scale)}" height="${n(mapSize.height * view.scale)}" preserveAspectRatio="none"/>`,
+    snapshot.baseMap === 'white-grid' || !assets.baseMap
+      ? coordinateGridSvg(snapshot)
+      : `<image href="${assets.baseMap}" x="${n(mapOrigin.x + view.translateX)}" y="${n(mapOrigin.y + view.translateY)}" `
+        + `width="${n(mapSize.width * view.scale)}" height="${n(mapSize.height * view.scale)}" preserveAspectRatio="none"/>`,
   ];
 
   if (filters['technological-cells']) {
@@ -238,7 +270,11 @@ function download(blob: Blob, fileName: string) {
 
 /** Builds the export and starts the download. Rejects if any asset or step fails. */
 export async function exportMap(format: ExportFormat, snapshot: MapSnapshot): Promise<void> {
-  const [baseMap, rigIcon] = await Promise.all([loadDataUrl(BASE_MAP_SRC), loadDataUrl(MAP_CONFIG.rigIconSrc)]);
+  // The white grid is drawn, not embedded, so the image is only fetched when shown.
+  const [baseMap, rigIcon] = await Promise.all([
+    snapshot.baseMap === 'white-grid' ? null : loadDataUrl(BASE_MAP_SRC),
+    loadDataUrl(MAP_CONFIG.rigIconSrc),
+  ]);
   const assets = { baseMap, rigIcon };
   const { width, height } = snapshot.viewport;
 

@@ -351,12 +351,14 @@ describe("map pages", () => {
     }
 
     it.each([["Exploration Map", DrillMap], ["Techno Map", TechnoMap]])(
-      "sits in the %s header immediately before the drillhole count",
+      "sits in the %s header, followed by the base map switcher and the drillhole count",
       async (_title, Page) => {
         const { container } = await renderPage(Page);
         const count = container.querySelector(".map-header strong");
+        const switcher = refreshButton().nextElementSibling;
 
-        expect(refreshButton().nextElementSibling).toBe(count);
+        expect(switcher.contains(screen.getByRole("button", { name: "Base map" }))).toBe(true);
+        expect(switcher.nextElementSibling).toBe(count);
         expect(count.textContent).toMatch(/^\d+ drillholes$/);
         expect(container.querySelector(".map-header").contains(refreshButton())).toBe(true);
         expect(container.querySelector(".map-viewport").contains(refreshButton())).toBe(false);
