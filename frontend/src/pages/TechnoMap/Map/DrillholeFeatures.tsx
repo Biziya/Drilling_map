@@ -37,6 +37,7 @@ function DrillholeFeatures({
 
   return features.map(({ key, drillhole, deviation }) => {
     const kind = resolveMarkerKind(drillhole);
+    if (!kind) return null;
 
     return (
       <div key={key} className="drillhole-feature" style={{ left: `${drillhole.xPercent}%`, top: `${drillhole.yPercent}%` }}>

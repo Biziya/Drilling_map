@@ -13,7 +13,12 @@
 //     water wells on a northern supply line and at a few scattered sites
 //
 // 130 unique holes; 10 of them drilling in progress, 30 with deviation.
+//
+// Records have the /api/techno-map shape: the SQL Type as holePurpose, the
+// sampling flags, and the category and deviation endpoint the backend would
+// resolve for them.
 
+import type { DrillholeType } from '../config/technoMapConfig';
 import type { DrillholeApiRecord } from '../../../types/drillhole';
 import type { UtmCoordinates } from '../../../types/map';
 
@@ -122,7 +127,11 @@ const WATER = fromUtm([
 
 interface TypeSpec {
   prefix: string;
+  /** SQL Type. */
   purpose: string;
+  /** What the backend resolves: the sampling category if flagged, else the Type's. */
+  category: DrillholeType;
+  sampling?: 'ra-grade' | 'sediment';
   points: readonly UtmCoordinates[];
   /** GT range for holes that are logged, or null for types without assays. */
   gt: readonly [number, number] | null;
@@ -135,26 +144,30 @@ const injectorPositions = patternWells(0, 0);
 const producerPositions = patternWells(1, 0);
 
 const TYPES: readonly TypeSpec[] = [
-  { prefix: 'DEV', purpose: 'DEVELOP', points: DEVELOPMENT, gt: [0.01, 0.35], depth: [360, 440], inProgress: [2, 6], deviated: [0, 3, 5, 8] },
-  { prefix: 'EXP', purpose: 'EXPLORE', points: EXPLORATION, gt: [0, 0.2], depth: [400, 520], inProgress: [4], deviated: [1, 5, 7, 9] },
-  { prefix: 'GEO', purpose: 'GEOTECH', points: GEOTECHNICAL, gt: null, depth: [30, 60], inProgress: [5], deviated: [0, 4] },
-  { prefix: 'INJ', purpose: 'INJECT', points: injectorPositions, gt: [0.02, 0.9], depth: [380, 430], inProgress: [8, 21], deviated: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28] },
-  { prefix: 'MON', purpose: 'MONITOR', points: MONITORING, gt: null, depth: [380, 450], inProgress: [7], deviated: [] },
-  { prefix: 'PRD', purpose: 'PRODUCT', points: producerPositions, gt: [0.03, 1.2], depth: [380, 430], inProgress: [4, 14, 26], deviated: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27] },
-  { prefix: 'RAS', purpose: 'RASAMPLE', points: RA_GRADE_SAMPLING, gt: [0.01, 0.6], depth: [380, 440], inProgress: [], deviated: [] },
-  { prefix: 'SED', purpose: 'SEDIMENT', points: SEDIMENT_SAMPLING, gt: null, depth: [5, 15], inProgress: [], deviated: [] },
-  { prefix: 'WTR', purpose: 'WATER', points: WATER, gt: null, depth: [150, 260], inProgress: [], deviated: [] },
+  { prefix: 'DEV', purpose: 'DEVELOP', category: 'development', points: DEVELOPMENT, gt: [0.01, 0.35], depth: [360, 440], inProgress: [2, 6], deviated: [0, 3, 5, 8] },
+  { prefix: 'EXP', purpose: 'EXPLO', category: 'exploration', points: EXPLORATION, gt: [0, 0.2], depth: [400, 520], inProgress: [4], deviated: [1, 5, 7, 9] },
+  { prefix: 'GEO', purpose: 'GEOTECHNICAL', category: 'geotechnical', points: GEOTECHNICAL, gt: null, depth: [30, 60], inProgress: [5], deviated: [0, 4] },
+  { prefix: 'INJ', purpose: 'INJECT', category: 'injector', points: injectorPositions, gt: [0.02, 0.9], depth: [380, 430], inProgress: [8, 21], deviated: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28] },
+  { prefix: 'MON', purpose: 'PIEZO', category: 'monitoring', points: MONITORING, gt: null, depth: [380, 450], inProgress: [7], deviated: [] },
+  { prefix: 'PRD', purpose: 'PRODUCT', category: 'producer', points: producerPositions, gt: [0.03, 1.2], depth: [380, 430], inProgress: [4, 14, 26], deviated: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27] },
+  { prefix: 'RAS', purpose: 'EXPLO', category: 'ra-grade-sampling', sampling: 'ra-grade', points: RA_GRADE_SAMPLING, gt: [0.01, 0.6], depth: [380, 440], inProgress: [], deviated: [] },
+  { prefix: 'SED', purpose: 'EXPLO', category: 'sediment-sampling', sampling: 'sediment', points: SEDIMENT_SAMPLING, gt: null, depth: [5, 15], inProgress: [], deviated: [] },
+  { prefix: 'WTR', purpose: 'WATER_WELL', category: 'water', points: WATER, gt: null, depth: [150, 260], inProgress: [], deviated: [] },
 ];
 
 const between = ([min, max]: readonly [number, number], seed: number, digits: number) =>
   round(min + noise(seed) * (max - min), digits);
 
 function buildRecords(): DrillholeApiRecord[] {
-  return TYPES.flatMap(({ prefix, purpose, points, gt, depth, inProgress, deviated }, typeIndex) =>
+  return TYPES.flatMap(({ prefix, purpose, category, sampling, points, gt, depth, inProgress, deviated }, typeIndex) =>
     points.map(({ x, y }, index) => {
       const seed = 10_000 + typeIndex * 1000 + index * 10;
       const isInProgress = inProgress.includes(index);
       const isDeviated = deviated.includes(index);
+      const azimuth = isDeviated ? between([0, 360], seed + 3, 2) : null;
+      const finalDeviation = isDeviated ? between([1, 6], seed + 4, 2) : null;
+      // As the backend computes it: azimuth is a bearing, so sine moves the easting.
+      const radians = ((azimuth ?? 0) * Math.PI) / 180;
 
       return {
         holeId: `TM-${prefix}-${String(index + 1).padStart(3, '0')}`,
@@ -165,12 +178,17 @@ function buildRecords(): DrillholeApiRecord[] {
         year: 2026,
         campaign: 'DEMO DATASET',
         holePurpose: purpose,
+        category,
+        raGradeSampling: sampling === 'ra-grade',
+        sedimentSampling: sampling === 'sediment',
         holeStatus: isInProgress ? 'INPROGRESS' : 'VALIDATED',
         // Holes still being drilled have no assay, depth or deviation survey yet.
         gt: gt && !isInProgress ? between(gt, seed + 1, 4) : null,
         maxDepth: isInProgress ? null : between(depth, seed + 2, 1),
-        azimuth: isDeviated ? between([0, 360], seed + 3, 2) : null,
-        finalDeviation: isDeviated ? between([1, 6], seed + 4, 2) : null,
+        azimuth,
+        finalDeviation,
+        deviationEndX: finalDeviation === null ? null : round(x + Math.sin(radians) * finalDeviation, 4),
+        deviationEndY: finalDeviation === null ? null : round(y + Math.cos(radians) * finalDeviation, 4),
       };
     }));
 }

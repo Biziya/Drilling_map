@@ -6,8 +6,10 @@ import {
   resolveMarkerKind,
 } from "../../../src/pages/TechnoMap/utils/markerKind.js";
 import { DRILLHOLE_TYPES, MAP_CONFIG } from "../../../src/pages/TechnoMap/config/technoMapConfig.js";
+import { asBackendRecord } from "./backendRecord.js";
 
-// Techno Map: rig > the purpose's drillhole type > injector square as the fallback.
+// Techno Map: rig > the API's category > nothing (a hole with no category
+// belongs to no filter and is not drawn).
 
 describe("MARKER_KINDS", () => {
   it("lists the rig and the nine drillhole types, with no plain 'drillhole'", () => {
@@ -17,76 +19,109 @@ describe("MARKER_KINDS", () => {
   });
 });
 
-describe("resolveMarkerKind", () => {
-  it("shows a rig for an in-progress hole", () => {
-    expect(resolveMarkerKind({ HoleStatus: "INPROGRESS" })).toBe("rig");
-    expect(resolveMarkerKind({ holeStatus: "INPROGRESS" })).toBe("rig");
+describe("resolveDrillholeType", () => {
+  it.each(DRILLHOLE_TYPES)("accepts the API category %s", (category) => {
+    expect(resolveDrillholeType({ category })).toBe(category);
   });
 
-  // The regression that made every Techno marker a square: the resolver
-  // matched PRODUCER, which no record carries.
-  it("shows a triangle for PRODUCT", () => {
-    expect(resolveMarkerKind({ HolePurpose: "PRODUCT" })).toBe("producer");
-    expect(markerShapeFor("producer")).toBe("triangle");
+  it("accepts either casing for the field and ignores case and whitespace in the value", () => {
+    expect(resolveDrillholeType({ Category: "producer" })).toBe("producer");
+    expect(resolveDrillholeType({ category: "  Producer " })).toBe("producer");
   });
 
-  it("shows a square for INJECT", () => {
-    expect(resolveMarkerKind({ HolePurpose: "INJECT" })).toBe("injector");
-    expect(markerShapeFor("injector")).toBe("square");
+  // The frontend no longer classifies: Type alone, without the backend's
+  // category, decides nothing.
+  it("does not derive a type from the SQL Type itself", () => {
+    expect(resolveDrillholeType({ holePurpose: "PRODUCT" })).toBeNull();
   });
+
+  it("returns null for a missing, unknown or non-string category", () => {
+    expect(resolveDrillholeType({})).toBeNull();
+    expect(resolveDrillholeType({ category: null })).toBeNull();
+    expect(resolveDrillholeType({ category: "observation" })).toBeNull();
+    expect(resolveDrillholeType({ category: 1 })).toBeNull();
+    expect(resolveDrillholeType(undefined)).toBeNull();
+    expect(resolveDrillholeType(null)).toBeNull();
+  });
+});
+
+// The backend mapping (TechnoMapCategory.cs, mirrored by backendRecord.js)
+// carried through to the marker the page draws.
+describe("SQL Type and sampling flags, end to end", () => {
+  const kindOf = (row) => resolveMarkerKind(asBackendRecord(row));
 
   it.each([
     ["DEVELOP", "development"],
-    ["EXPLORE", "exploration"],
-    ["GEOTECH", "geotechnical"],
-    ["MONITOR", "monitoring"],
-    ["RASAMPLE", "ra-grade-sampling"],
-    ["SEDIMENT", "sediment-sampling"],
-    ["WATER", "water"],
-  ])("maps %s to %s", (purpose, type) => {
-    expect(resolveMarkerKind({ HolePurpose: purpose })).toBe(type);
+    ["EAU", "water"],
+    ["EXPLO", "exploration"],
+    ["GEOTECHNICAL", "geotechnical"],
+    ["INJECT", "injector"],
+    ["PIEZO", "monitoring"],
+    ["PRODUCT", "producer"],
+    ["WATER_WELL", "water"],
+  ])("maps Type %s to %s", (type, kind) => {
+    expect(kindOf({ holePurpose: type, raGradeSampling: false, sedimentSampling: false })).toBe(kind);
+  });
+
+  it.each(["CONTROLE", "HYDRO_WELL", "SEDIMENT", "SER"])("leaves Type %s unmapped and undrawn", (type) => {
+    expect(kindOf({ holePurpose: type })).toBeNull();
+  });
+
+  it("matches Type case-insensitively and trimmed", () => {
+    expect(kindOf({ holePurpose: "  piezo " })).toBe("monitoring");
+  });
+
+  it("lets Ra_Grade_Sampling = 1 override the Type", () => {
+    expect(kindOf({ holePurpose: "EXPLO", raGradeSampling: true, sedimentSampling: false })).toBe("ra-grade-sampling");
+  });
+
+  it("lets Sediment_Sampling = 1 override the Type", () => {
+    expect(kindOf({ holePurpose: "PRODUCT", raGradeSampling: false, sedimentSampling: true })).toBe("sediment-sampling");
+  });
+
+  it("puts Ra-grade before Sediment when both flags are set", () => {
+    expect(kindOf({ holePurpose: "EXPLO", raGradeSampling: true, sedimentSampling: true })).toBe("ra-grade-sampling");
+  });
+
+  it("treats NULL flags as inactive", () => {
+    expect(kindOf({ holePurpose: "INJECT", raGradeSampling: null, sedimentSampling: null })).toBe("injector");
+  });
+
+  it("gives a flagged hole with an unmapped Type its sampling category", () => {
+    expect(kindOf({ holePurpose: "SER", sedimentSampling: true })).toBe("sediment-sampling");
+  });
+
+  it("keeps the original Type on the record", () => {
+    expect(asBackendRecord({ holePurpose: "EXPLO", raGradeSampling: true }).holePurpose).toBe("EXPLO");
+  });
+});
+
+describe("resolveMarkerKind", () => {
+  it("draws the category's symbol", () => {
+    expect(resolveMarkerKind({ category: "producer" })).toBe("producer");
+    expect(markerShapeFor("producer")).toBe("triangle");
+    expect(resolveMarkerKind({ category: "injector" })).toBe("injector");
+    expect(markerShapeFor("injector")).toBe("square");
   });
 
   // The rule the brief calls out explicitly: rig only, no shape beneath.
-  it.each(["PRODUCT", "INJECT", "WATER", "EXPLORE"])("lets INPROGRESS win over %s", (purpose) => {
-    expect(resolveMarkerKind({ HoleStatus: "INPROGRESS", HolePurpose: purpose })).toBe("rig");
+  it.each(["producer", "injector", "water", "ra-grade-sampling"])("lets INPROGRESS win over %s", (category) => {
+    expect(resolveMarkerKind({ HoleStatus: "INPROGRESS", category })).toBe("rig");
+    expect(resolveMarkerKind({ holeStatus: " inprogress", category })).toBe("rig");
   });
 
   it("keeps the type of an in-progress hole for filtering", () => {
-    expect(resolveDrillholeType({ HoleStatus: "INPROGRESS", HolePurpose: "PRODUCT" })).toBe("producer");
+    expect(resolveDrillholeType({ HoleStatus: "INPROGRESS", category: "producer" })).toBe("producer");
   });
 
-  it("also accepts the PRODUCER/INJECTOR spellings", () => {
-    expect(resolveMarkerKind({ HolePurpose: "PRODUCER" })).toBe("producer");
-    expect(resolveMarkerKind({ HolePurpose: "INJECTOR" })).toBe("injector");
+  it("draws nothing, not even a rig, for a hole without a category", () => {
+    expect(resolveMarkerKind({ holeStatus: "INPROGRESS" })).toBeNull();
+    expect(resolveMarkerKind({})).toBeNull();
+    expect(resolveMarkerKind(null)).toBeNull();
   });
 
-  it("accepts either casing for the hole purpose field", () => {
-    expect(resolveMarkerKind({ holePurpose: "PRODUCT" })).toBe("producer");
-    expect(resolveMarkerKind({ HolePurpose: "PRODUCT" })).toBe("producer");
-    expect(resolveMarkerKind({ holePurpose: "INJECT" })).toBe("injector");
-  });
-
-  it("ignores casing and surrounding whitespace in the value", () => {
-    expect(resolveMarkerKind({ HolePurpose: "  product " })).toBe("producer");
-    expect(resolveMarkerKind({ HolePurpose: " inject" })).toBe("injector");
-    expect(resolveMarkerKind({ HoleStatus: " inprogress" })).toBe("rig");
-  });
-
-  it("does not treat a non-string value as a match", () => {
-    expect(resolveMarkerKind({ HolePurpose: 1 })).toBe("injector");
-    expect(resolveMarkerKind({ HoleStatus: true })).toBe("injector");
-  });
-
-  it("falls back to an injector square when the purpose is missing or unknown", () => {
-    expect(resolveMarkerKind({})).toBe("injector");
-    expect(resolveMarkerKind({ HolePurpose: "Observation" })).toBe("injector");
-    expect(resolveMarkerKind({ HolePurpose: null })).toBe("injector");
-  });
-
-  it("survives a missing record", () => {
-    expect(resolveMarkerKind(undefined)).toBe("injector");
-    expect(resolveMarkerKind(null)).toBe("injector");
+  it("does not treat a non-string status as in progress", () => {
+    expect(resolveMarkerKind({ HoleStatus: true, category: "injector" })).toBe("injector");
   });
 });
 

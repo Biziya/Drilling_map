@@ -65,6 +65,7 @@ const n = (value: number) => Number(value.toFixed(2));
 
 function markerSvg(drillhole: ProjectedDrillhole, at: Point, rigIcon: string): string {
   const kind = resolveMarkerKind(drillhole);
+  if (!kind) return '';
   if (kind === 'rig') {
     return `<image href="${rigIcon}" x="${n(at.x - 16)}" y="${n(at.y - 16)}" width="32" height="32"/>`;
   }

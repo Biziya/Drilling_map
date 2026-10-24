@@ -112,7 +112,7 @@ Local example:
 http://localhost:5236/api/techno-map
 ```
 
-Both endpoints currently use the same SQL logic, database connection, filtering, and response structure. They have separate controllers, repositories, interfaces, and DTOs so they can be developed independently later.
+The two endpoints have separate controllers, repositories, interfaces, and DTOs. The Techno Map reads `[ACQMN01].[dbo].[pyISR_AllData_V2]`; see [Techno Map Response](#techno-map-response). The sections below up to it describe the Exploration Map.
 
 The old endpoint below has been removed:
 
@@ -180,6 +180,50 @@ The current SQL query:
 - Calculates GT from `GEODETAILS`.
 - Uses approved geophysical records for azimuth and final deviation.
 - Keeps drillholes even when optional GT or deviation information is unavailable.
+
+## Techno Map Response
+
+`GET /api/techno-map` returns one object per row of `[ACQMN01].[dbo].[pyISR_AllData_V2]`, unfiltered. Names the frontend already used are kept (`holeId`, `holePurpose`, `holeStatus`, `x`/`y`/`z`, `azimuth`, `finalDeviation`).
+
+| Field | View column / source |
+| --- | --- |
+| `id` | `[ID]` |
+| `holeId` | `[Key]`, trimmed |
+| `holePurpose` | `[Type]`, as stored |
+| `holeStatus` | `[Status]`, as stored. `INPROGRESS` draws the rig |
+| `x`, `y`, `z` | `[X (m)]`, `[Y (m)]`, `[Z (well head - topo) (m)]` |
+| `relativeLevel`, `license`, `stratigraphicUnit` | `[Relative level]`, `[License]`, `[Stratigraphic Unit]` |
+| `screenMinDepth`, `screenMaxDepth`, `screenLength`, `screenTopAltitude`, `screenBottomAltitude` | the `[Screen ...]` columns |
+| `drillingCompany`, `drillingRig` | `[Drilling company]`, `[Drilling Rig]` |
+| `startDate`, `endDate`, `billingDate` | `[STARTDATE]`, `[ENDDATE]`, `[BillingDate]` as `yyyy-MM-dd`, or null |
+| `generalComment` | `[GeneralComment]` |
+| `raGradeSampling`, `sedimentSampling` | `[Ra_Grade_Sampling]`, `[Sediment_Sampling]`: 1 → true, 0 → false, NULL → null |
+| `azimuth`, `finalDeviation` | the deviation calculation below |
+| `deviationEndX`, `deviationEndY` | `x + finalDeviation·sin(azimuth)`, `y + finalDeviation·cos(azimuth)`; null without a usable survey |
+| `category` | the Techno Map filter, below |
+
+### Category
+
+Resolved in `Models/TechnoMap/TechnoMapCategory.cs`, one per row:
+
+1. `raGradeSampling = true` → `ra-grade-sampling`
+2. `sedimentSampling = true` → `sediment-sampling`
+3. otherwise `[Type]` (trimmed, case-insensitive):
+
+| Type | Category |
+| --- | --- |
+| `DEVELOP` | `development` |
+| `EXPLO` | `exploration` |
+| `GEOTECHNICAL` | `geotechnical` |
+| `INJECT` | `injector` |
+| `PIEZO` | `monitoring` |
+| `PRODUCT` | `producer` |
+| `EAU`, `WATER_WELL` | `water` |
+| `CONTROLE`, `HYDRO_WELL`, `SEDIMENT`, `SER`, anything else | `null`, which no filter shows |
+
+### Deviation
+
+Unchanged from the previous Techno Map query: approved geophysical headers (`GeophysApproved = 1`), the deepest station (depth rounded to 2 dp), `AzimuthAdj` there, and `FinalDeviation = √(E² + N²)` of `EastingBalanced`/`NorthingBalanced` each rounded to 3 dp first. Surveys are matched on `HOLEID = [Key]`; the view has no `PROJECTCODE`, so a `HOLEID` surveyed in more than one project gets no deviation rather than another hole's.
 
 ## Backend Flow
 

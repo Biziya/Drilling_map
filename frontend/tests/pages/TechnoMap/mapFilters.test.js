@@ -9,9 +9,13 @@ import {
 import { FILTER_IDS } from "../../../src/pages/TechnoMap/config/technoMapConfig.js";
 import { convertUtmToMapPosition } from "../../../src/pages/TechnoMap/utils/coordinates.js";
 
-const PRODUCER = { holeId: "P", x: 418000, y: 4894000, holePurpose: "PRODUCT" };
+const PRODUCER = { holeId: "P", x: 418000, y: 4894000, holePurpose: "PRODUCT", category: "producer" };
 const PRODUCER_RIG = { ...PRODUCER, holeId: "R", x: 418100, holeStatus: "INPROGRESS" };
-const WATER = { holeId: "W", x: 418200, y: 4894000, holePurpose: "WATER" };
+const WATER = { holeId: "W", x: 418200, y: 4894000, holePurpose: "EAU", category: "water" };
+// Type PRODUCT, but flagged Ra_Grade_Sampling = 1: the backend files it under Ra-grade-sampling.
+const RA_PRODUCER = { holeId: "RA", x: 418300, y: 4894000, holePurpose: "PRODUCT", raGradeSampling: true, category: "ra-grade-sampling" };
+// An unmapped Type (SER): no category, so no filter shows it.
+const UNMAPPED = { holeId: "U", x: 418400, y: 4894000, holePurpose: "SER", category: null };
 const without = (...ids) => ({ ...ALL_VISIBLE, ...Object.fromEntries(ids.map((id) => [id, false])) });
 
 describe("isDrillholeShown", () => {
@@ -31,6 +35,16 @@ describe("isDrillholeShown", () => {
     expect(isDrillholeShown(PRODUCER_RIG, ALL_VISIBLE)).toBe(true);
     expect(isDrillholeShown(PRODUCER_RIG, without("producer"))).toBe(false);
     expect(isDrillholeShown(PRODUCER_RIG, without("drilling-in-progress"))).toBe(false);
+  });
+
+  it("lets the sampling category, not the Type, decide a flagged hole", () => {
+    expect(isDrillholeShown(RA_PRODUCER, without("producer"))).toBe(true);
+    expect(isDrillholeShown(RA_PRODUCER, without("ra-grade-sampling"))).toBe(false);
+  });
+
+  it("never shows a hole without a category", () => {
+    expect(isDrillholeShown(UNMAPPED, ALL_VISIBLE)).toBe(false);
+    expect(isDrillholeShown({ ...UNMAPPED, holeStatus: "INPROGRESS" }, ALL_VISIBLE)).toBe(false);
   });
 
   it("leaves ordinary holes alone when Drilling in progress is unchecked", () => {

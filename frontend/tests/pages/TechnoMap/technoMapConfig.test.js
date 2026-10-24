@@ -114,8 +114,8 @@ describe("Techno Map config", () => {
     MARKER_KINDS.forEach((kind) => expect(MAP_CONFIG.markerLabels[kind]).toEqual(expect.any(String)));
   });
 
-  it("defaults to the demo dataset", () => {
-    expect(MAP_CONFIG.dataSource).toBe("mock");
+  it("defaults to the backend dataset", () => {
+    expect(MAP_CONFIG.dataSource).toBe("backend");
   });
 
   it("defines exactly 12 filters: nine drillhole types and three feature layers", () => {

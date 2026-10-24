@@ -7,14 +7,22 @@ import DrillDrillholeFeatures from "../../src/pages/DrillMap/Map/DrillholeFeatur
 import TechnoDrillholeFeatures from "../../src/pages/TechnoMap/Map/DrillholeFeatures.jsx";
 import * as drillCoordinates from "../../src/pages/DrillMap/utils/coordinates.js";
 import * as technoCoordinates from "../../src/pages/TechnoMap/utils/coordinates.js";
+import { asBackendRecord } from "./TechnoMap/backendRecord.js";
 
 afterEach(cleanup);
 
 const MAP = { mapWidth: 1200, mapHeight: 850 };
 
+// Techno Map records get what its API adds (category, deviation endpoint).
+// A hole with no Type here is given INJECT: the Techno Map draws only holes
+// with a category, and these tests are about lines and markers, not types.
+const asTechnoRecord = (record) => asBackendRecord(
+  record.holePurpose ?? record.HolePurpose ? record : { ...record, holePurpose: "INJECT" },
+);
+
 const PAGES = [
-  ["DrillMap", DrillDrillholeFeatures, drillCoordinates],
-  ["TechnoMap", TechnoDrillholeFeatures, technoCoordinates],
+  ["DrillMap", DrillDrillholeFeatures, drillCoordinates, (record) => record],
+  ["TechnoMap", TechnoDrillholeFeatures, technoCoordinates, asTechnoRecord],
 ];
 
 const lineOf = (container) => {
@@ -27,10 +35,10 @@ describe.each(PAGES)("%s DrillholeFeatures", (_page, DrillholeFeatures, {
   attachDeviationOffsets,
   convertUtmToMapPosition,
   projectDrillholes,
-}) => {
+}, toApi) => {
   // The features component takes already-projected drillholes, so the records
   // go through the same projection the page uses.
-  const project = (records) => records.map((record) => convertUtmToMapPosition(record));
+  const project = (records) => records.map((record) => convertUtmToMapPosition(toApi(record)));
 
   const renderFeatures = (records, { deviationVisible = true } = {}) => render(
     <DrillholeFeatures

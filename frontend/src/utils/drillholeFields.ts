@@ -11,6 +11,7 @@
 // up.
 
 import type {
+  ApiFlag,
   ApiNumeric,
   ApiText,
   DrillholeApiRecord,
@@ -18,7 +19,7 @@ import type {
 } from '../types/drillhole';
 
 /** Value a record field can hold before it has been narrowed. */
-export type DrillholeFieldValue = ApiText | ApiNumeric | undefined;
+export type DrillholeFieldValue = ApiText | ApiNumeric | ApiFlag | undefined;
 
 /** Canonical field name, i.e. the camelCase spelling in `DrillholeMapItem`. */
 export type DrillholeField = keyof DrillholeMapItem;
@@ -45,6 +46,26 @@ const FIELD_ALIASES: Readonly<
   finalDeviation: ['finalDeviation', 'FinalDeviation'],
   holePurpose: ['holePurpose', 'HolePurpose'],
   holeStatus: ['holeStatus', 'HoleStatus'],
+  id: ['id', 'Id'],
+  category: ['category', 'Category'],
+  relativeLevel: ['relativeLevel', 'RelativeLevel'],
+  license: ['license', 'License'],
+  stratigraphicUnit: ['stratigraphicUnit', 'StratigraphicUnit'],
+  screenMinDepth: ['screenMinDepth', 'ScreenMinDepth'],
+  screenMaxDepth: ['screenMaxDepth', 'ScreenMaxDepth'],
+  screenLength: ['screenLength', 'ScreenLength'],
+  screenTopAltitude: ['screenTopAltitude', 'ScreenTopAltitude'],
+  screenBottomAltitude: ['screenBottomAltitude', 'ScreenBottomAltitude'],
+  drillingCompany: ['drillingCompany', 'DrillingCompany'],
+  drillingRig: ['drillingRig', 'DrillingRig'],
+  startDate: ['startDate', 'StartDate'],
+  endDate: ['endDate', 'EndDate'],
+  billingDate: ['billingDate', 'BillingDate'],
+  generalComment: ['generalComment', 'GeneralComment'],
+  raGradeSampling: ['raGradeSampling', 'RaGradeSampling'],
+  sedimentSampling: ['sedimentSampling', 'SedimentSampling'],
+  deviationEndX: ['deviationEndX', 'DeviationEndX'],
+  deviationEndY: ['deviationEndY', 'DeviationEndY'],
 };
 
 /**

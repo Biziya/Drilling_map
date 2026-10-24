@@ -2,10 +2,13 @@
 
 Data comes from `dataSource` in `config/technoMap.yaml`:
 
-- `mock` (default): the fixed demo dataset in `mock/mockData.ts` — 130
-  drillholes, 5 technological cells. No backend request, nothing written to
-  IndexedDB, and a **Demo** badge beside the title.
-- `backend`: `GET /api/techno-map`, cached in IndexedDB under `techno-map`.
+- `backend` (default): `GET /api/techno-map` (`pyISR_AllData_V2`), cached in
+  IndexedDB under `techno-map`. Never falls back to the demo dataset, and has
+  no technological cells: the view has no cell data, so that layer is a
+  placeholder until a source exists.
+- `mock`: the fixed demo dataset in `mock/mockData.ts` — 130 drillholes, 5
+  technological cells, in the API's shape. No backend request, nothing written
+  to IndexedDB, and a **Demo** badge beside the title.
 
 **This page is self-contained.** It owns its components, hooks, maths,
 configuration and styles, and imports nothing from `../DrillMap`. The two maps
@@ -52,7 +55,7 @@ TechnoMap/
    ├─ coordinateGrid.ts     white grid lines/labels for the view (screen + export)
    ├─ coordinates.ts        UTM ↔ map ratio, deviation endpoints, extent
    ├─ geometry.ts           fit, transform, cursor-centred zoom, viewport ↔ map
-   ├─ markerKind.ts         purpose → type, marker priority
+   ├─ markerKind.ts         API category → type, marker priority
    ├─ markerShapes.ts       shape outlines for CSS clip-paths and the export
    ├─ mapFilters.ts         which holes and layers the filters let through
    ├─ measurement.ts        distance, formatting, click cycle
@@ -63,10 +66,16 @@ TechnoMap/
 
 ## Markers and filters
 
-Priority (`utils/markerKind.ts`): in-progress → rig; otherwise the drillhole
-type its HolePurpose maps to (`drillholeTypes[].purposes` in the YAML); an
-unknown purpose → injector square. A shape is filled with its GT band colour,
-or with its type's colour when the hole has no GT.
+Priority (`utils/markerKind.ts`): in-progress → rig; otherwise the type named
+by the API's `category`. The backend resolves it (sampling flags first, then
+the SQL Type; see `backend/README.md`), so the page never classifies on its
+own. A hole without a category (an unmapped Type such as `SER`) belongs to no
+filter and is not drawn, though it still counts in the header. A shape is
+filled with its GT band colour, or with its type's colour when the hole has
+no GT. The tooltip shows the original Type next to the category.
+
+Deviation lines run from the collar towards the API's `deviationEndX/Y`,
+stretched by `deviationExaggeration` for display.
 
 Twelve filters (nine types, then technological cells, drilling in progress,
 deviation line). An in-progress hole needs both its type and *Drilling in

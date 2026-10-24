@@ -8,344 +8,88 @@ public sealed class TechnoMapRepository : ITechnoMapRepository
 {
     private const string Query = """
         /*==========================================================
-        Techno Map - 2026 drillholes
+        Techno Map
         ---------------------------------------------------------
-        Source of truth for hole existence : HOLEDETAILS
-        Everything else (collar, coords, GT, deviation) : OPTIONAL
+        Drillholes : [ACQMN01].[dbo].[pyISR_AllData_V2], one row
+                     out per row in, never filtered.
+        Deviation  : the existing Techno Map calculation over the
+                     approved geophysical surveys, unchanged, for
+                     the view's [Key] values (Key = HOLEID).
 
-        Purpose gate:
-            include a hole only if it has exactly ONE distinct
-            actual HolePurpose and it is PRODUCT or INJECT.
-        Status:
-            never filtered, always returned as stored.
+        Every view column is cast explicitly, so the DTO types
+        hold whatever the view's own column types are.
 
-        Output columns are unchanged:
-            Hole_ID, CoordinateType, X, Y, Z, Year, Campaign, GT,
-            MaxDepth, HolePurpose, HoleStatus, Azimuth, FinalDeviation
-
-        ---------------------------------------------------------
-        Temp tables are prefixed #Techno* on purpose.
-
-        SQL Server binds an entire batch before executing any of
-        it, so the DROP TABLE guards below have not run yet when
-        the final SELECT is compiled. If a temp table of the same
-        name is already in the session from an earlier query, the
-        batch is validated against THAT table's columns and fails
-        with "Invalid column name" on anything the old table did
-        not have - even though this script creates the column two
-        hundred lines earlier.
-
-        The Exploration Map query uses the same six unprefixed
-        names (#Drillholes, #Collar, #GT, ...), so running the two
-        in one session was enough to trigger it. Prefixing keeps
-        the two scripts from binding against each other's tables.
+        The filter category (Type + sampling flags) is resolved
+        in TechnoMapCategory.cs, not here.
         ==========================================================*/
 
-
-        ---------------------------------------------------------
-        -- 1. Purpose gate  (PRODUCT / INJECT only)
-        --
-        --    HolePurpose is compared case/whitespace-insensitively
-        --    but the value RETURNED is the actual stored text.
-        --
-        --    Previously the gate was an EXISTS on the collar query
-        --    while the value came from a separate MAX() over every
-        --    HolePurpose row. For a hole holding both 'INJECT' and
-        --    'SEDIMENT' the EXISTS passed and MAX() then returned
-        --    'SEDIMENT' - a sediment purpose reported on the
-        --    production map. Gating and reading in one place makes
-        --    that impossible.
-        ---------------------------------------------------------
-
-        IF OBJECT_ID('tempdb..#TechnoPurposeHoles') IS NOT NULL
-            DROP TABLE #TechnoPurposeHoles;
-
-        SELECT
-            p.PROJECTCODE,
-            p.HOLEID,
-
-            -- actual stored value, not the normalized comparison key
-            MAX(p.RawPurpose)        AS HolePurpose,
-            MAX(p.NormalizedPurpose) AS PurposeKey
-
-        INTO #TechnoPurposeHoles
-
-        FROM
+        WITH Holes AS
         (
             SELECT
-                hd.PROJECTCODE,
-                hd.HOLEID,
+                v.[ID],
+                NULLIF(LTRIM(RTRIM(v.[Key])), '') AS HoleKey,
+                v.[Relative level],
+                v.[Type],
+                v.[License],
+                v.[Stratigraphic Unit],
 
-                NULLIF(LTRIM(RTRIM(hd.VALUE)), '')        AS RawPurpose,
-                NULLIF(UPPER(LTRIM(RTRIM(hd.VALUE))), '') AS NormalizedPurpose
+                TRY_CAST(v.[X (m)] AS DECIMAL(18,4)) AS X,
+                TRY_CAST(v.[Y (m)] AS DECIMAL(18,4)) AS Y,
+                TRY_CAST(v.[Z (well head - topo) (m)] AS DECIMAL(18,4)) AS Z,
 
-            FROM HOLEDETAILS hd
+                TRY_CAST(v.[Screen min depth (m)]       AS DECIMAL(18,4)) AS ScreenMinDepth,
+                TRY_CAST(v.[Screen max depth (m)]       AS DECIMAL(18,4)) AS ScreenMaxDepth,
+                TRY_CAST(v.[Screen length (m)]          AS DECIMAL(18,4)) AS ScreenLength,
+                TRY_CAST(v.[Screen top altitude (m)]    AS DECIMAL(18,4)) AS ScreenTopAltitude,
+                TRY_CAST(v.[Screen bottom altitude (m)] AS DECIMAL(18,4)) AS ScreenBottomAltitude,
 
-            WHERE hd.NAME = 'HolePurpose'
-        ) p
+                v.[Status],
+                v.[Drilling company],
+                v.[Drilling Rig],
+                v.[STARTDATE],
+                v.[ENDDATE],
+                v.[BillingDate],
+                v.[GeneralComment],
 
-        -- blank / whitespace-only rows are not a "conflicting purpose",
-        -- but they must not become the value we return either
-        WHERE p.NormalizedPurpose IS NOT NULL
+                -- 0/1 flags; BIT also accepts bit, numeric and 'true'/'false'.
+                TRY_CAST(v.[Ra_Grade_Sampling] AS BIT) AS RaGradeSampling,
+                TRY_CAST(v.[Sediment_Sampling] AS BIT) AS SedimentSampling
 
-        GROUP BY
-            p.PROJECTCODE,
-            p.HOLEID
-
-        HAVING
-                COUNT(DISTINCT p.NormalizedPurpose) = 1
-            AND MAX(p.NormalizedPurpose) IN ('PRODUCT', 'INJECT');
-
-
-        CREATE CLUSTERED INDEX IX_TechnoPurposeHoles
-            ON #TechnoPurposeHoles (PROJECTCODE, HOLEID);
-
-
-        ---------------------------------------------------------
-        -- 2. Collar rows, with STARTDATE parsed ONCE
-        --
-        --    TRY_CAST(STARTDATE AS DATE) alone is language- and
-        --    format-dependent: a 'DD/MM/YYYY' string parses under
-        --    one login's DATEFORMAT and returns NULL under
-        --    another, silently dropping 2026 holes. The explicit
-        --    style list removes that dependency.
-        --
-        --    One row per collar record is kept here; the single
-        --    row per hole is chosen in 7a.
-        ---------------------------------------------------------
-
-        IF OBJECT_ID('tempdb..#TechnoCollar') IS NOT NULL
-            DROP TABLE #TechnoCollar;
-
-        SELECT
-            c.PROJECTCODE,
-            c.HOLEID,
-            c.PROSPECT,
-
-            TRY_CAST(c.DEPTH AS DECIMAL(18,4)) AS DEPTH,
-
-            COALESCE
-            (
-                TRY_CONVERT(DATE, c.STARTDATE, 112),
-                TRY_CONVERT(DATE, c.STARTDATE, 23),
-                TRY_CONVERT(DATE, c.STARTDATE, 103),
-                TRY_CONVERT(DATE, c.STARTDATE)
-            ) AS ParsedStartDate
-
-        INTO #TechnoCollar
-
-        FROM ZOOVCH_COLLAR_LIST_ALL c
-
-        INNER JOIN #TechnoPurposeHoles ph
-                ON ph.HOLEID     = c.HOLEID
-            AND ph.PROJECTCODE = c.PROJECTCODE;
-
-
-        CREATE CLUSTERED INDEX IX_TechnoCollar
-            ON #TechnoCollar (PROJECTCODE, HOLEID);
-
+            FROM [ACQMN01].[dbo].[pyISR_AllData_V2] v
+        ),
 
         ---------------------------------------------------------
-        -- 3. Drillhole master list
+        -- Deviation: the previous Techno Map query, step for step.
         --
-        --    A. hole has a 2026-dated collar record      -> keep
-        --    B. hole has NO usable collar date at all    -> keep
-        --    C. hole only has old-year dated collars     -> drop
-        --
-        --    Driving off #TechnoPurposeHoles rather than off the collar
-        --    table is also what removes the duplicate rows: a hole
-        --    with two 2026 collar records used to reach the final
-        --    SELECT twice.
+        --   a) approved geophysical headers (GeophysApproved = 1)
+        --   b) the DEEPEST station, depth rounded to 2 dp
+        --   c) at that station: AzimuthAdj, and
+        --      FinalDeviation = SQRT(E^2 + N^2) of EastingBalanced
+        --      and NorthingBalanced, each rounded to 3 dp FIRST,
+        --      the result rounded to 2 dp (mirrors DevData)
         ---------------------------------------------------------
 
-        IF OBJECT_ID('tempdb..#TechnoDrillholes') IS NOT NULL
-            DROP TABLE #TechnoDrillholes;
-
-        SELECT
-            ph.PROJECTCODE,
-            ph.HOLEID,
-            ph.HolePurpose,
-
-            -- HoleStatus is NEVER filtered, only reported
-            MAX
-            (
-                CASE
-                    WHEN hd.NAME = 'HoleStatus'
-                    THEN NULLIF(LTRIM(RTRIM(hd.VALUE)), '')
-                END
-            ) AS HoleStatus,
-
-            MAX
-            (
-                CASE
-                    WHEN hd.NAME = 'HolePlanDepth'
-                    THEN TRY_CAST(LTRIM(RTRIM(hd.VALUE)) AS DECIMAL(18,4))
-                END
-            ) AS HolePlanDepth
-
-        INTO #TechnoDrillholes
-
-        FROM #TechnoPurposeHoles ph
-
-        /* NAME predicate lives in the JOIN, not the WHERE.
-        In the WHERE it would silently turn this into an inner
-        join and delete every hole that has no HoleStatus row. */
-        LEFT JOIN HOLEDETAILS hd
-                ON hd.HOLEID     = ph.HOLEID
-            AND hd.PROJECTCODE = ph.PROJECTCODE
-            AND hd.NAME IN ('HoleStatus', 'HolePlanDepth')
-
-        WHERE
+        ApprovedHeaders AS
         (
-            EXISTS
+            SELECT DISTINCT
+                gh.GEOPHYSGID,
+                gh.PROJECTCODE,
+                gh.HOLEID
+
+            FROM GEOPHYSHEADER gh
+
+            WHERE gh.HOLEID IN (SELECT h.HoleKey FROM Holes h)
+            AND EXISTS
             (
                 SELECT 1
-                FROM #TechnoCollar c
-                WHERE c.HOLEID      = ph.HOLEID
-                AND c.PROJECTCODE = ph.PROJECTCODE
-                AND c.ParsedStartDate >= '20260101'
-                AND c.ParsedStartDate <  '20270101'
+                FROM GEOPHYSHEADERDETAILS ghd
+                WHERE ghd.GEOPHYSGID = gh.GEOPHYSGID
+                AND ghd.NAME       = 'GeophysApproved'
+                AND LTRIM(RTRIM(ghd.VALUE)) = '1'
             )
-            OR
-            NOT EXISTS
-            (
-                SELECT 1
-                FROM #TechnoCollar c
-                WHERE c.HOLEID      = ph.HOLEID
-                AND c.PROJECTCODE = ph.PROJECTCODE
-                AND c.ParsedStartDate IS NOT NULL
-            )
-        )
+        ),
 
-        GROUP BY
-            ph.PROJECTCODE,
-            ph.HOLEID,
-            ph.HolePurpose;
-
-
-        CREATE CLUSTERED INDEX IX_TechnoDrillholes
-            ON #TechnoDrillholes (PROJECTCODE, HOLEID);
-
-
-        ---------------------------------------------------------
-        -- 4. GT   (OPTIONAL)
-        --
-        --    Summed as DECIMAL rather than FLOAT so repeated
-        --    additions cannot drift in the 4th decimal place the
-        --    map actually bands on.
-        ---------------------------------------------------------
-
-        IF OBJECT_ID('tempdb..#TechnoGT') IS NOT NULL
-            DROP TABLE #TechnoGT;
-
-        SELECT
-            g.PROJECTCODE,
-            g.HOLEID,
-
-            CAST
-            (
-                ROUND(SUM(TRY_CAST(LTRIM(RTRIM(g.VALUE)) AS DECIMAL(18,6))), 4)
-                AS DECIMAL(18,4)
-            ) AS GT
-
-        INTO #TechnoGT
-
-        FROM GEODETAILS g
-
-        INNER JOIN #TechnoDrillholes d
-                ON d.HOLEID      = g.HOLEID
-            AND d.PROJECTCODE = g.PROJECTCODE
-
-        WHERE g.NAME     = 'Accus'
-        AND g.PRIORITY = 10075
-
-        GROUP BY
-            g.PROJECTCODE,
-            g.HOLEID;
-
-
-        CREATE CLUSTERED INDEX IX_TechnoGT
-            ON #TechnoGT (PROJECTCODE, HOLEID);
-
-
-        ---------------------------------------------------------
-        -- 5. Approved geophysical headers   (OPTIONAL)
-        ---------------------------------------------------------
-
-        IF OBJECT_ID('tempdb..#TechnoApprovedHeaders') IS NOT NULL
-            DROP TABLE #TechnoApprovedHeaders;
-
-        SELECT DISTINCT
-            gh.GEOPHYSGID,
-            gh.PROJECTCODE,
-            gh.HOLEID
-
-        INTO #TechnoApprovedHeaders
-
-        FROM GEOPHYSHEADER gh
-
-        INNER JOIN #TechnoDrillholes d
-                ON d.HOLEID      = gh.HOLEID
-            AND d.PROJECTCODE = gh.PROJECTCODE
-
-        WHERE EXISTS
-        (
-            SELECT 1
-            FROM GEOPHYSHEADERDETAILS ghd
-            WHERE ghd.GEOPHYSGID = gh.GEOPHYSGID
-            AND ghd.NAME       = 'GeophysApproved'
-            AND LTRIM(RTRIM(ghd.VALUE)) = '1'
-        );
-
-
-        CREATE CLUSTERED INDEX IX_TechnoApprovedHeaders
-            ON #TechnoApprovedHeaders (GEOPHYSGID);
-
-
-        ---------------------------------------------------------
-        -- 6. Azimuth / FinalDeviation   (OPTIONAL)
-        --
-        --    FinalDeviation is NOT a measured column. It is
-        --    derived, and the mechanic below mirrors the reference
-        --    DevData view exactly:
-        --
-        --      a) take the DEEPEST approved station in the hole
-        --      b) at that station, read AzimuthAdj,
-        --         EastingBalanced and NorthingBalanced
-        --      c) round Easting/Northing to 3 dp FIRST, then
-        --         FinalDeviation = SQRT(E^2 + N^2) rounded to 2 dp
-        --
-        --    The rounding order in (c) is load-bearing. Squaring
-        --    the raw floats and rounding only at the end differs
-        --    from the view in the last digit, which is the digit
-        --    the map bands on.
-        --
-        --    Azimuth and the deviation pair are read from the SAME
-        --    deepest station, matching the view. That means a hole
-        --    whose deepest station carries an AzimuthAdj but no
-        --    balanced coordinates reports FinalDeviation = NULL.
-        --    That is the defined behaviour, not a fault.
-        --
-        --    Grain is (PROJECTCODE, HOLEID, DEPTH rounded to 2 dp),
-        --    which reproduces the view's
-        --    "round(DEPTH,2) = round(MaxDepth,2)" match and folds
-        --    together stations from two approved surveys at the
-        --    same depth, as the view's PIVOT max(VALUE) does.
-        --
-        --    Note: the view filters PROJECTCODE = 'ZOOVCH'. That is
-        --    deliberately NOT copied - #TechnoApprovedHeaders is
-        --    already restricted to this result set's holes, so the
-        --    query stays project-agnostic.
-        --
-        --    The view also returns TVDBalanced as TVD_Final. There
-        --    is no TVD column in the output contract, so it is not
-        --    selected here.
-        ---------------------------------------------------------
-
-        IF OBJECT_ID('tempdb..#TechnoDeviation') IS NOT NULL
-            DROP TABLE #TechnoDeviation;
-
-        ;WITH Stations AS
+        Stations AS
         (
             SELECT
                 ah.PROJECTCODE,
@@ -362,7 +106,7 @@ public sealed class TechnoMapRepository : ITechnoMapRepository
                 MAX(CASE WHEN gd.NAME = 'NorthingBalanced'
                         THEN TRY_CAST(gd.VALUE AS FLOAT) END) AS NorthingBalanced
 
-            FROM #TechnoApprovedHeaders ah
+            FROM ApprovedHeaders ah
 
             INNER JOIN GEOPHYSDETAILS gd
                     ON gd.GEOPHYSGID = ah.GEOPHYSGID
@@ -390,183 +134,140 @@ public sealed class TechnoMapRepository : ITechnoMapRepository
                 ) AS MaxDepthRounded
 
             FROM Stations s
+        ),
+
+        DeviationByProject AS
+        (
+            SELECT
+                PROJECTCODE,
+                HOLEID,
+
+                CAST(MAX(Azimuth) AS DECIMAL(18,3)) AS Azimuth,
+
+                CAST
+                (
+                    MAX
+                    (
+                        CASE
+                            WHEN EastingBalanced  IS NOT NULL
+                            AND NorthingBalanced IS NOT NULL
+                            THEN ROUND
+                                (
+                                    SQRT
+                                    (
+                                        SQUARE(ROUND(EastingBalanced, 3))
+                                        + SQUARE(ROUND(NorthingBalanced, 3))
+                                    ),
+                                    2
+                                )
+                        END
+                    )
+                    AS DECIMAL(18,2)
+                ) AS FinalDeviation
+
+            FROM DeepestStation
+
+            WHERE DepthRounded = MaxDepthRounded
+
+            GROUP BY
+                PROJECTCODE,
+                HOLEID
+        ),
+
+        ---------------------------------------------------------
+        -- The view has no PROJECTCODE, so surveys are matched on
+        -- HOLEID alone. A HOLEID surveyed in more than one project
+        -- is ambiguous: it gets no deviation rather than another
+        -- hole's line.
+        ---------------------------------------------------------
+
+        Deviation AS
+        (
+            SELECT
+                HOLEID,
+                MAX(Azimuth)        AS Azimuth,
+                MAX(FinalDeviation) AS FinalDeviation
+
+            FROM DeviationByProject
+
+            GROUP BY HOLEID
+
+            HAVING COUNT(*) = 1
         )
 
         SELECT
-            PROJECTCODE,
-            HOLEID,
+            CONVERT(NVARCHAR(100), h.[ID])                   AS Id,
+            CONVERT(NVARCHAR(100), h.HoleKey)                AS HoleId,
+            CONVERT(NVARCHAR(100), h.[Relative level])       AS RelativeLevel,
+            CONVERT(NVARCHAR(100), h.[Type])                 AS HolePurpose,
+            CONVERT(NVARCHAR(200), h.[License])              AS License,
+            CONVERT(NVARCHAR(200), h.[Stratigraphic Unit])   AS StratigraphicUnit,
 
-            CAST(MAX(Azimuth) AS DECIMAL(18,3)) AS Azimuth,
+            h.X,
+            h.Y,
+            h.Z,
 
-            /* ROUND before SQUARE, matching the view. The outer
-            MAX only collapses the single qualifying group to one
-            row per hole; it is not picking between stations. */
-            CAST
-            (
-                MAX
-                (
-                    CASE
-                        WHEN EastingBalanced  IS NOT NULL
-                        AND NorthingBalanced IS NOT NULL
-                        THEN ROUND
-                            (
-                                SQRT
-                                (
-                                    SQUARE(ROUND(EastingBalanced, 3))
-                                    + SQUARE(ROUND(NorthingBalanced, 3))
-                                ),
-                                2
-                            )
-                    END
-                )
-                AS DECIMAL(18,2)
-            ) AS FinalDeviation
+            h.ScreenMinDepth,
+            h.ScreenMaxDepth,
+            h.ScreenLength,
+            h.ScreenTopAltitude,
+            h.ScreenBottomAltitude,
 
-        INTO #TechnoDeviation
+            CONVERT(NVARCHAR(100), h.[Status])               AS HoleStatus,
+            CONVERT(NVARCHAR(200), h.[Drilling company])     AS DrillingCompany,
+            CONVERT(NVARCHAR(200), h.[Drilling Rig])         AS DrillingRig,
 
-        FROM DeepestStation
+            CONVERT(CHAR(10), startDate.Value, 23)           AS StartDate,
+            CONVERT(CHAR(10), endDate.Value, 23)             AS EndDate,
+            CONVERT(CHAR(10), billingDate.Value, 23)         AS BillingDate,
 
-        WHERE DepthRounded = MaxDepthRounded
+            CONVERT(NVARCHAR(MAX), h.[GeneralComment])       AS GeneralComment,
 
-        GROUP BY
-            PROJECTCODE,
-            HOLEID;
-
-
-        CREATE CLUSTERED INDEX IX_TechnoDeviation
-            ON #TechnoDeviation (PROJECTCODE, HOLEID);
-
-
-        ---------------------------------------------------------
-        -- 7. FINAL RESULT
-        --
-        --    One row per (PROJECTCODE, HOLEID):
-        --      #TechnoDrillholes  is grouped to one row per hole
-        --      collar/coord are OUTER APPLY TOP (1)
-        --      #TechnoGT/#TechnoDeviation are grouped to one row per hole
-        --    so nothing here can fan a hole out into duplicates.
-        --
-        --    Every optional source is OUTER APPLY or LEFT JOIN, so
-        --    a hole with no coordinates, no GT and no survey still
-        --    comes back - with NULLs, not as a missing row.
-        ---------------------------------------------------------
-
-        SELECT
-            d.HOLEID AS Hole_ID,
-
-            coord.COORDINATESET AS CoordinateType,
-
-            TRY_CAST(coord.X AS DECIMAL(18,4)) AS X,
-            TRY_CAST(coord.Y AS DECIMAL(18,4)) AS Y,
-            TRY_CAST(coord.Z AS DECIMAL(18,4)) AS Z,
-
-            2026 AS [Year],
-
-            collar.PROSPECT AS Campaign,
-
-            gt.GT,
-
-            -- actual collar depth first, HolePlanDepth as fallback.
-            -- explicit CAST so the column is decimal, not float or
-            -- varchar, for the DTO's decimal? MaxDepth
-            CAST
-            (
-                COALESCE(collar.DEPTH, d.HolePlanDepth)
-                AS DECIMAL(18,4)
-            ) AS MaxDepth,
-
-            d.HolePurpose,   -- actual stored value
-            d.HoleStatus,    -- unfiltered
+            h.RaGradeSampling,
+            h.SedimentSampling,
 
             dev.Azimuth,
-            dev.FinalDeviation
+            dev.FinalDeviation,
 
-        FROM #TechnoDrillholes d
+            -- Azimuth is a compass bearing (0 = north, 90 = east), so
+            -- sine moves the easting and cosine the northing. Same
+            -- validity rules the map applied before: a placed collar,
+            -- an azimuth in 0..360 and a positive deviation.
+            CASE
+                WHEN h.X IS NOT NULL AND h.Y IS NOT NULL
+                AND dev.Azimuth BETWEEN 0 AND 360
+                AND dev.FinalDeviation > 0
+                THEN CAST(h.X + dev.FinalDeviation * SIN(RADIANS(CAST(dev.Azimuth AS FLOAT))) AS DECIMAL(18,4))
+            END AS DeviationEndX,
 
+            CASE
+                WHEN h.X IS NOT NULL AND h.Y IS NOT NULL
+                AND dev.Azimuth BETWEEN 0 AND 360
+                AND dev.FinalDeviation > 0
+                THEN CAST(h.Y + dev.FinalDeviation * COS(RADIANS(CAST(dev.Azimuth AS FLOAT))) AS DECIMAL(18,4))
+            END AS DeviationEndY
 
-        ---------------------------------------------------------
-        -- 7a. Collar: prefer a 2026 record, then an undated one.
-        --     Old-year collars are never selected here, so they
-        --     cannot leak 2026 depth/campaign values.
-        ---------------------------------------------------------
+        FROM Holes h
 
-        OUTER APPLY
-        (
-            SELECT TOP (1)
-                c.PROSPECT,
-                c.DEPTH,
-                c.ParsedStartDate
+        LEFT JOIN Deviation dev
+               ON dev.HOLEID = h.HoleKey
 
-            FROM #TechnoCollar c
-
-            WHERE c.HOLEID      = d.HOLEID
-            AND c.PROJECTCODE = d.PROJECTCODE
-            AND
-            (
-                    (c.ParsedStartDate >= '20260101' AND c.ParsedStartDate < '20270101')
-                OR  c.ParsedStartDate IS NULL
-            )
-
-            ORDER BY
-                CASE WHEN c.ParsedStartDate IS NOT NULL THEN 1 ELSE 2 END,
-                c.ParsedStartDate DESC,
-                c.DEPTH DESC            -- deterministic tie-break
-        ) collar
-
-
-        ---------------------------------------------------------
-        -- 7b. Coordinate: exactly one row per hole
-        --     Surveyed -> Pegged -> Planned
-        --
-        --     Matched on the normalized value: under a
-        --     case-sensitive collation the old literal list missed
-        --     'UTM_Z49N_PLANNED' entirely and the hole came back
-        --     with no coordinates at all.
-        ---------------------------------------------------------
-
-        OUTER APPLY
-        (
-            SELECT TOP (1)
-                hc.COORDINATESET,
-                hc.X,
-                hc.Y,
-                hc.Z
-
-            FROM HOLECOORD hc
-
-            WHERE hc.HOLEID      = d.HOLEID
-            AND hc.PROJECTCODE = d.PROJECTCODE
-            AND UPPER(LTRIM(RTRIM(hc.COORDINATESET))) IN
-                (
-                    'UTM_Z49N_SURVEYED',
-                    'UTM_Z49N_PEGGED',
-                    'UTM_Z49N_PLANNED'
-                )
-
-            ORDER BY
-                CASE UPPER(LTRIM(RTRIM(hc.COORDINATESET)))
-                    WHEN 'UTM_Z49N_SURVEYED' THEN 1
-                    WHEN 'UTM_Z49N_PEGGED'   THEN 2
-                    WHEN 'UTM_Z49N_PLANNED'  THEN 3
-                    ELSE 4
-                END,
-                -- within the winning set, prefer a populated row
-                CASE WHEN hc.X IS NOT NULL AND hc.Y IS NOT NULL THEN 0 ELSE 1 END,
-                hc.X, hc.Y              -- deterministic tie-break
-        ) coord
-
-
-        LEFT JOIN #TechnoGT gt
-                ON gt.HOLEID      = d.HOLEID
-            AND gt.PROJECTCODE = d.PROJECTCODE
-
-        LEFT JOIN #TechnoDeviation dev
-                ON dev.HOLEID      = d.HOLEID
-            AND dev.PROJECTCODE = d.PROJECTCODE
+        /* Dates may be stored as text in several formats; the
+        explicit styles keep parsing independent of the login's
+        DATEFORMAT, as in the previous query's STARTDATE. */
+        CROSS APPLY (SELECT COALESCE(
+            TRY_CONVERT(DATE, h.[STARTDATE], 112), TRY_CONVERT(DATE, h.[STARTDATE], 23),
+            TRY_CONVERT(DATE, h.[STARTDATE], 103), TRY_CONVERT(DATE, h.[STARTDATE])) AS Value) startDate
+        CROSS APPLY (SELECT COALESCE(
+            TRY_CONVERT(DATE, h.[ENDDATE], 112), TRY_CONVERT(DATE, h.[ENDDATE], 23),
+            TRY_CONVERT(DATE, h.[ENDDATE], 103), TRY_CONVERT(DATE, h.[ENDDATE])) AS Value) endDate
+        CROSS APPLY (SELECT COALESCE(
+            TRY_CONVERT(DATE, h.[BillingDate], 112), TRY_CONVERT(DATE, h.[BillingDate], 23),
+            TRY_CONVERT(DATE, h.[BillingDate], 103), TRY_CONVERT(DATE, h.[BillingDate])) AS Value) billingDate
 
         ORDER BY
-            d.PROJECTCODE,
-            d.HOLEID;
+            h.HoleKey,
+            h.[ID];
         """;
 
     private readonly string _connectionString;

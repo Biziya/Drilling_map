@@ -97,25 +97,24 @@ export function drillholeExtent(drillholes: readonly MapCoordinates[]): MapBound
  * UTM position the (exaggerated) deviation line ends at, or null when there
  * is none to draw. Reads every field under any casing the API uses.
  *
- * Azimuth is a compass bearing: 0° north, 90° east, which is why sine drives
- * easting and cosine drives northing.
+ * The backend returns the true endpoint (deviationEndX/Y, from the surveyed
+ * azimuth and final deviation); only the display exaggeration is applied
+ * here, by stretching the collar-to-endpoint vector.
  */
 export function calculateDeviationEndpoint(drillhole: DrillholeApiRecord): UtmCoordinates | null {
-  const read = (field: 'x' | 'y' | 'azimuth' | 'finalDeviation') =>
+  const read = (field: 'x' | 'y' | 'deviationEndX' | 'deviationEndY') =>
     toFiniteNumber(readDrillholeValue(drillhole, field));
   const x = read('x');
   const y = read('y');
-  const azimuth = read('azimuth');
-  const deviation = read('finalDeviation');
+  const endX = read('deviationEndX');
+  const endY = read('deviationEndY');
 
-  if (x === null || y === null) return null;
-  if (azimuth === null || azimuth < 0 || azimuth > 360) return null;
-  if (deviation === null || deviation <= 0) return null;
+  if (x === null || y === null || endX === null || endY === null) return null;
+  if (endX === x && endY === y) return null;
 
-  const distance = deviation * MAP_CONFIG.deviationExaggeration;
-  const radians = azimuth * (Math.PI / 180);
+  const scale = MAP_CONFIG.deviationExaggeration;
 
-  return { x: x + Math.sin(radians) * distance, y: y + Math.cos(radians) * distance };
+  return { x: x + (endX - x) * scale, y: y + (endY - y) * scale };
 }
 
 /** A drillhole paired with its projected deviation endpoint. */

@@ -174,7 +174,9 @@ describe.each(PAGES)("%s DrillholeMarker", (_page, DrillholeMarker, { MAP_CONFIG
     });
   });
 
-  describe("tooltip contents", () => {
+  // The Techno Map tooltip shows the pyISR_AllData_V2 fields instead; it is
+  // covered in TechnoMap/DrillholeMarker.test.jsx.
+  describe.runIf(_page === "DrillMap")("tooltip contents", () => {
     const tooltipText = (overrides = {}) => {
       const { container } = renderMarker(overrides, "injector");
 

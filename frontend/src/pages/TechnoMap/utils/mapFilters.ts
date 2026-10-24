@@ -1,6 +1,7 @@
 // Which drillholes and layers the 12 map filters let through.
 //
-//   ordinary hole    -> shown when its type is checked
+//   ordinary hole    -> shown when its type (the API category) is checked
+//   no category      -> never shown: an unmapped SQL Type belongs to no filter
 //   in-progress hole -> shown (as a rig) when its type AND Drilling in progress
 //                       are checked; never downgraded to its type's symbol
 //   deviation line   -> shown when Deviation line is checked and its hole is shown
@@ -34,7 +35,8 @@ export function parseFilters(stored: unknown): MapFilters {
 }
 
 export function isDrillholeShown(drillhole: DrillholeApiRecord, filters: MapFilters): boolean {
-  if (!filters[resolveDrillholeType(drillhole)]) return false;
+  const type = resolveDrillholeType(drillhole);
+  if (!type || !filters[type]) return false;
 
   return !isInProgressHole(drillhole) || filters['drilling-in-progress'];
 }

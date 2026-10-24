@@ -15,6 +15,9 @@ export type ApiText = string | null;
 /** A numeric column, which a misconfigured serializer may send as a string. */
 export type ApiNumeric = number | string | null;
 
+/** A 0/1 column: a boolean from the API, a number or string if a serializer differs. */
+export type ApiFlag = boolean | number | string | null;
+
 /** One drillhole as `/api/exploration-map` and `/api/techno-map` document it. */
 export interface DrillholeMapItem {
   holeId: ApiText;
@@ -30,6 +33,29 @@ export interface DrillholeMapItem {
   finalDeviation: number | null;
   holePurpose: ApiText;
   holeStatus: ApiText;
+
+  // Techno Map only: /api/techno-map, from pyISR_AllData_V2.
+  id: ApiText;
+  /** The filter the backend resolved from Type and the sampling flags, or null for none. */
+  category: ApiText;
+  relativeLevel: ApiText;
+  license: ApiText;
+  stratigraphicUnit: ApiText;
+  screenMinDepth: number | null;
+  screenMaxDepth: number | null;
+  screenLength: number | null;
+  screenTopAltitude: number | null;
+  screenBottomAltitude: number | null;
+  drillingCompany: ApiText;
+  drillingRig: ApiText;
+  startDate: ApiText;
+  endDate: ApiText;
+  billingDate: ApiText;
+  generalComment: ApiText;
+  raGradeSampling: boolean | null;
+  sedimentSampling: boolean | null;
+  deviationEndX: number | null;
+  deviationEndY: number | null;
 }
 
 /** PascalCase spellings the API also sends. Aliases, never additional data. */
@@ -48,6 +74,26 @@ export interface DrillholePascalCaseAliases {
   FinalDeviation?: ApiNumeric;
   HolePurpose?: ApiText;
   HoleStatus?: ApiText;
+  Id?: ApiText;
+  Category?: ApiText;
+  RelativeLevel?: ApiText;
+  License?: ApiText;
+  StratigraphicUnit?: ApiText;
+  ScreenMinDepth?: ApiNumeric;
+  ScreenMaxDepth?: ApiNumeric;
+  ScreenLength?: ApiNumeric;
+  ScreenTopAltitude?: ApiNumeric;
+  ScreenBottomAltitude?: ApiNumeric;
+  DrillingCompany?: ApiText;
+  DrillingRig?: ApiText;
+  StartDate?: ApiText;
+  EndDate?: ApiText;
+  BillingDate?: ApiText;
+  GeneralComment?: ApiText;
+  RaGradeSampling?: ApiFlag;
+  SedimentSampling?: ApiFlag;
+  DeviationEndX?: ApiNumeric;
+  DeviationEndY?: ApiNumeric;
 }
 
 /** One drillhole as received at runtime. Treat every value as a claim to check. */
@@ -65,6 +111,26 @@ export interface DrillholeApiRecord extends DrillholePascalCaseAliases {
   finalDeviation?: ApiNumeric;
   holePurpose?: ApiText;
   holeStatus?: ApiText;
+  id?: ApiText;
+  category?: ApiText;
+  relativeLevel?: ApiText;
+  license?: ApiText;
+  stratigraphicUnit?: ApiText;
+  screenMinDepth?: ApiNumeric;
+  screenMaxDepth?: ApiNumeric;
+  screenLength?: ApiNumeric;
+  screenTopAltitude?: ApiNumeric;
+  screenBottomAltitude?: ApiNumeric;
+  drillingCompany?: ApiText;
+  drillingRig?: ApiText;
+  startDate?: ApiText;
+  endDate?: ApiText;
+  billingDate?: ApiText;
+  generalComment?: ApiText;
+  raGradeSampling?: ApiFlag;
+  sedimentSampling?: ApiFlag;
+  deviationEndX?: ApiNumeric;
+  deviationEndY?: ApiNumeric;
 }
 
 /**

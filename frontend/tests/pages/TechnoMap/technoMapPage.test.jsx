@@ -1,5 +1,6 @@
-// The Techno Map page as shipped: demo dataset (dataSource: mock), filters,
-// measurement, export menu. Backend mode is covered in tests/pages/mapPages.test.jsx.
+// The Techno Map page on its demo dataset (dataSource: mock): filters,
+// measurement, export menu. Backend mode, which technoMap.yaml ships with, is
+// covered in tests/pages/mapPages.test.jsx.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -12,6 +13,12 @@ import { clearAllMapViews, readMapView, writeMapView } from "../../../src/state/
 import { MAP_DATA_MESSAGES, clearMapData, getMapData } from "../../../src/state/mapDataStore.js";
 import { clearToasts } from "../../../src/components/Toast/toastStore.js";
 import { DATASET_IDS, clearCachedDataset, readCachedDataset } from "../../../src/services/cache/drillholeCache.js";
+
+vi.mock("../../../src/pages/TechnoMap/config/technoMapConfig.js", async (importOriginal) => {
+  const actual = await importOriginal();
+
+  return { ...actual, MAP_CONFIG: { ...actual.MAP_CONFIG, dataSource: "mock" } };
+});
 
 const VIEWPORT = { width: 1000, height: 700 };
 // 300 px at zoom 1: the 1191 x 842 base map is fitted to 700 px high, and spans the UTM bounds.

@@ -87,6 +87,21 @@ describe("buildMapSvg", () => {
     expect(text).toContain("Techno Map");
   });
 
+  // /api/techno-map rows: no cells, an unmapped Type, a deviation endpoint.
+  it("exports backend records by their category, with the API's deviation endpoint", () => {
+    const records = [
+      { holeId: "P-1", x: 418200, y: 4894300, holePurpose: "PRODUCT", category: "producer", deviationEndX: 418210, deviationEndY: 4894300 },
+      { holeId: "U-1", x: 418250, y: 4894300, holePurpose: "SER", category: null },
+    ].map((hole) => convertUtmToMapPosition(hole));
+    // Zoomed onto the wellfield, past the deviation zoom.
+    const view = { scale: 12, translateX: -5730, translateY: -3900 };
+    const doc = parse(buildMapSvg(snapshot({ drillholes: records, cells: [], view }), ASSETS));
+
+    expect(doc.querySelectorAll("polygon[fill='#fff']")).toHaveLength(1);
+    expect(doc.querySelectorAll(`line[stroke='${MAP_CONFIG.deviationLine.color}']`)).toHaveLength(1);
+    expect(doc.querySelectorAll(`polygon[stroke='${MAP_CONFIG.technologicalCells.stroke}']`)).toHaveLength(0);
+  });
+
   it("draws the technological cells and their labels when enabled", () => {
     const doc = parse(buildMapSvg(snapshot(), ASSETS));
     const text = [...doc.querySelectorAll("text")].map((node) => node.textContent);

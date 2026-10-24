@@ -4,10 +4,15 @@ import * as drillCoordinates from "../../src/pages/DrillMap/utils/coordinates.js
 import * as technoCoordinates from "../../src/pages/TechnoMap/utils/coordinates.js";
 import * as drillConfig from "../../src/pages/DrillMap/config/drillMapConfig.js";
 import * as technoConfig from "../../src/pages/TechnoMap/config/technoMapConfig.js";
+import { asBackendRecord } from "./TechnoMap/backendRecord.js";
 
+// The Techno Map API sends the deviation endpoint itself (deviationEndX/Y,
+// from azimuth and final deviation), so its holes go through what the
+// backend adds before reaching the page. The expectations stay identical:
+// both pages must draw the same line for the same survey.
 const PAGES = [
-  ["DrillMap", drillCoordinates, drillConfig],
-  ["TechnoMap", technoCoordinates, technoConfig],
+  ["DrillMap", drillCoordinates, drillConfig, (hole) => hole],
+  ["TechnoMap", technoCoordinates, technoConfig, asBackendRecord],
 ];
 
 describe.each(PAGES)("%s coordinates", (_page, {
@@ -15,8 +20,9 @@ describe.each(PAGES)("%s coordinates", (_page, {
   calculateDeviationEndpoint,
   convertUtmToMapPosition,
   projectDrillholes,
-}, { MAP_CONFIG, MAP_UTM_BOUNDS }) => {
+}, { MAP_CONFIG, MAP_UTM_BOUNDS }, toApi) => {
   const EXAGGERATION = MAP_CONFIG.deviationExaggeration;
+  const endpointOf = (hole) => calculateDeviationEndpoint(toApi(hole));
 
   describe("convertUtmToMapPosition", () => {
     it("maps the bounds minimum corner to the top-left", () => {
@@ -80,35 +86,35 @@ describe.each(PAGES)("%s coordinates", (_page, {
     });
 
     it("projects due north for azimuth 0", () => {
-      const end = calculateDeviationEndpoint({ ...base, azimuth: 0 });
+      const end = endpointOf({ ...base, azimuth: 0 });
 
       expect(end.x).toBeCloseTo(418000);
       expect(end.y).toBeCloseTo(4894000 + 10 * EXAGGERATION);
     });
 
     it("projects due east for azimuth 90", () => {
-      const end = calculateDeviationEndpoint({ ...base, azimuth: 90 });
+      const end = endpointOf({ ...base, azimuth: 90 });
 
       expect(end.x).toBeCloseTo(418000 + 10 * EXAGGERATION);
       expect(end.y).toBeCloseTo(4894000);
     });
 
     it("treats azimuth 360 the same as 0", () => {
-      const at0 = calculateDeviationEndpoint({ ...base, azimuth: 0 });
-      const at360 = calculateDeviationEndpoint({ ...base, azimuth: 360 });
+      const at0 = endpointOf({ ...base, azimuth: 0 });
+      const at360 = endpointOf({ ...base, azimuth: 360 });
 
       expect(at360.x).toBeCloseTo(at0.x);
       expect(at360.y).toBeCloseTo(at0.y);
     });
 
     it("applies the exaggeration factor", () => {
-      const end = calculateDeviationEndpoint({ ...base, azimuth: 90, finalDeviation: 1 });
+      const end = endpointOf({ ...base, azimuth: 90, finalDeviation: 1 });
 
       expect(end.x - base.x).toBeCloseTo(EXAGGERATION);
     });
 
     it("accepts numeric strings from the API", () => {
-      const end = calculateDeviationEndpoint({ x: "418000", y: "4894000", azimuth: "90", finalDeviation: "10" });
+      const end = endpointOf({ x: "418000", y: "4894000", azimuth: "90", finalDeviation: "10" });
 
       expect(end.x).toBeCloseTo(418000 + 50);
     });
@@ -116,9 +122,9 @@ describe.each(PAGES)("%s coordinates", (_page, {
     // The API sends these fields PascalCase; a camelCase-only reader returned
     // null for every hole and no line was ever drawn.
     it("reads PascalCase Azimuth/FinalDeviation (and X/Y) the same as camelCase", () => {
-      const camel = calculateDeviationEndpoint({ x: 418000, y: 4894000, azimuth: 45, finalDeviation: 25 });
-      const pascal = calculateDeviationEndpoint({ X: 418000, Y: 4894000, Azimuth: 45, FinalDeviation: 25 });
-      const mixed = calculateDeviationEndpoint({ x: 418000, y: 4894000, Azimuth: 45, FinalDeviation: 25 });
+      const camel = endpointOf({ x: 418000, y: 4894000, azimuth: 45, finalDeviation: 25 });
+      const pascal = endpointOf({ X: 418000, Y: 4894000, Azimuth: 45, FinalDeviation: 25 });
+      const mixed = endpointOf({ x: 418000, y: 4894000, Azimuth: 45, FinalDeviation: 25 });
 
       expect(pascal).not.toBeNull();
       expect(pascal).toEqual(camel);
@@ -126,20 +132,20 @@ describe.each(PAGES)("%s coordinates", (_page, {
     });
 
     it("returns null for an out-of-range azimuth", () => {
-      expect(calculateDeviationEndpoint({ ...base, azimuth: 361 })).toBeNull();
-      expect(calculateDeviationEndpoint({ ...base, azimuth: -1 })).toBeNull();
+      expect(endpointOf({ ...base, azimuth: 361 })).toBeNull();
+      expect(endpointOf({ ...base, azimuth: -1 })).toBeNull();
     });
 
     it("returns null when there is no deviation to draw", () => {
-      expect(calculateDeviationEndpoint({ ...base, azimuth: 45, finalDeviation: 0 })).toBeNull();
-      expect(calculateDeviationEndpoint({ ...base, azimuth: 45, finalDeviation: -5 })).toBeNull();
-      expect(calculateDeviationEndpoint({ ...base, azimuth: 45, finalDeviation: null })).toBeNull();
+      expect(endpointOf({ ...base, azimuth: 45, finalDeviation: 0 })).toBeNull();
+      expect(endpointOf({ ...base, azimuth: 45, finalDeviation: -5 })).toBeNull();
+      expect(endpointOf({ ...base, azimuth: 45, finalDeviation: null })).toBeNull();
     });
 
     it("returns null when azimuth or position is missing", () => {
-      expect(calculateDeviationEndpoint({ ...base, azimuth: null })).toBeNull();
-      expect(calculateDeviationEndpoint({ ...base, azimuth: "" })).toBeNull();
-      expect(calculateDeviationEndpoint({ x: null, y: 4894000, azimuth: 45, finalDeviation: 5 })).toBeNull();
+      expect(endpointOf({ ...base, azimuth: null })).toBeNull();
+      expect(endpointOf({ ...base, azimuth: "" })).toBeNull();
+      expect(endpointOf({ x: null, y: 4894000, azimuth: 45, finalDeviation: 5 })).toBeNull();
     });
   });
 
@@ -174,8 +180,8 @@ describe.each(PAGES)("%s coordinates", (_page, {
 
     it("projects the endpoint when one exists", () => {
       const hole = { holeId: "A", x: 418000, y: 4894000, azimuth: 90, finalDeviation: 10 };
-      const [feature] = projectDrillholes([hole]);
-      const expected = convertUtmToMapPosition(calculateDeviationEndpoint(hole));
+      const [feature] = projectDrillholes([toApi(hole)]);
+      const expected = convertUtmToMapPosition(endpointOf(hole));
 
       expect(feature.endpoint).toEqual(expected);
       expect(feature.endpoint.xPercent).toEqual(expect.any(Number));
@@ -276,7 +282,7 @@ describe.each(PAGES)("%s coordinates", (_page, {
       it.each(DRAWN.map((hole) => [hole.holeId, hole]))(
         "puts the %s endpoint at deviation × exaggeration along the azimuth",
         (_id, hole) => {
-          const end = calculateDeviationEndpoint(hole);
+          const end = endpointOf(hole);
           const radians = (read(hole, "azimuth") * Math.PI) / 180;
           const distance = read(hole, "finalDeviation") * EXAGGERATION;
 
@@ -287,7 +293,7 @@ describe.each(PAGES)("%s coordinates", (_page, {
       );
 
       it.each(UNDRAWN.map((hole) => [hole.holeId, hole]))("gives %s no endpoint", (_id, hole) => {
-        expect(calculateDeviationEndpoint(hole)).toBeNull();
+        expect(endpointOf(hole)).toBeNull();
       });
     });
 
@@ -315,7 +321,7 @@ describe.each(PAGES)("%s coordinates", (_page, {
       const offsets = new Map(
         attachDeviationOffsets(
           projectDrillholes(
-            HOLES.map((hole) => convertUtmToMapPosition({ ...hole, x: read(hole, "x"), y: read(hole, "y") })),
+            HOLES.map((hole) => convertUtmToMapPosition({ ...toApi(hole), x: read(hole, "x"), y: read(hole, "y") })),
           ),
           MAP,
         ).map(({ drillhole, deviation }) => [drillhole.holeId, deviation]),

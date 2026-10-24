@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import App from "../../src/App.jsx";
+import { asBackendRecord } from "./TechnoMap/backendRecord.js";
 import DrillMap from "../../src/pages/DrillMap/DrillMap.jsx";
 import TechnoMap from "../../src/pages/TechnoMap/TechnoMap.jsx";
 import { clearAllMapViews, readMapView, writeMapView } from "../../src/state/mapViewStore.js";
@@ -22,6 +23,9 @@ vi.mock("../../src/pages/TechnoMap/config/technoMapConfig.js", async (importOrig
   return { ...actual, MAP_CONFIG: { ...actual.MAP_CONFIG, dataSource: "backend" } };
 });
 
+// One payload for both endpoints. The Exploration Map reads holePurpose and
+// azimuth/finalDeviation; the Techno Map reads the category and deviation
+// endpoint its API adds (asBackendRecord mirrors the backend).
 const RECORDS = [
   // PRODUCT -> triangle
   { holeId: "P-1", x: 418000, y: 4894000, holePurpose: "PRODUCT", holeStatus: "VALIDATED", gt: 0.18 },
@@ -30,10 +34,11 @@ const RECORDS = [
   // INPROGRESS outranks HolePurpose -> drill rig, not a triangle
   { holeId: "R-1", x: 419000, y: 4895000, HolePurpose: "PRODUCT", HoleStatus: "INPROGRESS" },
   // Deviation inputs in the PascalCase the API also sends
-  { holeId: "D-1", x: 419500, y: 4895500, Azimuth: 45, FinalDeviation: 25, gt: 0.3 },
-  // This map's own dataset is gated to these purposes
-  { holeId: "S-1", x: 420000, y: 4896000, holePurpose: "SEDIMENT", holeStatus: "VALIDATED", gt: 0.2 },
-];
+  { holeId: "D-1", x: 419500, y: 4895500, Azimuth: 45, FinalDeviation: 25, gt: 0.3, category: "exploration" },
+  // The Exploration Map's dataset is gated to these purposes; on the Techno
+  // Map the Sediment_Sampling flag files it under Sediment-sampling.
+  { holeId: "S-1", x: 420000, y: 4896000, holePurpose: "SEDIMENT", sedimentSampling: true, holeStatus: "VALIDATED", gt: 0.2 },
+].map(asBackendRecord);
 
 class ResizeObserverStub {
   observe() {}
@@ -183,7 +188,7 @@ describe("map pages", () => {
         .find((node) => node.getAttribute("aria-label").includes("I-1"));
 
       expect(marker.querySelector(".drillhole-tooltip").textContent)
-        .toContain("Hole Status: VALIDATED");
+        .toContain("Status: VALIDATED");
     });
   });
 
@@ -192,7 +197,7 @@ describe("map pages", () => {
     // on HoleStatus the result was a rig with a square underneath it.
     const withDuplicate = [
       ...RECORDS,
-      { holeId: "P-1", x: 418000, y: 4894000, holePurpose: "PRODUCT", holeStatus: "INPROGRESS" },
+      { holeId: "P-1", x: 418000, y: 4894000, holePurpose: "PRODUCT", holeStatus: "INPROGRESS", category: "producer" },
     ];
 
     it("draws one marker per hole on the Techno Map", async () => {
@@ -410,7 +415,7 @@ describe("map pages", () => {
 
     it("asks the backend, updates the map and IndexedDB, and confirms", async () => {
       const { container } = await renderLoadedTechnoMap();
-      const fresh = [{ holeId: "NEW-1", x: 418200, y: 4894200, holePurpose: "PRODUCT" }];
+      const fresh = [{ holeId: "NEW-1", x: 418200, y: 4894200, holePurpose: "PRODUCT", category: "producer" }];
       globalThis.fetch = vi.fn(() => Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify(fresh)) }));
 
       fireEvent.click(refreshButton());

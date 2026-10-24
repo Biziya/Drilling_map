@@ -133,7 +133,6 @@ export const MAP_CONFIG = parseConfig(
       label: text,
       shape: oneOf(...MARKER_SHAPES),
       color: text,
-      purposes: list(text),
     })),
     mapFeatures: list(object({ id: oneOf(...MAP_FEATURES), label: text })),
     markerLabels,
@@ -157,7 +156,7 @@ export const MAP_SETTINGS = MAP_CONFIG.zoom;
 
 export type DrillholeTypeConfig = (typeof MAP_CONFIG.drillholeTypes)[number];
 
-/** Each drillhole type's label, shape, colour and purposes, by id. */
+/** Each drillhole type's label, shape and colour, by id. */
 export const DRILLHOLE_TYPE_CONFIG = Object.fromEntries(
   MAP_CONFIG.drillholeTypes.map((entry) => [entry.id, entry]),
 ) as Readonly<Record<DrillholeType, DrillholeTypeConfig>>;
