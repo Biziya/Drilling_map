@@ -114,6 +114,13 @@ deviationLine:
 measurement:
   color: '#dc2626'
 
+# Rings around a marker on the map: blue while the pointer is over it, green
+# while a click keeps its popup pinned (pinned wins when both apply). The
+# marker itself keeps its category colour.
+interaction:
+  hoverColor: '#2563eb'
+  pinnedColor: '#16a34a'
+
 # The legend anchored in the map's top-left corner: one row per drillhole type,
 # then the rig and the deviation line, in filter order (technological cells
 # stay in the Legends panel only). Dimensions in px unless noted; all must be

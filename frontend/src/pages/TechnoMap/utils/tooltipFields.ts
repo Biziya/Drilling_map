@@ -46,13 +46,12 @@ const date = (field: DrillholeField, withTime = false): Read => (drillhole) => {
 const notYetAvailable: Read = () => null;
 
 /**
- * The popup rows, in the agreed order (Screen max depth once, though the
- * request listed it twice). Fields with no data source yet read
+ * The popup rows, in the agreed order, under the ID title (Screen max depth
+ * once, though the request listed it twice). Fields with no data source yet read
  * `notYetAvailable`; connecting one later means giving it a reader. Built
  * once, not per hover.
  */
 export const TOOLTIP_FIELDS: readonly { label: string; read: Read }[] = [
-  { label: 'ID', read: text('id') },
   { label: 'Key', read: text('holeId') },
   { label: 'Type', read: text('holePurpose') },
   { label: 'License', read: text('license') },

@@ -12,6 +12,7 @@ import MapScaleBar from './Map/MapScaleBar';
 import MapStatus from './Map/MapStatus';
 import MeasurementOverlay from './Map/MeasurementOverlay';
 import TechnoCells from './Map/TechnoCells';
+import MarkerHighlight from './Map/MarkerHighlight';
 import MarkerTooltip from './Tooltips/MarkerTooltip';
 import { MAP_CONFIG, MAP_ID, MAP_SETTINGS } from './config/technoMapConfig';
 import { useBaseMap } from './hooks/useBaseMap';
@@ -40,6 +41,8 @@ const OVERLAY_SELECTOR = '.map-toolbar, .map-layers, .map-legend, .marker-toolti
 const PAGE_STYLE: StyleWithCssVariables = {
   '--deviation-color': MAP_CONFIG.deviationLine.color,
   '--measure-color': MAP_CONFIG.measurement.color,
+  '--hover-color': MAP_CONFIG.interaction.hoverColor,
+  '--pinned-color': MAP_CONFIG.interaction.pinnedColor,
   '--cell-stroke': MAP_CONFIG.technologicalCells.stroke,
   '--cell-fill': MAP_CONFIG.technologicalCells.fill,
 };
@@ -52,9 +55,10 @@ function TechnoMap() {
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [measurement, setMeasurement] = useState<UtmCoordinates[]>([]);
   const [isExporting, setIsExporting] = useState(false);
-  // The hole under the pointer, and the one a click pinned open.
-  const [hovered, setHovered] = useState<MarkerFeature | null>(null);
-  const [pinned, setPinned] = useState<MarkerFeature | null>(null);
+  // The hole under the pointer, and the one a click pinned open, by feature
+  // key (the record ID), so a pin survives a data refresh.
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const [pinnedKey, setPinnedKey] = useState<string | null>(null);
 
   // Every drillhole, whatever the filters, so Reset always frames the whole dataset.
   const fitBox = useMemo(() => drillholeExtent(drillholes), [drillholes]);
@@ -63,7 +67,10 @@ function TechnoMap() {
   const features = useMemo(() => buildMarkerFeatures(drillholes), [drillholes]);
   const shown = useMemo(() => selectShownFeatures(features, filters), [features, filters]);
   const hitIndex = useMemo(() => createHitIndex(shown), [shown]);
-  const shownSet = useMemo(() => new Set(shown), [shown]);
+  const shownByKey = useMemo(() => new Map(shown.map((feature) => [feature.key, feature])), [shown]);
+  // Neither applies to a hole that is filtered out, or while measuring.
+  const hovered = (!isMeasuring && hoveredKey && shownByKey.get(hoveredKey)) || null;
+  const pinned = (!isMeasuring && pinnedKey && shownByKey.get(pinnedKey)) || null;
 
   const { viewportRef, view, renderedMapSize, mapOrigin, viewportSize, isDragging, viewportHandlers, image, controls } = useMapViewport({
     settings: MAP_SETTINGS,
@@ -76,8 +83,12 @@ function TechnoMap() {
     onMapClick: isMeasuring
       ? (ratio) => setMeasurement((points) => addMeasurementPoint(points, mapRatioToUtm(ratio)))
       : undefined,
+    // A click pins the hole's popup (one at a time); a click on the pinned
+    // hole, or on empty map, unpins it.
     onMapTap: (point) => {
-      if (!isMeasuring) setPinned(transform && findMarkerAt(hitIndex, point, transform));
+      if (isMeasuring || !transform) return;
+      const key = findMarkerAt(hitIndex, point, transform)?.key ?? null;
+      setPinnedKey((current) => (key === current ? null : key));
     },
   });
 
@@ -96,12 +107,13 @@ function TechnoMap() {
       const point: Point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
       hit = findMarkerAt(hitIndex, point, transform);
     }
-    setHovered((current) => (current === hit ? current : hit));
+    // A key, so the page re-renders only when the hole under the pointer changes.
+    const key = hit?.key ?? null;
+    setHoveredKey((current) => (current === key ? current : key));
   }, [hitIndex, isMeasuring, transform]);
 
-  // Hovering wins over the pinned hole; neither shows while measuring or once
-  // its hole is filtered out.
-  const tooltipFeature = [hovered, pinned].find((feature) => feature && shownSet.has(feature)) ?? null;
+  // The popup shows the hovered hole, else the pinned one.
+  const tooltipFeature = hovered ?? pinned;
 
   const handleExport = async (format: ExportFormat) => {
     // An export without its base map would misrepresent the map, so none is made.
@@ -155,7 +167,7 @@ function TechnoMap() {
             viewportHandlers.onPointerMove(event);
             handlePointerMove(event);
           }}
-          onPointerLeave={() => setHovered(null)}
+          onPointerLeave={() => setHoveredKey(null)}
         >
           {/* Only the background changes with the base map; the view and every feature stay put. */}
           {baseMap === 'white-grid' && !image.hasFailed && (
@@ -180,7 +192,10 @@ function TechnoMap() {
               deviationVisible={filters['deviation-line'] && view.scale >= MAP_SETTINGS.deviationMinZoom}
             />
           )}
-          {tooltipFeature && transform && !isMeasuring && !isDragging && (
+          {/* Rings: green on the pinned marker, blue on a different hovered one. */}
+          {pinned && transform && <MarkerHighlight feature={pinned} transform={transform} state="pinned" />}
+          {hovered && hovered !== pinned && transform && <MarkerHighlight feature={hovered} transform={transform} state="hovered" />}
+          {tooltipFeature && transform && !isDragging && (
             <MarkerTooltip
               feature={tooltipFeature}
               transform={transform}
@@ -202,7 +217,7 @@ function TechnoMap() {
             onToggleMeasure={() => {
               setIsMeasuring((current) => !current);
               setMeasurement([]);
-              setPinned(null);
+              setPinnedKey(null);
             }}
             isExporting={isExporting}
             onExport={(format) => void handleExport(format)}

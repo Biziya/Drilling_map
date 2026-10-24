@@ -20,12 +20,12 @@ import { projectDrillholes } from './coordinates';
 import { resolveDrillholeType } from './markerKind';
 import { markerSizeFor, traceShape } from './markerShapes';
 import { dedupeDrillholes } from '../../../utils/dedupeDrillholes';
-import { isInProgressHole } from '../../../utils/drillholeFields';
+import { isInProgressHole, readDrillholeText } from '../../../utils/drillholeFields';
 import type { MapTransform, Point, ProjectedDrillhole, Size } from '../../../types/map';
 
 /** One drawable hole, everything the frame loop needs already worked out. */
 export interface MarkerFeature {
-  /** Stable for the dataset: hole id and position in it. */
+  /** Stable identity: the record ID when the API sends one, else hole id and position. */
   key: string;
   drillhole: ProjectedDrillhole;
   type: DrillholeType;
@@ -48,9 +48,10 @@ export function buildMarkerFeatures(drillholes: readonly ProjectedDrillhole[]): 
     const type = resolveDrillholeType(drillhole);
     if (!type) return [];
     const isInProgress = isInProgressHole(drillhole);
+    const id = readDrillholeText(drillhole, 'id')?.trim();
 
     return [{
-      key,
+      key: id ? `id:${id}` : key,
       drillhole,
       type,
       kind: isInProgress ? 'rig' : type,

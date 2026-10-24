@@ -9,7 +9,7 @@ export interface MarkerTooltipProps {
   feature: MarkerFeature;
   transform: ScreenTransform;
   viewport: Size;
-  /** Opened by a click (stays until the next click) rather than by hovering. */
+  /** Showing the pinned hole, not under the pointer: it takes the pointer so it can scroll. */
   isPinned: boolean;
 }
 
@@ -21,8 +21,8 @@ const CLEARANCE = 26;
 const MIN_HEIGHT = 120;
 
 /**
- * The one tooltip on the map, for the hovered or clicked hole: a highlight
- * ring on its marker and the details beside it. Placed in viewport px from the
+ * The one tooltip on the map, for the hovered or clicked hole: its details
+ * beside its marker (the ring is Map/MarkerHighlight). Placed in viewport px from the
  * same transform as the canvas, so it follows the marker through pan and zoom.
  * It opens on whichever side of the marker has more room, no taller than that
  * room (the body scrolls), and shifts sideways near the left and right edges,
@@ -56,7 +56,6 @@ function MarkerTooltip({ feature, transform, viewport, isPinned }: MarkerTooltip
       aria-label={`${MAP_CONFIG.markerLabels[feature.kind]} ${holeId}`}
       role="group"
     >
-      <span className="marker-tooltip__ring" aria-hidden="true" />
       <DrillholeTooltip drillhole={feature.drillhole} />
     </div>
   );

@@ -92,13 +92,25 @@ describe("TechnoMap tooltip contents", () => {
     .map((dt) => [dt.textContent, dt.nextElementSibling.textContent]);
 
   const ORDER = [
-    "ID", "Key", "Type", "License", "Stratigraphic Unit", "X (m)", "Y (m)", "Z (m)",
+    "Key", "Type", "License", "Stratigraphic Unit", "X (m)", "Y (m)", "Z (m)",
     "Z (well head-topo) (m)", "Screen min depth (m)", "Screen max depth (m)", "Screen length (m)",
     "Screen top altitude (m)", "Status", "Drilling Company", "Drilling Rig", "Start Date", "End Date",
     "Billing Time", "Relative level", "Mining level", "Associated Production cells", "Development Flowrates (m³/h)",
   ];
 
-  it("shows every requested field once, in the agreed order", () => {
+  it("titles the popup with the record ID, not the Key or category, and keeps ID out of the rows", () => {
+    const title = (drillhole) => render(<DrillholeTooltip drillhole={drillhole} />).container.querySelector("strong").textContent;
+
+    expect(title(API_HOLE)).toBe("1042");
+    cleanup();
+    expect(title({ Id: 7, holeId: "P-1" })).toBe("7");
+    cleanup();
+    expect(title({ holeId: "P-1", category: "producer" })).toBe("ID unavailable");
+    cleanup();
+    expect(rows(API_HOLE).map(([label]) => label)).not.toContain("ID");
+  });
+
+  it("shows every other requested field once, in the agreed order", () => {
     expect(rows(API_HOLE).map(([label]) => label)).toEqual(ORDER);
     expect(TOOLTIP_FIELDS.map(({ label }) => label)).toEqual(ORDER);
     expect(ORDER.filter((label) => label === "Screen max depth (m)")).toHaveLength(1);
@@ -106,7 +118,6 @@ describe("TechnoMap tooltip contents", () => {
 
   it("shows the pyISR_AllData_V2 values as the API sends them", () => {
     expect(Object.fromEntries(rows(API_HOLE))).toMatchObject({
-      ID: "1042",
       Key: "ZO-EX-118",
       Type: "EXPLO",
       License: "MV-017129",
@@ -153,7 +164,7 @@ describe("TechnoMap tooltip contents", () => {
   it("reads PascalCase fields the same way", () => {
     const shown = Object.fromEntries(rows({ Id: 7, HoleId: "P-1", HolePurpose: "PRODUCT", HoleStatus: "INPROGRESS", DrillingRig: "RIG-02", X: "418000" }));
 
-    expect(shown).toMatchObject({ ID: "7", Key: "P-1", Type: "PRODUCT", Status: "INPROGRESS", "Drilling Rig": "RIG-02", "X (m)": "418,000.00" });
+    expect(shown).toMatchObject({ Key: "P-1", Type: "PRODUCT", Status: "INPROGRESS", "Drilling Rig": "RIG-02", "X (m)": "418,000.00" });
   });
 
   it("never prints null, undefined or NaN: a missing or unreadable value is a dash", () => {
@@ -161,7 +172,7 @@ describe("TechnoMap tooltip contents", () => {
     const shown = Object.fromEntries([...container.querySelectorAll("dt")].map((dt) => [dt.textContent, dt.nextElementSibling.textContent]));
 
     expect(container.textContent).not.toMatch(/null|undefined|NaN/);
-    expect(Object.keys(shown)).toHaveLength(23);
+    expect(Object.keys(shown)).toHaveLength(22);
     expect(shown).toMatchObject({ Type: "SER", Status: "—", "Z (well head-topo) (m)": "—", "Screen min depth (m)": "—", License: "—", "Billing Time": "—" });
   });
 

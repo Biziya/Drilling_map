@@ -9,14 +9,14 @@ export interface DrillholeTooltipProps {
   drillhole: DrillholeApiRecord;
 }
 
-// Every value reads through drillholeFields, so camelCase and PascalCase
-// payloads show the same. Every row always shows, in order; a missing value
+// Titled with the record ID ([ID]); the rows follow. Every value reads
+// through drillholeFields, so camelCase and PascalCase payloads show the same. Every row always shows, in order; a missing value
 // is a dash. The body scrolls when the map leaves too little room
 // (--tooltip-max-height, from MarkerTooltip).
 function DrillholeTooltip({ drillhole }: DrillholeTooltipProps) {
   return (
     <span className="drillhole-tooltip" role="tooltip">
-      <strong>{readDrillholeText(drillhole, 'holeId')?.trim() || 'Unknown drillhole'}</strong>
+      <strong>{readDrillholeText(drillhole, 'id')?.trim() || 'ID unavailable'}</strong>
       <dl className="drillhole-tooltip__fields">
         {TOOLTIP_FIELDS.map(({ label, read }) => (
           <div key={label}>

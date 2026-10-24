@@ -152,9 +152,27 @@
 
 .techno-map-page .map-viewport.is-over-marker:not(.is-dragging) { cursor: pointer; }
 
-/* The one tooltip: a zero-size anchor on the hovered or clicked marker, a
-   ring around the marker, the details beside it (placement classes from
-   MarkerTooltip.tsx). Above the floating panels: it is transient, they are not. */
+/* A ring around a marker (Map/MarkerHighlight): blue while hovered, green
+   while pinned (interaction colours in technoMap.yaml). The marker keeps its
+   category colour. */
+.techno-map-page .marker-highlight {
+  position: absolute;
+  z-index: 9;
+  width: calc(2 * var(--marker-half, 8px) + 8px);
+  height: calc(2 * var(--marker-half, 8px) + 8px);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2.5px var(--ring-color), 0 1px 6px rgba(0, 0, 0, .35);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.techno-map-page .marker-highlight.is-hovered { --ring-color: var(--hover-color, #2563eb); }
+.techno-map-page .marker-highlight.is-pinned { --ring-color: var(--pinned-color, #16a34a); }
+
+/* The one tooltip: a zero-size anchor on the hovered or clicked marker, the
+   details beside it (placement classes from MarkerTooltip.tsx). Above the
+   floating panels: it is transient, they are not. */
 .techno-map-page .marker-tooltip {
   position: absolute;
   z-index: 35;
@@ -162,20 +180,6 @@
   height: 0;
   pointer-events: none;
 }
-
-.techno-map-page .marker-tooltip__ring {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: calc(2 * var(--marker-half, 8px) + 8px);
-  height: calc(2 * var(--marker-half, 8px) + 8px);
-  border: 2px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 0 0 2px rgba(29, 78, 216, .85), 0 1px 6px rgba(0, 0, 0, .35);
-  transform: translate(-50%, -50%);
-}
-
-.techno-map-page .marker-tooltip.is-pinned .marker-tooltip__ring { box-shadow: 0 0 0 2.5px #1d4ed8, 0 1px 6px rgba(0, 0, 0, .35); }
 
 /* Legend and Legends panel symbols: the marker shapes in miniature. */
 .techno-map-page .marker-symbol {

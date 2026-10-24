@@ -170,6 +170,7 @@ function buildRecords(): DrillholeApiRecord[] {
       const radians = ((azimuth ?? 0) * Math.PI) / 180;
 
       return {
+        id: String(typeIndex * 100 + index + 1),
         holeId: `TM-${prefix}-${String(index + 1).padStart(3, '0')}`,
         coordinateType: 'UTM',
         x,

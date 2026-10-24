@@ -437,6 +437,64 @@ describe("tooltip", () => {
     expect(container.querySelector(".marker-tooltip.is-pinned")).toBeTruthy();
   });
 
+  it("rings a hovered marker blue, and takes the ring away when the pointer leaves", async () => {
+    const { container } = await renderPage();
+    const rings = () => [...container.querySelectorAll(".marker-highlight")].map((ring) => ring.className);
+
+    hoverAt(container, HOLE);
+    expect(rings()).toEqual(["marker-highlight is-hovered"]);
+    fireEvent.pointerLeave(container.querySelector(".map-viewport"));
+    expect(rings()).toEqual([]);
+  });
+
+  it("turns the ring green when clicked, keeps it green under the pointer, and a second click unpins", async () => {
+    const { container } = await renderPage();
+    const rings = () => [...container.querySelectorAll(".marker-highlight")].map((ring) => ring.className);
+
+    hoverAt(container, HOLE);
+    clickAt(container, HOLE);
+    expect(rings()).toEqual(["marker-highlight is-pinned"]);
+    hoverAt(container, HOLE);
+    expect(rings()).toEqual(["marker-highlight is-pinned"]);
+    fireEvent.pointerLeave(container.querySelector(".map-viewport"));
+    expect(container.querySelector(".marker-tooltip").dataset.hole).toBe(HOLE.holeId);
+    expect(rings()).toEqual(["marker-highlight is-pinned"]);
+
+    hoverAt(container, HOLE);
+    clickAt(container, HOLE);
+    // Unpinned, and still under the pointer: blue again.
+    expect(rings()).toEqual(["marker-highlight is-hovered"]);
+  });
+
+  it("keeps one pin: clicking another hole moves it, while hovering a third rings that one blue", async () => {
+    const { container } = await renderPage();
+    const others = MOCK_DRILLHOLES.filter((hole) => hole.holeStatus !== "INPROGRESS" && Math.abs(hole.x - HOLE.x) > 300);
+    const ringFor = (state) => container.querySelector(`.marker-highlight.is-${state}`)?.dataset.key;
+
+    clickAt(container, HOLE);
+    clickAt(container, others[0]);
+    expect(container.querySelectorAll(".marker-highlight.is-pinned")).toHaveLength(1);
+    expect(ringFor("pinned")).toBe(`id:${others[0].id}`);
+
+    hoverAt(container, others[1]);
+    expect(ringFor("hovered")).toBe(`id:${others[1].id}`);
+    expect(ringFor("pinned")).toBe(`id:${others[0].id}`);
+    // The popup follows the pointer; the pin stays.
+    expect(container.querySelector(".marker-tooltip").dataset.hole).toBe(others[1].holeId);
+  });
+
+  it("neither rings nor pins while measuring, and clears the pin when the ruler turns on", async () => {
+    const { container } = await renderPage();
+    clickAt(container, HOLE);
+    fireEvent.click(screen.getByRole("button", { name: "Measure distance" }));
+
+    expect(container.querySelector(".marker-highlight")).toBeNull();
+    hoverAt(container, HOLE);
+    clickAt(container, HOLE);
+    expect(container.querySelector(".marker-highlight, .marker-tooltip")).toBeNull();
+    expect(container.querySelectorAll(".measurement-layer path")).toHaveLength(1);
+  });
+
   it("closes when its hole is filtered out", async () => {
     const { container } = await renderPage();
     clickAt(container, HOLE);

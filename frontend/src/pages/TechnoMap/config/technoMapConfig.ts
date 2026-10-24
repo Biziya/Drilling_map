@@ -126,6 +126,7 @@ export const MAP_CONFIG = parseConfig(
     technologicalCells: object({ stroke: text, fill: text }),
     deviationLine: object({ color: text }),
     measurement: object({ color: text }),
+    interaction: object({ hoverColor: text, pinnedColor: text }),
     legend: object({
       ...legendLayout,
       symbols: object({ rigIconScale: size, lineThickness: size }),
