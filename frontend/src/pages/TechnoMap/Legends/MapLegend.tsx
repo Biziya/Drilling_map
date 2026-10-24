@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import LayerSymbol from './LayerSymbol';
 import { FILTER_ENTRIES, MAP_CONFIG } from '../config/technoMapConfig';
 import { ALL_VISIBLE } from '../utils/mapFilters';
@@ -11,72 +12,42 @@ const px = (value: number) => `${value}px`;
 const LEGEND_STYLE: StyleWithCssVariables = {
   '--legend-padding-block': px(legend.paddingBlock),
   '--legend-padding-inline': px(legend.paddingInline),
-  '--legend-column-gap': px(legend.columnGap),
   '--legend-row-gap': px(legend.rowGap),
-  '--legend-title-gap': px(legend.titleGap),
-  '--legend-title-size': px(legend.titleFontSize),
   '--legend-label-size': px(legend.labelFontSize),
   '--legend-label-gap': px(legend.labelGap),
   '--legend-symbol-size': px(legend.symbolSize),
   '--legend-rig-scale': legend.symbols.rigIconScale,
-  '--legend-gt-rows': Math.ceil(MAP_CONFIG.gtRanges.length / legend.gt.columns),
-  '--legend-gt-row-gap': px(legend.gt.rowGap),
-  '--legend-gt-column-gap': px(legend.gt.columnGap),
-  '--legend-redox-row-gap': px(legend.redox.rowGap),
-  '--legend-symbol-row-gap': px(legend.symbols.rowGap),
-  '--legend-symbol-column-gap': px(legend.symbols.columnGap),
   '--legend-line-thickness': px(legend.symbols.lineThickness),
 };
+
+/**
+ * What the map draws, in filter order: the nine drillhole types, the rig and
+ * the deviation line. Technological cells have no source yet and stay only in
+ * the Legends panel.
+ */
+const LEGEND_ENTRIES = FILTER_ENTRIES.filter(({ id }) => id !== 'technological-cells');
 
 export interface MapLegendProps {
   /** Hidden categories stay listed, faded. */
   filters?: MapFilters;
 }
 
-// Symbols use the same component as the filter panel, and the same shapes and
-// colours as the markers, so the legend cannot drift from the map.
+// Anchored in the map's top-left corner: one category per row. Symbols use
+// the same component as the Legends panel, and the same shapes and colours as
+// the markers, so the legend cannot drift from the map. Informational only.
 function MapLegend({ filters = ALL_VISIBLE }: MapLegendProps) {
   return (
     <aside className="map-legend" aria-label="Map legend" style={LEGEND_STYLE}>
-      <section>
-        <h2>GT @75 ppm</h2>
-        <ul className="map-legend__gt">
-          {MAP_CONFIG.gtRanges.map((range) => (
-            <li key={range.label}>
-              <span className="legend-symbol"><i className="legend-dot" style={{ background: range.color }} /></span>
-              <span>{range.label}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* Redox is not returned by the API yet and colours no marker; the
-          section documents the planned classification. */}
-      <section>
-        <h2>Redox Status</h2>
-        <ul className="map-legend__redox">
-          {Object.entries(MAP_CONFIG.redox).map(([label, color]) => (
-            <li key={label}>
-              <span className="legend-symbol"><i className="legend-swatch" style={{ background: color }} /></span>
-              <span>{label}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="map-legend__symbols">
-        <h2>Symbol</h2>
-        <ul>
-          {FILTER_ENTRIES.map(({ id, label }) => (
-            <li key={id} className={filters[id] ? undefined : 'is-hidden'}>
-              <LayerSymbol id={id} />
-              <span>{label}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <ul>
+        {LEGEND_ENTRIES.map(({ id, label }) => (
+          <li key={id} className={filters[id] ? undefined : 'is-hidden'}>
+            <LayerSymbol id={id} />
+            <span>{label}</span>
+          </li>
+        ))}
+      </ul>
     </aside>
   );
 }
 
-export default MapLegend;
+export default memo(MapLegend);

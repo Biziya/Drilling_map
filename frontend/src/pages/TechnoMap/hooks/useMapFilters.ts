@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { MAP_ID } from '../config/technoMapConfig';
 import type { FilterId } from '../config/technoMapConfig';
 import { parseFilters, setAllFilters } from '../utils/mapFilters';
@@ -14,9 +14,12 @@ export function useMapFilters() {
 
   useEffect(() => writeStored(FILTERS_STORAGE_KEY, filters), [filters]);
 
-  return {
-    filters,
-    setFilter: (id: FilterId, visible: boolean) => setFilters((current) => ({ ...current, [id]: visible })),
-    setAll: (visible: boolean) => setFilters(setAllFilters(visible)),
-  };
+  // Stable, so the memoised Legends panel skips the re-render on every pan frame.
+  const setFilter = useCallback(
+    (id: FilterId, visible: boolean) => setFilters((current) => ({ ...current, [id]: visible })),
+    [],
+  );
+  const setAll = useCallback((visible: boolean) => setFilters(setAllFilters(visible)), []);
+
+  return { filters, setFilter, setAll };
 }

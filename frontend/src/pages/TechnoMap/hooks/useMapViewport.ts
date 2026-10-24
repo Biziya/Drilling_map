@@ -91,6 +91,11 @@ export interface MapViewportOptions {
    * While set, double-click does not zoom, so two quick clicks stay two clicks.
    */
   onMapClick?: ((ratio: Point) => void) | undefined;
+  /**
+   * Called with the viewport position of every click that did not drag, after
+   * `onMapClick`. Unlike it, leaves double-click zoom alone.
+   */
+  onMapTap?: ((point: Point) => void) | undefined;
 }
 
 export function useMapViewport({
@@ -100,6 +105,7 @@ export function useMapViewport({
   overlaySelector,
   fitBox = null,
   onMapClick,
+  onMapTap,
 }: MapViewportOptions) {
   const initialView = useMemo<MapTransform>(
     () => ({ scale: settings.minZoom, translateX: 0, translateY: 0 }),
@@ -217,9 +223,10 @@ export function useMapViewport({
       setIsDragging(false);
 
       const mapSize = measuredMapSize(renderedMapSize);
-      if (event.type !== 'pointerup' || drag.moved || !onMapClick || !mapSize) return;
+      if (event.type !== 'pointerup' || drag.moved || !mapSize) return;
       const point = pointWithin(event.currentTarget, event);
-      onMapClick(viewportToMapRatio(point, viewRef.current, mapOrigin, mapSize));
+      onMapClick?.(viewportToMapRatio(point, viewRef.current, mapOrigin, mapSize));
+      onMapTap?.(point);
     },
     onDoubleClick(event: ReactMouseEvent<HTMLElement>) {
       if (onMapClick) return;

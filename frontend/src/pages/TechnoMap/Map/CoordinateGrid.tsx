@@ -11,7 +11,7 @@ export interface CoordinateGridProps {
 }
 
 /**
- * The white grid base map, drawn under the map canvas in viewport pixels so
+ * The white grid base map (values in km, Easting and Northing axis titles), drawn under the map canvas in viewport pixels so
  * lines and labels stay crisp and the same size at any zoom. It never takes
  * the pointer: pan, zoom and measurement act on the viewport as before.
  */
@@ -42,7 +42,11 @@ function CoordinateGrid({ viewport, view, mapOrigin, mapSize }: CoordinateGridPr
         strokeWidth={3}
         paintOrder="stroke"
       >
-        {labels.map(({ text, x, y }) => <text key={text} x={x} y={y}>{text}</text>)}
+        {labels.map(({ text, x, y, anchor, vertical }) => (
+          <text key={`${anchor}:${vertical ? 'v' : 'h'}:${text}`} x={x} y={y} textAnchor={anchor} transform={vertical ? `rotate(-90 ${x} ${y})` : undefined}>
+            {text}
+          </text>
+        ))}
       </g>
     </svg>
   );

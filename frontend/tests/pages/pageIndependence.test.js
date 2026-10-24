@@ -81,18 +81,12 @@ describe("page config independence", () => {
     expect(drillConfig.MAP_ID).not.toBe(technoConfig.MAP_ID);
   });
 
-  it.each(["zoom", "gtRanges", "redox", "markerLabels", "legendSymbols"])(
+  it.each(["zoom", "redox", "markerLabels", "legendSymbols"])(
     "shares no '%s' object between the pages",
     (key) => {
       expect(drillConfig.MAP_CONFIG[key]).not.toBe(technoConfig.MAP_CONFIG[key]);
     },
   );
-
-  it("does not share GT band objects between the pages", () => {
-    drillConfig.MAP_CONFIG.gtRanges.forEach((band) => {
-      expect(technoConfig.MAP_CONFIG.gtRanges).not.toContain(band);
-    });
-  });
 
   it("leaves the Techno Map untouched when a copy of the Exploration config changes", () => {
     const before = structuredClone(technoConfig.MAP_CONFIG);
@@ -105,7 +99,7 @@ describe("page config independence", () => {
 
     expect(technoConfig.MAP_CONFIG).toEqual(before);
     expect(technoConfig.MAP_CONFIG.title).toBe("Techno Map");
-    expect(technoConfig.getGtRange(0).color).toBe(before.gtRanges[0].color);
+    expect(technoConfig.DRILLHOLE_TYPE_CONFIG.producer.color).toBe(before.drillholeTypes.find(({ id }) => id === "producer").color);
   });
 
   it("leaves the Exploration Map untouched when a copy of the Techno config changes", () => {
@@ -114,7 +108,7 @@ describe("page config independence", () => {
 
     copy.title = "Changed";
     copy.zoom.deviationMinZoom = 99;
-    copy.gtRanges[0].color = "#123456";
+    copy.markers.size = 99;
     copy.drillholeTypes.pop();
 
     expect(drillConfig.MAP_CONFIG).toEqual(before);

@@ -1,28 +1,17 @@
-// Both pages currently share this behaviour; split this file when one page diverges.
-// Page-specific parts (marker kinds and role labels) live in
-// DrillMap/DrillholeFeatures.test.jsx and TechnoMap/DrillholeFeatures.test.jsx.
+// Exploration Map DOM markers and deviation lines. The Techno Map draws its
+// markers on a canvas instead: see TechnoMap/DrillholeLayer.test.jsx. Kinds and
+// role labels live in DrillMap/DrillholeFeatures.test.jsx.
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import DrillDrillholeFeatures from "../../src/pages/DrillMap/Map/DrillholeFeatures.jsx";
-import TechnoDrillholeFeatures from "../../src/pages/TechnoMap/Map/DrillholeFeatures.jsx";
 import * as drillCoordinates from "../../src/pages/DrillMap/utils/coordinates.js";
-import * as technoCoordinates from "../../src/pages/TechnoMap/utils/coordinates.js";
-import { asBackendRecord } from "./TechnoMap/backendRecord.js";
 
 afterEach(cleanup);
 
 const MAP = { mapWidth: 1200, mapHeight: 850 };
 
-// Techno Map records get what its API adds (category, deviation endpoint).
-// A hole with no Type here is given INJECT: the Techno Map draws only holes
-// with a category, and these tests are about lines and markers, not types.
-const asTechnoRecord = (record) => asBackendRecord(
-  record.holePurpose ?? record.HolePurpose ? record : { ...record, holePurpose: "INJECT" },
-);
-
 const PAGES = [
   ["DrillMap", DrillDrillholeFeatures, drillCoordinates, (record) => record],
-  ["TechnoMap", TechnoDrillholeFeatures, technoCoordinates, asTechnoRecord],
 ];
 
 const lineOf = (container) => {

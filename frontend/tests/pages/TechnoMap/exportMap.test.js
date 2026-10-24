@@ -23,8 +23,9 @@ const snapshot = (overrides = {}) => ({
 });
 
 const parse = (svg) => new DOMParser().parseFromString(svg, "image/svg+xml");
+// Every shape is a white outline with its colour inset: count the outlines.
 const markerCount = (doc) => doc.querySelectorAll("image").length - 1 // minus the base map
-  + doc.querySelectorAll("circle").length
+  + doc.querySelectorAll("circle[fill='#fff']").length
   + doc.querySelectorAll("polygon[fill='#fff']").length;
 
 afterEach(() => vi.restoreAllMocks());
@@ -66,14 +67,14 @@ describe("buildMapSvg", () => {
     expect(base.getAttribute("width")).toBe(String(990 * 3));
   });
 
-  it("draws every shown drillhole as a vector shape or the rig icon, plus title, north arrow and scale bar", () => {
+  it("draws every shown drillhole as a vector shape or the rig icon, plus title and scale bar, and no compass", () => {
     const doc = parse(buildMapSvg(snapshot(), ASSETS));
     const text = [...doc.querySelectorAll("text")].map((node) => node.textContent);
 
     expect(markerCount(doc)).toBe(130);
     expect(doc.querySelectorAll(`image[href='${ASSETS.rigIcon}']`)).toHaveLength(10);
     expect(text).toContain("Techno Map");
-    expect(text).toContain("N");
+    expect(text).not.toContain("N");
     expect(text.some((label) => /\d+ (m|km)$/.test(label))).toBe(true);
   });
 
@@ -100,6 +101,28 @@ describe("buildMapSvg", () => {
     expect(doc.querySelectorAll("polygon[fill='#fff']")).toHaveLength(1);
     expect(doc.querySelectorAll(`line[stroke='${MAP_CONFIG.deviationLine.color}']`)).toHaveLength(1);
     expect(doc.querySelectorAll(`polygon[stroke='${MAP_CONFIG.technologicalCells.stroke}']`)).toHaveLength(0);
+  });
+
+  // The export is the canvas's vector twin: same shapes, sizes and colours.
+  it("draws each category's shape in its colour, and rigs above everything", () => {
+    const at = { x: 418200, y: 4894300 };
+    const records = [
+      { holeId: "R", ...at, category: "producer", holeStatus: "INPROGRESS" },
+      { holeId: "E", ...at, x: 418220, category: "exploration" },
+      { holeId: "P", ...at, x: 418240, category: "producer" },
+      { holeId: "I", ...at, x: 418260, category: "injector" },
+    ].map((hole) => convertUtmToMapPosition(hole));
+    const view = { scale: 12, translateX: -5730, translateY: -3900 };
+    const doc = parse(buildMapSvg(snapshot({ drillholes: records, cells: [], view }), ASSETS));
+    const fills = (selector) => [...doc.querySelectorAll(selector)].map((node) => node.getAttribute("fill"));
+    const colour = (id) => MAP_CONFIG.drillholeTypes.find((type) => type.id === id).color;
+
+    expect(fills("circle")).toEqual(["#fff", colour("exploration")]);
+    expect(fills("polygon").filter((fill) => fill !== "#fff")).toEqual([colour("producer"), colour("injector")]);
+    expect(doc.querySelector("circle").getAttribute("r")).toBe(String(MAP_CONFIG.markers.size / 2));
+    // The rig is the last marker drawn.
+    const markers = [...doc.querySelectorAll("circle, polygon, image")].filter((node) => node.getAttribute("href") !== ASSETS.baseMap);
+    expect(markers.at(-1).getAttribute("href")).toBe(ASSETS.rigIcon);
   });
 
   it("draws the technological cells and their labels when enabled", () => {

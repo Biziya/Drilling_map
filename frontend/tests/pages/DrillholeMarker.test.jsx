@@ -1,12 +1,10 @@
-// Both pages currently share this behaviour; split this file when one page diverges.
-// Page-specific parts (role labels, kinds only one page has) live in
-// DrillMap/DrillholeMarker.test.jsx and TechnoMap/DrillholeMarker.test.jsx.
+// Exploration Map DOM markers. The Techno Map draws its markers on a canvas
+// with one shared tooltip: see TechnoMap/DrillholeLayer.test.jsx and
+// TechnoMap/MarkerTooltip.test.jsx. Role labels live in DrillMap/DrillholeMarker.test.jsx.
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import DrillDrillholeMarker from "../../src/pages/DrillMap/Map/DrillholeMarker.jsx";
-import TechnoDrillholeMarker from "../../src/pages/TechnoMap/Map/DrillholeMarker.jsx";
 import * as drillConfig from "../../src/pages/DrillMap/config/drillMapConfig.js";
-import * as technoConfig from "../../src/pages/TechnoMap/config/technoMapConfig.js";
 
 afterEach(cleanup);
 
@@ -25,11 +23,9 @@ const HOLE = {
   year: 2026,
 };
 
-// Fill for a hole without GT: one uniform colour on the Exploration Map, the
-// hole type's own colour on the Techno Map.
+// Fill for a hole without GT: one uniform colour on the Exploration Map.
 const PAGES = [
   ["DrillMap", DrillDrillholeMarker, drillConfig, () => drillConfig.MAP_CONFIG.uniformMarkerColor],
-  ["TechnoMap", TechnoDrillholeMarker, technoConfig, (kind) => technoConfig.DRILLHOLE_TYPE_CONFIG[kind].color],
 ];
 
 const symbolColour = (container) => container
@@ -174,9 +170,7 @@ describe.each(PAGES)("%s DrillholeMarker", (_page, DrillholeMarker, { MAP_CONFIG
     });
   });
 
-  // The Techno Map tooltip shows the pyISR_AllData_V2 fields instead; it is
-  // covered in TechnoMap/DrillholeMarker.test.jsx.
-  describe.runIf(_page === "DrillMap")("tooltip contents", () => {
+  describe("tooltip contents", () => {
     const tooltipText = (overrides = {}) => {
       const { container } = renderMarker(overrides, "injector");
 

@@ -1,5 +1,7 @@
-// The white grid base map: Easting/Northing lines and labels for the visible
-// part of the map, in viewport pixels. Every position goes through the same
+// The white grid base map: Easting/Northing lines for the visible part of the
+// map, with values in kilometres and "Easting (km)" / "Northing (km)" axis
+// titles, all in viewport pixels. Coordinates stay in metres throughout; only
+// the written values are divided by 1000. Every position goes through the same
 // UTM -> map ratio -> viewport conversions the markers use, so the grid can
 // never drift from them. The screen layer and the export both draw from this.
 
@@ -26,8 +28,12 @@ export interface GridLine {
 
 export interface GridLabel {
   text: string;
+  /** The text's anchor point and baseline. */
   x: number;
   y: number;
+  anchor: 'start' | 'middle';
+  /** Turned a quarter anticlockwise about (x, y), reading upwards. */
+  vertical?: boolean;
 }
 
 export interface CoordinateGrid {
@@ -36,7 +42,7 @@ export interface CoordinateGrid {
   /** Distance between neighbouring lines, in metres. */
   step: number;
   lines: GridLine[];
-  /** Eastings along the top edge, northings along the left edge. */
+  /** Easting values and title along the bottom edge, northing values and title along the left. */
   labels: GridLabel[];
 }
 
@@ -54,8 +60,12 @@ export interface CoordinateGridOptions {
 
 /** Gap between a label and its line or the sheet edge, in px. */
 const LABEL_INSET = 4;
-/** Rough width of an easting label ("E 414,000"), in font sizes. */
-const LABEL_WIDTH_EMS = 5.5;
+/** Rough width of one character, in font sizes. */
+const CHAR_WIDTH_EMS = 0.6;
+export const EASTING_TITLE = 'Easting (km)';
+export const NORTHING_TITLE = 'Northing (km)';
+/** The sheet must be this many px across before an axis title is written on it. */
+const MIN_TITLED_SPAN = 160;
 /** Lines per axis never exceed this, whatever the configuration. */
 const MAX_LINES = 500;
 
@@ -80,11 +90,15 @@ function multiplesBetween(from: number, to: number, step: number): number[] {
   return Array.from({ length: Math.max(0, last - first + 1) }, (_, index) => Number(((first + index) * step).toPrecision(12)));
 }
 
-/** A grid value as written on the map: whole metres, or as many decimals as the step needs. */
-export function formatGridValue(value: number, step: number): string {
-  const decimals = step >= 1 ? 0 : Math.ceil(-Math.log10(step));
+/**
+ * A grid value as written on the map, in kilometres: as many decimals as the
+ * step needs, so 414,000 m -> "414" and 414,500 m on a 500 m grid -> "414.5".
+ */
+export function formatGridValue(metres: number, stepMetres: number): string {
+  const step = stepMetres / 1000;
+  const decimals = step >= 1 ? 0 : Math.ceil(-Math.log10(step) - 1e-9);
 
-  return formatNumber(value, decimals);
+  return formatNumber(metres / 1000, decimals);
 }
 
 /**
@@ -131,22 +145,31 @@ export function computeCoordinateGrid({
     ...northings.map(({ at }) => ({ x1: sheet.left, y1: at, x2: sheet.right, y2: at })),
   ];
 
-  // Eastings sit just right of their line under the top edge; northings sit
-  // just above theirs by the left edge. A northing too close to the top would
-  // run into the easting labels, and an easting too close to the right edge
-  // would hang off the sheet, so either is left unlabelled.
-  const topBand = sheet.top + labelFontSize + 2 * LABEL_INSET;
-  const labelRoom = labelFontSize * LABEL_WIDTH_EMS;
-  const labels: GridLabel[] = [
-    ...eastings.filter(({ at }) => at + LABEL_INSET + labelRoom <= sheet.right).map(({ value, at }) => ({
-      text: `E ${formatGridValue(value, step)}`,
-      x: at + LABEL_INSET,
-      y: sheet.top + LABEL_INSET + labelFontSize,
-    })),
-    ...northings
-      .filter(({ at }) => at - LABEL_INSET - labelFontSize > topBand)
-      .map(({ value, at }) => ({ text: `N ${formatGridValue(value, step)}`, x: sheet.left + LABEL_INSET, y: at - LABEL_INSET })),
-  ];
+  // Bottom edge: the Easting title on the edge, the values in a row above it,
+  // each centred on its line. Left edge: the Northing title turned on its
+  // side, the values just right of it, each above its line. A value that
+  // would run off the sheet or into the other axis is left unwritten.
+  const row = labelFontSize + LABEL_INSET;
+  const titleBaseline = sheet.bottom - LABEL_INSET;
+  const valueBaseline = titleBaseline - row;
+  const titleColumn = sheet.left + LABEL_INSET + labelFontSize;
+  const valueLeft = titleColumn + LABEL_INSET;
+  const halfWidth = (text: string) => (text.length * CHAR_WIDTH_EMS * labelFontSize) / 2;
+
+  const eastingLabels: GridLabel[] = eastings
+    .map(({ value, at }) => ({ text: formatGridValue(value, step), x: at, y: valueBaseline, anchor: 'middle' as const }))
+    .filter(({ text, x }) => x - halfWidth(text) >= valueLeft && x + halfWidth(text) <= sheet.right - LABEL_INSET);
+  const northingLabels: GridLabel[] = northings
+    .filter(({ at }) => at - LABEL_INSET - labelFontSize > sheet.top && at < valueBaseline - row)
+    .map(({ value, at }) => ({ text: formatGridValue(value, step), x: valueLeft, y: at - LABEL_INSET, anchor: 'start' as const }));
+  const titles: GridLabel[] = [];
+  if (sheet.right - sheet.left >= MIN_TITLED_SPAN) {
+    titles.push({ text: EASTING_TITLE, x: (sheet.left + sheet.right) / 2, y: titleBaseline, anchor: 'middle' });
+  }
+  if (sheet.bottom - sheet.top >= MIN_TITLED_SPAN) {
+    titles.push({ text: NORTHING_TITLE, x: titleColumn, y: (sheet.top + sheet.bottom) / 2, anchor: 'middle', vertical: true });
+  }
+  const labels = [...eastingLabels, ...northingLabels, ...titles];
 
   return { sheet, step, lines, labels };
 }

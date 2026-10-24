@@ -22,7 +22,7 @@ function MapCanvas({ style, onImageLoad, onImageError, showImage = true, childre
       <img
         className={`base-map${showImage ? '' : ' is-hidden'}`}
         src={BASE_MAP_SRC}
-        alt="Geological drillhole base map"
+        alt="Redox base map"
         decoding="async"
         draggable="false"
         onLoad={onImageLoad}

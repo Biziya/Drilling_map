@@ -22,41 +22,42 @@ TechnoMap/
 ├─ TechnoMap.tsx              composes the sections; header with refresh + count
 ├─ TechnoMap.css              styles, every selector scoped under .techno-map-page
 ├─ Map/
-│  ├─ MapCanvas.tsx         transformed layer: base image + children
-│  ├─ CoordinateGrid.tsx    white grid base map: Easting/Northing lines + labels
+│  ├─ MapCanvas.tsx         transformed layer: base image + technological cells
+│  ├─ CoordinateGrid.tsx    white grid base map: km lines, values and axis titles
 │  ├─ TechnoCells.tsx       technological cell outlines and labels
-│  ├─ DrillholeFeatures     dedupe → filter → markers + deviation lines
-│  ├─ DrillholeMarker       rig icon OR shape (never both) + tooltip
+│  ├─ DrillholeLayer.tsx    one canvas: every shown marker and deviation line
 │  ├─ MeasurementOverlay    the A–B measurement, in viewport pixels
 │  ├─ MapScaleBar.tsx       metre scale for the current zoom
 │  └─ MapStatus.tsx         small notice: loading / empty / no data / no base map
 ├─ Legends/
-│  ├─ MapLegend.tsx         GT bands, redox, all 12 layer symbols (hidden = faded)
-│  ├─ LayerSymbol.tsx       one layer's swatch, shared by legend and filter panel
-│  └─ MarkerSymbol.tsx      the type shapes shared by markers, legend and panel
+│  ├─ MapLegend.tsx         anchored top-left: redox and all 12 symbols (hidden = faded)
+│  ├─ LayerSymbol.tsx       one layer's swatch, shared by legend and Legends panel
+│  └─ MarkerSymbol.tsx      the type shapes in miniature, for legend and panel
 ├─ Controls/
-│  ├─ MapControls.tsx       zoom in/out, reset, measure, export menu, zoom readout
-│  ├─ LayerPanel.tsx        floating "Map Layers" panel: 12 filters, Show/Hide All
+│  ├─ MapControls.tsx       zoom in/out, reset, measure, export (camera), zoom readout
+│  ├─ LayerPanel.tsx        floating "Legends" panel: 12 filters, Show/Hide All
 │  ├─ RefreshButton.tsx     header button: reload the data
-│  └─ BaseMapSwitcher.tsx   header menu right of Refresh: Geological / White Grid
+│  └─ BaseMapSwitcher.tsx   header menu right of Refresh: Redox Map / White Grid
 ├─ Tooltips/
-│  └─ DrillholeTooltip      the hole's details on hover, focus or click
+│  ├─ MarkerTooltip.tsx     the one tooltip: highlight ring + details, on the marker
+│  └─ DrillholeTooltip      the hole's details
 ├─ hooks/
 │  ├─ useBaseMap.ts         the selected base map, remembered in localStorage
 │  ├─ useMapData.ts         demo data, or automatic loading → status, refresh()
 │  ├─ useMapFilters.ts      the 12 filters, remembered in localStorage
-│  └─ useMapViewport.ts     sizing, drag-pan, zoom, map clicks, fit, view persistence
+│  └─ useMapViewport.ts     sizing, drag-pan, zoom, map clicks/taps, fit, view persistence
 ├─ mock/
 │  └─ mockData.ts           the fixed demo drillholes and cells
 ├─ config/
-│  ├─ technoMap.yaml        data source, zoom, GT bands, types, layers, colours
-│  └─ technoMapConfig.ts    validates the YAML; ids, MAP_ID, getGtRange
+│  ├─ technoMap.yaml        data source, zoom, types, marker sizes, layers, colours
+│  └─ technoMapConfig.ts    validates the YAML; ids, MAP_ID
 └─ utils/                   pure functions
    ├─ coordinateGrid.ts     white grid lines/labels for the view (screen + export)
    ├─ coordinates.ts        UTM ↔ map ratio, deviation endpoints, extent
    ├─ geometry.ts           fit, transform, cursor-centred zoom, viewport ↔ map
    ├─ markerKind.ts         API category → type, marker priority
-   ├─ markerShapes.ts       shape outlines for CSS clip-paths and the export
+   ├─ markerLayer.ts        marker data, hit-testing grid, sprites, the canvas frame
+   ├─ markerShapes.ts       shape outlines and sizes: canvas, CSS clip-paths, export
    ├─ mapFilters.ts         which holes and layers the filters let through
    ├─ measurement.ts        distance, formatting, click cycle
    ├─ exportMap.ts          PNG/SVG export of the visible viewport
@@ -70,9 +71,16 @@ Priority (`utils/markerKind.ts`): in-progress → rig; otherwise the type named
 by the API's `category`. The backend resolves it (sampling flags first, then
 the SQL Type; see `backend/README.md`), so the page never classifies on its
 own. A hole without a category (an unmapped Type such as `SER`) belongs to no
-filter and is not drawn, though it still counts in the header. A shape is
-filled with its GT band colour, or with its type's colour when the hole has
-no GT. The tooltip shows the original Type next to the category.
+filter and is not drawn, though it still counts in the header. The tooltip
+shows the original Type next to the category.
+
+Each type's shape and colour are under `drillholeTypes` in the YAML:
+Development, Exploration, Ra-grade- and Sediment-sampling are orange circles,
+Geotechnical a gray five-point star, Injector a red downward triangle,
+Monitoring a green vertical diamond, Producer a blue square, Water a light
+teal square; in-progress holes are the rig icon. The same colour fills the
+marker and its legend symbol and colours the type's label in the Legends
+panel. Marker sizes are under `markers` (px at every zoom).
 
 Deviation lines run from the collar towards the API's `deviationEndX/Y`,
 stretched by `deviationExaggeration` for display.
@@ -82,17 +90,57 @@ deviation line). An in-progress hole needs both its type and *Drilling in
 progress* checked, and is never downgraded to its type's shape. A deviation
 line needs *Deviation line*, its hole visible, and the deviation zoom.
 Technological cells are independent of the drillhole filters. Filters persist
-under `techno-map:filters`; Hide All leaves the base map, grid, north arrow,
-scale bar, measurement and view untouched.
+under `techno-map:filters`; Hide All leaves the base map, grid, legend, scale
+bar, measurement and view untouched.
+
+## Rendering (5,000+ drillholes)
+
+Markers and deviation lines are drawn on one viewport-sized canvas
+(`Map/DrillholeLayer`, `utils/markerLayer.ts`), not as DOM elements:
+
+- **Once per dataset** `buildMarkerFeatures` deduplicates, classifies and
+  projects every hole (collar and deviation endpoint as map ratios).
+- **Once per filter change** the features are filtered and bucketed into a
+  128 × 128 grid for hit-testing.
+- **Once per frame** (the view is committed once per animation frame by
+  `useMapViewport`) the canvas is cleared and redrawn in the same commit as the
+  base map's transform, so the two never drift: every line in one stroke,
+  then each marker stamped from a sprite pre-rendered per type at device
+  resolution, rigs last. Anything more than 40 px outside the viewport is
+  skipped (culling) but stays in the feature list.
+
+The canvas takes no pointer events. Moving the pointer hit-tests the grid
+(a handful of candidates, nearest wins, rigs on top) and shows one tooltip
+(`Tooltips/MarkerTooltip`) with a ring on the marker; a click pins it until a
+click on empty map. The tooltip opens below markers in the upper part of the
+map and turns inwards near the edges. While measuring, no tooltip shows.
+
+Measured in headless Edge (software rendering, 1600 × 1000) with the
+deterministic 5,000-hole dataset in `tests/pages/TechnoMap/perfDataset.js`:
+
+| | DOM markers (before) | Canvas (after) |
+|---|---|---|
+| DOM nodes | 107,677 | 209 |
+| Pan, whole map in view | 2 FPS | 60 FPS |
+| Wheel zoom, whole map | 10 FPS | 59 FPS |
+| Pan / wheel, zoomed 1280% | 30 / 16 FPS | 60 / 60 FPS |
+| Filter toggle | ~535 ms | ≤ 34 ms (two frames) |
+| Hide All / Show All | 514 / 1,705 ms | 31 / 33 ms |
+| Tooltip on hover | 520–590 ms | 20–33 ms |
+| First display | 1.1 s | 0.5 s |
+
+At 10,000 holes panning the whole map runs at about 32 FPS (60 when zoomed
+in). Markers are no longer individually keyboard-focusable; the header count
+and the tooltip remain.
 
 ## Viewport
 
-Floating layout (same as the Exploration Map, plus Map Layers): compass
-top-left, toolbar (zoom, reset, ruler, export) top-right, Map Layers bottom-right
-directly below it, scale bar bottom-left; the legend sits below the map. The
-toolbar and panel share `--float-width`, and every corner uses `--float-inset`
-(TechnoMap.css root); the panel's height is capped so it never reaches the
-toolbar, and it scrolls instead.
+Floating layout: the anchored legend top-left, the Legends panel top-right,
+the toolbar (zoom, reset, ruler, export) bottom-right below it, scale bar
+bottom-left; there is no compass. The panel and toolbar share `--float-width`,
+and every corner uses `--float-inset` (TechnoMap.css root); the panel and
+legend are height-capped so they never reach the toolbar or scale bar, and
+scroll instead.
 
 Reset fits every drillhole in the active dataset (whatever the filters) with
 `zoom.fitPadding`. The view persists across page switches (`state/mapViewStore`)
@@ -101,16 +149,17 @@ and browser refreshes (`techno-map:view` in localStorage).
 ## Measurement and export
 
 The ruler places A on the first click and B on the second; the third starts
-over. Measuring takes priority over the map's features: markers stop catching
-the pointer and show no tooltip, so a point can be placed on a marker, cell or
-deviation line. A press that moves more than 4 px is a pan, not a click, and
-double-click zoom is off while measuring. Points are stored in UTM metres, so zoom, pan and
-resizing do not change the distance. Switching the tool off clears it.
+over. Measuring takes priority over the map's features: a press on a marker
+places a point where it lands and opens no tooltip. A press that moves more
+than 4 px is a pan, not a click, and double-click zoom is off while measuring.
+Points are stored in UTM metres, so zoom, pan and resizing do not change the
+distance. Switching the tool off clears it.
 
-Export draws the visible viewport as one SVG (base map embedded, markers, cells,
-deviation lines and measurement as vectors, plus title, north arrow and scale
-bar); PNG rasterises it at 2×. Files are `TechnoMap_YYYY-MM-DD_HH-mm.png|svg`.
-No export is made while the base map is not loaded.
+Export (camera button) draws the visible viewport as one SVG — the selected
+base map, cells, deviation lines, markers (same features, shapes, sizes and
+colours as the canvas) and measurement as vectors, plus title and scale bar;
+PNG rasterises it at 2×. Files are `TechnoMap_YYYY-MM-DD_HH-mm.png|svg`. No
+export is made while the base map is not loaded.
 
 ## Data loading in backend mode (global infrastructure)
 
@@ -146,33 +195,35 @@ successfully*.
 
 `Controls/BaseMapSwitcher` (layers icon, right of Refresh) opens a menu of
 the backgrounds in `baseMap.options` (`config/technoMap.yaml`), the current one
-ticked: **Geological Map** (the surveyed image) and **White Grid Map**.
-Switching changes only the background; view, features, filters and the
-measurement stay as they are. The choice persists under `techno-map:base-map`
-(localStorage) and falls back to `baseMap.default` (geological).
+ticked: **Redox Map** (the surveyed image; id `geological`, kept so saved
+choices still apply) and **White Grid Map**. Switching changes only the
+background; view, features, filters and the measurement stay as they are. The
+choice persists under `techno-map:base-map` (localStorage) and falls back to
+`baseMap.default`.
 
-The geological image stays loaded and laid out while hidden: its size is what
-every feature is placed against, so nothing moves. `Map/CoordinateGrid` draws
-under the canvas, in viewport pixels, from `utils/coordinateGrid.ts`: a white
-sheet over exactly the UTM bounds, lines every 1/2/5 x 10^n metres (the
-smallest step at least `whiteGrid.minLineSpacing` px apart, so it refines on
-zoom), eastings along the top and northings along the left. Positions go
-through the same UTM → map ratio → viewport functions as the markers. The
-export draws the same grid instead of embedding the image. Colours, line
-width, label size and spacing are under `baseMap.whiteGrid`.
+The image stays loaded and laid out while hidden: its size is what every
+feature is placed against, so nothing moves. `Map/CoordinateGrid` draws under
+the canvas, in viewport pixels, from `utils/coordinateGrid.ts`: a white sheet
+over exactly the UTM bounds, lines every 1/2/5 x 10^n metres (the smallest
+step at least `whiteGrid.minLineSpacing` px apart, so it refines on zoom).
+Values are written in kilometres (414,000 m → 414, 4,894,500 m → 4,894.5):
+eastings along the bottom under an **Easting (km)** title, northings up the
+left beside a turned **Northing (km)** title. Coordinates stay in metres;
+positions go through the same UTM → map ratio → viewport functions as the
+markers. The export draws the same grid instead of embedding the image.
+Colours, line width, label size and spacing are under `baseMap.whiteGrid`.
 
 ## Legend sizes
 
 Legend dimensions are set under `legend:` in `config/technoMap.yaml` (px, validated
 as 0 or more) and reach the stylesheet as CSS variables from
-`Legends/MapLegend.tsx`. One base `symbolSize` sizes every legend symbol: GT
-circles and Redox squares are exactly `symbolSize` on both sides, and the type
-shapes match. Each symbol, in all three sections, is centred in a box 1.9 x
-`symbolSize` wide and as tall as the rig icon (`symbols.rigIconScale`), so
-labels line up everywhere and the line and cell swatches fit. Changing `symbolSize` resizes the
-whole legend without changing any shape.
+`Legends/MapLegend.tsx`. One base `symbolSize` sizes every legend symbol: Redox
+squares are exactly `symbolSize` on both sides, and the type shapes match.
+Each symbol, in both sections, is centred in a box 1.9 x `symbolSize` wide and
+as tall as the rig icon (`symbols.rigIconScale`), so labels line up everywhere
+and the line and cell swatches fit. Changing `symbolSize` resizes the whole
+legend without changing any shape.
 
-Layout: the sections sit side by side at their content width and wrap onto a
-new line when they do not fit (no fixed columns or heights); the Symbol section
-takes the remaining width. GT bands fill `gt.columns` columns top to bottom, so
-GT is no taller than the Symbol section.
+Layout: Redox Status and the symbols (no heading, three content-width columns)
+sit side by side and wrap when they do not fit; the card stops short of the
+Legends panel and the scale bar and scrolls rather than reach them.

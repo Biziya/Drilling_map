@@ -22,12 +22,13 @@ zoom:
 
 # Backgrounds offered by the header's base map switcher, in menu order, and
 # the one shown on a first visit. The choice is remembered for this page only.
-#   geological - the surveyed base map image (VITE_MAP_IMAGE_PATH).
+#   geological - the Redox Map: the surveyed base map image
+#                (VITE_MAP_IMAGE_PATH). The id is kept so saved choices apply.
 #   white-grid - a white sheet with an Easting/Northing grid over the same
 #                UTM bounds, so every feature stays exactly where it is.
 baseMap:
   options:
-    - { id: geological, label: Geological Map }
+    - { id: geological, label: Redox Map }
     - { id: white-grid, label: White Grid Map }
   default: geological
   # White grid appearance; sizes in px, all above 0. Lines and labels keep
@@ -50,17 +51,8 @@ deviationExaggeration: 5
 
 rigIconSrc: /rig.svg
 
-# GT bands, lowest first. Each band includes its lower bound; the last band
-# also includes its upper bound so the top of the scale is covered.
-gtRanges:
-  - { min: 0, max: 0.025, label: 0 – 0.025, color: '#dbeafe' }
-  - { min: 0.025, max: 0.05, label: 0.025 – 0.05, color: '#93c5fd' }
-  - { min: 0.05, max: 0.1, label: 0.05 – 0.1, color: '#38bdf8' }
-  - { min: 0.1, max: 0.25, label: 0.1 – 0.25, color: '#22c55e' }
-  - { min: 0.25, max: 0.5, label: 0.25 – 0.5, color: '#facc15' }
-  - { min: 0.5, max: 4, label: 0.5 – 4, color: '#ef4444' }
-
-# Legend only: the API does not return redox yet and no marker is coloured by it.
+# Redox classes. The API does not return redox yet, no marker is coloured by
+# it and the anchored legend no longer lists it; kept for when it arrives.
 redox:
   Reduced: '#e1e1e1'
   Intermediate: '#ffffbe'
@@ -69,19 +61,29 @@ redox:
 # Drillhole types, in filter-panel and legend order. Each id is a category the
 # API returns: the backend maps the SQL Type and the sampling flags onto it
 # (backend/Models/TechnoMap/TechnoMapCategory.cs), and a hole with no category
-# is not drawn. A marker is filled with its GT band colour, or with `color`
-# when the hole has no GT reading. Shapes: square, triangle, circle,
-# diamond, triangle-down, pentagon, hexagon, star, cross.
+# is not drawn. `color` fills the marker and its legend symbol, and colours the
+# type's label in the Legends panel. Shapes: square, triangle, circle,
+# diamond (vertical, taller than wide), triangle-down, pentagon, hexagon,
+# star (five points), cross.
 drillholeTypes:
-  - { id: development, label: Development, shape: circle, color: '#7c3aed' }
-  - { id: exploration, label: Exploration, shape: diamond, color: '#475569' }
-  - { id: geotechnical, label: Geotechnical, shape: pentagon, color: '#92400e' }
-  - { id: injector, label: Injector, shape: square, color: '#1d4ed8' }
-  - { id: monitoring, label: Monitoring, shape: hexagon, color: '#db2777' }
-  - { id: producer, label: Producer, shape: triangle, color: '#ea580c' }
-  - { id: ra-grade-sampling, label: Ra-grade-sampling, shape: star, color: '#65a30d' }
-  - { id: sediment-sampling, label: Sediment-sampling, shape: triangle-down, color: '#ca8a04' }
-  - { id: water, label: Water, shape: cross, color: '#0891b2' }
+  - { id: development, label: Development, shape: circle, color: '#ee7d14' }
+  - { id: exploration, label: Exploration, shape: circle, color: '#ee7d14' }
+  - { id: geotechnical, label: Geotechnical, shape: star, color: '#7b818a' }
+  - { id: injector, label: Injector, shape: triangle-down, color: '#dc2626' }
+  - { id: monitoring, label: Monitoring, shape: diamond, color: '#16a34a' }
+  - { id: producer, label: Producer, shape: square, color: '#1d4ed8' }
+  - { id: ra-grade-sampling, label: Ra-grade-sampling, shape: circle, color: '#ee7d14' }
+  - { id: sediment-sampling, label: Sediment-sampling, shape: circle, color: '#ee7d14' }
+  - { id: water, label: Water, shape: square, color: '#2bb3c0' }
+
+# Marker sizes on the map, in px at every zoom, white outline included.
+# Square and circle are drawn in a `size` box; the other shapes, which fill
+# less of their box, in a `polygonSize` box. The rig icon is `rigSize` square.
+markers:
+  size: 13
+  polygonSize: 15
+  outline: 2
+  rigSize: 32
 
 # Map feature layers, in filter-panel and legend order.
 mapFeatures:
@@ -112,32 +114,23 @@ deviationLine:
 measurement:
   color: '#dc2626'
 
-# Legend dimensions, in px unless noted; all must be 0 or more.
-# symbolSize is the one base size of every legend symbol: GT circles, Redox
-# squares and the type shapes are all symbolSize x symbolSize. Each symbol is
-# centred in a box 1.9 x symbolSize wide and as tall as the rig icon, so labels
-# line up across all three sections; the rig icon and line/cell swatches scale
-# with it too. Sections sit side by side at their content width and wrap.
+# The legend anchored in the map's top-left corner: one row per drillhole type,
+# then the rig and the deviation line, in filter order (technological cells
+# stay in the Legends panel only). Dimensions in px unless noted; all must be
+# 0 or more. symbolSize is the one base size of every legend symbol. Each
+# symbol is centred in a box 1.9 x symbolSize wide and as tall as the rig icon,
+# so every label starts at the same x; the rig icon and line swatch scale too.
 legend:
   paddingBlock: 8
-  paddingInline: 16
-  # Between the GT, Redox and Symbol sections, across and (when they wrap) down.
-  columnGap: 28
-  rowGap: 8
-  # Under each section title.
-  titleGap: 4
-  titleFontSize: 13
-  labelFontSize: 12.5
+  paddingInline: 10
+  # Between rows.
+  rowGap: 2
+  labelFontSize: 11.5
   # Between a symbol or swatch and its label.
   labelGap: 6
-  symbolSize: 15
-  # GT bands fill `columns` columns top to bottom.
-  gt: { columns: 2, rowGap: 3, columnGap: 16 }
-  redox: { rowGap: 3 }
+  symbolSize: 13
   symbols:
     # Rig icon height as a multiple of symbolSize (a detailed image needs a
     # little more height to read at the same visual weight).
     rigIconScale: 1.35
     lineThickness: 2.5
-    rowGap: 3
-    columnGap: 18

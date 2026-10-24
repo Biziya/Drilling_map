@@ -1,5 +1,8 @@
 // The base map switcher and white grid, on both map pages. Each page owns its
-// copy, so every check runs once per page.
+// copy, so every check runs once per page. They differ in the image map's
+// name (Geological / Redox Map), the grid labels (E/N-prefixed metres /
+// kilometres under Easting (km) and Northing (km) axis titles) and the export
+// compass (the Techno Map has none).
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
@@ -30,10 +33,18 @@ const PAGES = [
   {
     name: "Exploration Map", Page: DrillMap, config: drillConfig, grid: drillGrid, coordinates: drillCoordinates,
     geometry: drillGeometry, exporter: drillExport, key: DRILL_KEY, otherKey: TECHNO_KEY, parse: parseDrill, mapId: "exploration-map",
+    imageLabel: "Geological Map",
+    isEasting: ({ text }) => text.startsWith("E "),
+    isNorthing: ({ text }) => text.startsWith("N "),
+    hasCompass: true,
   },
   {
     name: "Techno Map", Page: TechnoMap, config: technoConfig, grid: technoGrid, coordinates: technoCoordinates,
     geometry: technoGeometry, exporter: technoExport, key: TECHNO_KEY, otherKey: DRILL_KEY, parse: parseTechno, mapId: "techno-map",
+    imageLabel: "Redox Map",
+    isEasting: ({ text, vertical }) => !vertical && /^[\d,.]+$/.test(text) && Number(text.replace(/,/g, "")) < 1000,
+    isNorthing: ({ text, vertical }) => !vertical && /^[\d,.]+$/.test(text) && Number(text.replace(/,/g, "")) > 1000,
+    hasCompass: false,
   },
 ];
 
@@ -74,10 +85,12 @@ const choose = (label) => {
   fireEvent.click(screen.getByRole("menuitemradio", { name: label }));
 };
 
-describe.each(PAGES)("$name base map", ({ Page, config, grid, coordinates, geometry, exporter, key, otherKey, parse, mapId }) => {
+describe.each(PAGES)("$name base map", ({
+  Page, config, grid, coordinates, geometry, exporter, key, otherKey, parse, mapId, imageLabel, isEasting, isNorthing, hasCompass,
+}) => {
   describe("configuration", () => {
-    it("offers Geological Map then White Grid Map, defaulting to Geological", () => {
-      expect(config.MAP_CONFIG.baseMap.options.map(({ label }) => label)).toEqual(["Geological Map", "White Grid Map"]);
+    it("offers the image map then White Grid Map, defaulting to the image", () => {
+      expect(config.MAP_CONFIG.baseMap.options.map(({ label }) => label)).toEqual([imageLabel, "White Grid Map"]);
       expect(config.MAP_CONFIG.baseMap.default).toBe("geological");
     });
 
@@ -118,7 +131,7 @@ describe.each(PAGES)("$name base map", ({ Page, config, grid, coordinates, geome
       const result = grid.computeCoordinateGrid(options(view));
       const vertical = result.lines.filter(({ x1, x2 }) => x1 === x2).map(({ x1 }) => x1);
       const horizontal = result.lines.filter(({ y1, y2 }) => y1 === y2).map(({ y1 }) => y1);
-      const eastings = result.labels.filter(({ text }) => text.startsWith("E "));
+      const eastings = result.labels.filter(isEasting);
       expect(vertical.length).toBeGreaterThan(2);
       expect(horizontal.length).toBeGreaterThan(2);
       expect(eastings.length).toBeGreaterThan(1);
@@ -168,12 +181,12 @@ describe.each(PAGES)("$name base map", ({ Page, config, grid, coordinates, geome
       expect(children[2].tagName).toBe("STRONG");
     });
 
-    it("opens a menu with both base maps, Geological ticked first time", async () => {
+    it("opens a menu with both base maps, the image map ticked first time", async () => {
       await renderPage(Page);
       openMenu();
       const items = within(screen.getByRole("menu", { name: "Base map" })).getAllByRole("menuitemradio");
 
-      expect(items.map((item) => item.textContent)).toEqual(["Geological Map", "White Grid Map"]);
+      expect(items.map((item) => item.textContent)).toEqual([imageLabel, "White Grid Map"]);
       expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual(["true", "false"]);
     });
 
@@ -193,7 +206,7 @@ describe.each(PAGES)("$name base map", ({ Page, config, grid, coordinates, geome
       expect([...container.querySelectorAll(".drillhole-marker")].map((marker) => marker.parentElement.getAttribute("style"))).toEqual(before);
       expect(readMapView(mapId, null)).toEqual({ scale: 1.8, translateX: -120, translateY: -40 });
 
-      choose("Geological Map");
+      choose(imageLabel);
 
       expect(container.querySelector(".base-map").classList.contains("is-hidden")).toBe(false);
       expect(container.querySelector(".coordinate-grid")).toBeNull();
@@ -244,12 +257,14 @@ describe.each(PAGES)("$name base map", ({ Page, config, grid, coordinates, geome
       const doc = parse(exporter.buildMapSvg(snapshot("geological"), ASSETS));
 
       expect(doc.querySelector(`image[href='${ASSETS.baseMap}']`)).not.toBeNull();
-      expect([...doc.querySelectorAll("text")].some(({ textContent }) => textContent.startsWith("E "))).toBe(false);
+      expect(doc.querySelector(`rect[fill='${config.MAP_CONFIG.baseMap.whiteGrid.background}']`)).toBeNull();
     });
 
     it("draws the white sheet, grid and coordinate labels instead when the white grid is selected", () => {
       const doc = parse(exporter.buildMapSvg(snapshot("white-grid"), { ...ASSETS, baseMap: null }));
-      const labels = [...doc.querySelectorAll("text")].map(({ textContent }) => textContent);
+      const texts = [...doc.querySelectorAll("text")];
+      const labels = texts.map(({ textContent }) => textContent);
+      const asLabels = texts.map((node) => ({ text: node.textContent, vertical: (node.getAttribute("transform") ?? "").startsWith("rotate") }));
       const sheet = doc.querySelector(`rect[fill='${config.MAP_CONFIG.baseMap.whiteGrid.background}']`);
 
       expect(doc.querySelector("parsererror")).toBeNull();
@@ -257,11 +272,48 @@ describe.each(PAGES)("$name base map", ({ Page, config, grid, coordinates, geome
       expect(sheet.getAttribute("x")).toBe("5");
       expect(sheet.getAttribute("width")).toBe("990");
       expect(doc.querySelectorAll(`g[stroke='${config.MAP_CONFIG.baseMap.whiteGrid.lineColor}'] line`).length).toBeGreaterThan(4);
-      expect(labels.some((text) => text.startsWith("E "))).toBe(true);
-      expect(labels.some((text) => text.startsWith("N "))).toBe(true);
-      // The measurement, title, north arrow and scale bar are still drawn.
-      expect(labels).toEqual(expect.arrayContaining(["Map", "N"]));
+      expect(asLabels.some(isEasting)).toBe(true);
+      expect(asLabels.some(isNorthing)).toBe(true);
+      // The measurement, title, scale bar (and on the Exploration Map the north arrow) are still drawn.
+      expect(labels).toEqual(expect.arrayContaining(hasCompass ? ["Map", "N"] : ["Map"]));
+      if (!hasCompass) expect(labels).not.toContain("N");
       expect(labels.some((text) => /\d+(\.\d+)? (m|km)$/.test(text))).toBe(true);
+    });
+  });
+});
+
+describe("Techno Map white grid in kilometres", () => {
+  const options = (view) => ({ viewport: VIEWPORT, view, mapOrigin: ORIGIN, mapSize: MAP_SIZE, minLineSpacing: 90, labelFontSize: 10.5 });
+  const fit = technoGrid.computeCoordinateGrid(options({ scale: 1, translateX: 0, translateY: 0 }));
+
+  it("titles the axes Easting (km) along the bottom and Northing (km) up the left", () => {
+    const easting = fit.labels.find(({ text }) => text === "Easting (km)");
+    const northing = fit.labels.find(({ text }) => text === "Northing (km)");
+
+    expect(easting).toMatchObject({ anchor: "middle", x: (fit.sheet.left + fit.sheet.right) / 2 });
+    expect(easting.y).toBeGreaterThan(fit.sheet.bottom - 20);
+    expect(northing).toMatchObject({ vertical: true, y: (fit.sheet.top + fit.sheet.bottom) / 2 });
+    expect(northing.x).toBeLessThan(fit.sheet.left + 20);
+  });
+
+  it("writes metres as kilometres: 414,000 m reads 414, 4,894,000 m reads 4,894", () => {
+    expect(technoGrid.formatGridValue(414000, 1000)).toBe("414");
+    expect(technoGrid.formatGridValue(4894000, 1000)).toBe("4,894");
+    expect(technoGrid.formatGridValue(414500, 500)).toBe("414.5");
+    expect(technoGrid.formatGridValue(414250, 50)).toBe("414.25");
+  });
+
+  it("centres each easting value on its own line, so the km labels stay on the metre grid", () => {
+    const verticals = fit.lines.filter(({ x1, x2 }) => x1 === x2).map(({ x1 }) => x1);
+    const eastings = fit.labels.filter(({ text, vertical, anchor }) => !vertical && anchor === "middle" && /^\d+$/.test(text));
+
+    expect(eastings.length).toBeGreaterThan(2);
+    eastings.forEach(({ text, x }) => {
+      const metres = Number(text) * 1000;
+      const at = technoGeometry.mapRatioToViewport(technoCoordinates.utmToMapRatio({ x: metres, y: technoConfig.MAP_UTM_BOUNDS.maxY }), { scale: 1, translateX: 0, translateY: 0 }, ORIGIN, MAP_SIZE);
+
+      expect(x).toBeCloseTo(at.x, 6);
+      expect(verticals.some((line) => Math.abs(line - x) < 1e-6)).toBe(true);
     });
   });
 });

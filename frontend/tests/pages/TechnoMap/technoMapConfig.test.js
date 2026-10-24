@@ -5,7 +5,6 @@ import {
   MAP_ID,
   MAP_SETTINGS,
   MAP_UTM_BOUNDS,
-  getGtRange,
 } from "../../../src/pages/TechnoMap/config/technoMapConfig.js";
 import { MARKER_KINDS } from "../../../src/pages/TechnoMap/utils/markerKind.js";
 import {
@@ -13,74 +12,6 @@ import {
   FILTER_IDS,
   MAP_FEATURES,
 } from "../../../src/pages/TechnoMap/config/technoMapConfig.js";
-
-describe("getGtRange", () => {
-  it("puts a mid-band value in the right band", () => {
-    expect(getGtRange(0.18).label).toBe("0.1 – 0.25");
-  });
-
-  it("treats each band as inclusive of its lower bound", () => {
-    expect(getGtRange(0.025).label).toBe("0.025 – 0.05");
-    expect(getGtRange(0.05).label).toBe("0.05 – 0.1");
-    expect(getGtRange(0.5).label).toBe("0.5 – 4");
-  });
-
-  it("places a true zero in the lowest band", () => {
-    expect(getGtRange(0).label).toBe("0 – 0.025");
-  });
-
-  it("includes the top of the final band", () => {
-    expect(getGtRange(4).label).toBe("0.5 – 4");
-  });
-
-  it("rejects values outside the measurable range", () => {
-    expect(getGtRange(4.0001)).toBeNull();
-    expect(getGtRange(-0.1)).toBeNull();
-  });
-
-  it("accepts numeric strings from the API", () => {
-    expect(getGtRange("0.3").label).toBe("0.25 – 0.5");
-  });
-
-  it("rejects missing values instead of colouring them as zero", () => {
-    expect(getGtRange(null)).toBeNull();
-    expect(getGtRange(undefined)).toBeNull();
-    expect(getGtRange("")).toBeNull();
-  });
-
-  it("rejects a whitespace-only string", () => {
-    // "   " coerces to 0 and would otherwise be painted as a real low-GT hole.
-    expect(getGtRange("   ")).toBeNull();
-  });
-
-  it("rejects booleans", () => {
-    expect(getGtRange(true)).toBeNull();
-    expect(getGtRange(false)).toBeNull();
-  });
-
-  it("rejects non-numeric text", () => {
-    expect(getGtRange("n/a")).toBeNull();
-    expect(getGtRange(NaN)).toBeNull();
-  });
-
-  it("covers the whole 0–4 span with no gaps", () => {
-    for (let v = 0; v <= 4; v += 0.01) {
-      expect(getGtRange(Number(v.toFixed(2)))).not.toBeNull();
-    }
-  });
-
-  it("returns a band carrying a label and a colour", () => {
-    expect(getGtRange(0.18)).toMatchObject({
-      label: expect.any(String),
-      color: expect.stringMatching(/^#/),
-    });
-    expect(MAP_CONFIG.gtRanges).toHaveLength(6);
-  });
-
-  it("returns a band from this page's own config", () => {
-    expect(MAP_CONFIG.gtRanges).toContain(getGtRange(0.18));
-  });
-});
 
 describe("zoom settings", () => {
   it("exposes the page's zoom block as MAP_SETTINGS", () => {
@@ -130,10 +61,42 @@ describe("Techno Map config", () => {
       .toEqual(["Technological cells", "Drilling in progress", "Deviation line"]);
   });
 
-  it("gives every drillhole type a distinct colour", () => {
-    const colours = MAP_CONFIG.drillholeTypes.map(({ color }) => color);
+  // The marker table: shapes and colour families per category. Development,
+  // Exploration and both sampling categories share the orange circle.
+  it("draws each drillhole type with its agreed shape and colour", () => {
+    const byType = Object.fromEntries(MAP_CONFIG.drillholeTypes.map(({ id, shape, color }) => [id, [shape, color]]));
+    const ORANGE = byType.development[1];
 
-    expect(new Set(colours).size).toBe(colours.length);
+    expect(byType).toEqual({
+      development: ["circle", ORANGE],
+      exploration: ["circle", ORANGE],
+      geotechnical: ["star", expect.any(String)],
+      injector: ["triangle-down", expect.any(String)],
+      monitoring: ["diamond", expect.any(String)],
+      producer: ["square", expect.any(String)],
+      "ra-grade-sampling": ["circle", ORANGE],
+      "sediment-sampling": ["circle", ORANGE],
+      water: ["square", expect.any(String)],
+    });
+    // Gray, red, green, blue and light teal: each its own colour, none orange.
+    const others = ["geotechnical", "injector", "monitoring", "producer", "water"].map((id) => byType[id][1]);
+    expect(new Set([...others, ORANGE]).size).toBe(6);
+  });
+
+  it("sizes markers from YAML, the rig larger than the shapes", () => {
+    expect(MAP_CONFIG.markers).toEqual({ size: 13, polygonSize: 15, outline: 2, rigSize: 32 });
+  });
+
+  it("has no GT bands: the legend no longer shows GT and markers take their category colour", () => {
+    expect(MAP_CONFIG).not.toHaveProperty("gtRanges");
+    expect(MAP_CONFIG.legend).not.toHaveProperty("gt");
+  });
+
+  it("calls the image base map the Redox Map, keeping its saved id", () => {
+    expect(MAP_CONFIG.baseMap.options).toEqual([
+      { id: "geological", label: "Redox Map" },
+      { id: "white-grid", label: "White Grid Map" },
+    ]);
   });
 
   it("carries the display settings", () => {

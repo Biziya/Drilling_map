@@ -1,6 +1,8 @@
-// Outline of every marker shape in a unit box (0-1, y down). The on-screen
-// symbols clip to these and the SVG export draws them, so the two cannot drift.
+// Outline of every marker shape in a unit box (0-1, y down). The legend
+// symbols clip to these, the map canvas traces them and the SVG export draws
+// them, so the three cannot drift.
 
+import { MAP_CONFIG } from '../config/technoMapConfig';
 import type { MarkerShape } from '../config/technoMapConfig';
 
 type Outline = readonly (readonly [number, number])[];
@@ -23,15 +25,22 @@ const OUTLINES: Readonly<Record<Exclude<MarkerShape, 'circle'>, Outline>> = {
   square: [[0, 0], [1, 0], [1, 1], [0, 1]],
   triangle: [[0.5, 0], [1, 1], [0, 1]],
   'triangle-down': [[0, 0], [1, 0], [0.5, 1]],
-  diamond: [[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]],
+  // Vertical: taller than wide.
+  diamond: [[0.5, 0], [0.84, 0.5], [0.5, 1], [0.16, 0.5]],
   pentagon: radial(5),
   hexagon: radial(6),
-  star: radial(5, 0.22),
+  // Five points, the inner radius wide enough to read at marker size.
+  star: radial(5, 0.24),
   cross: [
     [0.32, 0], [0.68, 0], [0.68, 0.32], [1, 0.32], [1, 0.68], [0.68, 0.68],
     [0.68, 1], [0.32, 1], [0.32, 0.68], [0, 0.68], [0, 0.32], [0.32, 0.32],
   ],
 };
+
+/** Box a shape is drawn in on the map, white outline included (technoMap.yaml markers). */
+export function markerSizeFor(shape: MarkerShape): number {
+  return shape === 'square' || shape === 'circle' ? MAP_CONFIG.markers.size : MAP_CONFIG.markers.polygonSize;
+}
 
 /** CSS clip-path for a shape; null for the circle, which is a rounded box. */
 export function clipPathFor(shape: MarkerShape): string | null {
@@ -47,4 +56,20 @@ export function svgPointsFor(shape: MarkerShape, cx: number, cy: number, size: n
   return OUTLINES[shape]
     .map(([x, y]) => `${round(cx + (x - 0.5) * size)},${round(cy + (y - 0.5) * size)}`)
     .join(' ');
+}
+
+/** Adds a shape of `size` px centred on (cx, cy) to the current canvas path. */
+export function traceShape(context: CanvasRenderingContext2D, shape: MarkerShape, cx: number, cy: number, size: number) {
+  if (shape === 'circle') {
+    context.moveTo(cx + size / 2, cy);
+    context.arc(cx, cy, size / 2, 0, 2 * Math.PI);
+    return;
+  }
+
+  OUTLINES[shape].forEach(([x, y], index) => {
+    const px = cx + (x - 0.5) * size;
+    const py = cy + (y - 0.5) * size;
+    if (index === 0) context.moveTo(px, py); else context.lineTo(px, py);
+  });
+  context.closePath();
 }

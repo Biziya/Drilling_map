@@ -82,9 +82,10 @@ function MapControls({
           aria-label="Export map"
           title="Export map"
         >
-          <svg {...ICON_PROPS}>
-            <path d="M12 3v12M7 10l5 5 5-5" />
-            <path d="M4 17v3h16v-3" />
+          {/* A camera: the export is a picture of the current view. */}
+          <svg {...ICON_PROPS} data-icon="camera">
+            <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" />
+            <circle cx="12" cy="13" r="3.5" />
           </svg>
         </button>
         <span className="map-controls__level" aria-live="polite">{Math.round(zoom * 100)}%</span>

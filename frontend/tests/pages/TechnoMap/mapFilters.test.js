@@ -8,6 +8,7 @@ import {
 } from "../../../src/pages/TechnoMap/utils/mapFilters.js";
 import { FILTER_IDS } from "../../../src/pages/TechnoMap/config/technoMapConfig.js";
 import { convertUtmToMapPosition } from "../../../src/pages/TechnoMap/utils/coordinates.js";
+import { buildMarkerFeatures } from "../../../src/pages/TechnoMap/utils/markerLayer.js";
 
 const PRODUCER = { holeId: "P", x: 418000, y: 4894000, holePurpose: "PRODUCT", category: "producer" };
 const PRODUCER_RIG = { ...PRODUCER, holeId: "R", x: 418100, holeStatus: "INPROGRESS" };
@@ -57,7 +58,8 @@ describe("isDrillholeShown", () => {
 });
 
 describe("selectShownFeatures", () => {
-  const projected = [PRODUCER, PRODUCER_RIG, WATER, PRODUCER].map((hole) => convertUtmToMapPosition(hole));
+  // Worked out once per dataset (deduplicated there), then only filtered.
+  const projected = buildMarkerFeatures([PRODUCER, PRODUCER_RIG, WATER, PRODUCER, UNMAPPED].map((hole) => convertUtmToMapPosition(hole)));
 
   it("deduplicates and filters", () => {
     expect(selectShownFeatures(projected, ALL_VISIBLE).map(({ drillhole }) => drillhole.holeId)).toEqual(["P", "R", "W"]);

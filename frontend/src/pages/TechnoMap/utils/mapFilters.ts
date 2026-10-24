@@ -7,14 +7,11 @@
 //   deviation line   -> shown when Deviation line is checked and its hole is shown
 
 import { FILTER_IDS } from '../config/technoMapConfig';
-import type { FilterId } from '../config/technoMapConfig';
-import { projectDrillholes } from './coordinates';
-import type { ProjectedDrillholeFeature } from './coordinates';
+import type { DrillholeType, FilterId } from '../config/technoMapConfig';
+import type { MarkerFeature } from './markerLayer';
 import { resolveDrillholeType } from './markerKind';
-import { dedupeDrillholes } from '../../../utils/dedupeDrillholes';
 import { isInProgressHole } from '../../../utils/drillholeFields';
 import type { DrillholeApiRecord } from '../../../types/drillhole';
-import type { ProjectedDrillhole } from '../../../types/map';
 
 export type MapFilters = Readonly<Record<FilterId, boolean>>;
 
@@ -34,17 +31,18 @@ export function parseFilters(stored: unknown): MapFilters {
   ) as MapFilters;
 }
 
-export function isDrillholeShown(drillhole: DrillholeApiRecord, filters: MapFilters): boolean {
-  const type = resolveDrillholeType(drillhole);
+/** The rule itself, on a hole's already-resolved type and status. */
+function passes(type: DrillholeType | null, isInProgress: boolean, filters: MapFilters): boolean {
   if (!type || !filters[type]) return false;
 
-  return !isInProgressHole(drillhole) || filters['drilling-in-progress'];
+  return !isInProgress || filters['drilling-in-progress'];
 }
 
-/** One feature per hole (deduplicated, deviation projected), filtered. */
-export function selectShownFeatures(
-  drillholes: readonly ProjectedDrillhole[],
-  filters: MapFilters,
-): ProjectedDrillholeFeature[] {
-  return projectDrillholes(dedupeDrillholes(drillholes)).filter(({ drillhole }) => isDrillholeShown(drillhole, filters));
+export function isDrillholeShown(drillhole: DrillholeApiRecord, filters: MapFilters): boolean {
+  return passes(resolveDrillholeType(drillhole), isInProgressHole(drillhole), filters);
+}
+
+/** The features the filters let through, from the per-dataset list (markerLayer.ts). */
+export function selectShownFeatures(features: readonly MarkerFeature[], filters: MapFilters): MarkerFeature[] {
+  return features.filter(({ type, isInProgress }) => passes(type, isInProgress, filters));
 }

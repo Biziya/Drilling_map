@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import LayerSymbol from '../Legends/LayerSymbol';
-import { FILTER_IDS, MAP_CONFIG } from '../config/technoMapConfig';
+import { DRILLHOLE_TYPE_CONFIG, FILTER_IDS, MAP_CONFIG } from '../config/technoMapConfig';
 import type { FilterId } from '../config/technoMapConfig';
 import type { MapFilters } from '../utils/mapFilters';
 
@@ -11,7 +11,20 @@ export interface LayerPanelProps {
 }
 
 /**
- * Floating "Map Layers" panel in the map's bottom-right corner: the 12 filters,
+ * A filter's label colour: a drillhole type's marker colour, the cell outline
+ * and deviation line colours for those layers (all from technoMap.yaml), and
+ * the panel's own text colour for Drilling in progress, whose symbol is the rig.
+ */
+function labelColor(id: FilterId): string | undefined {
+  if (id === 'technological-cells') return MAP_CONFIG.technologicalCells.stroke;
+  if (id === 'deviation-line') return MAP_CONFIG.deviationLine.color;
+  if (id === 'drilling-in-progress') return undefined;
+
+  return DRILLHOLE_TYPE_CONFIG[id].color;
+}
+
+/**
+ * Floating "Legends" panel in the map's top-right corner: the 12 filters,
  * Show All / Hide All, and a collapse toggle. Opens expanded on every visit;
  * only the filter choices are remembered.
  */
@@ -26,22 +39,23 @@ function LayerPanel({ filters, onChange, onSetAll }: LayerPanelProps) {
         <label key={id} className="map-layers__item">
           <input type="checkbox" checked={filters[id]} onChange={(event) => onChange(id, event.target.checked)} />
           <LayerSymbol id={id} />
-          <span>{label}</span>
+          <span className="map-layers__label" style={{ color: labelColor(id) }}>{label}</span>
         </label>
       ))}
     </fieldset>
   );
 
   return (
-    <aside className={`map-layers${isExpanded ? '' : ' is-collapsed'}`} aria-label="Map layers">
+    <aside className={`map-layers${isExpanded ? '' : ' is-collapsed'}`} aria-label="Legends">
       <button
         className="map-layers__header"
         type="button"
         onClick={() => setIsExpanded((current) => !current)}
         aria-expanded={isExpanded}
+        title={isExpanded ? 'Collapse Legends' : 'Expand Legends'}
       >
-        <span className="map-layers__title">Map Layers</span>
-        <span className="map-layers__count" aria-label={`${enabled} of ${FILTER_IDS.length} layers shown`}>
+        <span className="map-layers__title">Legends</span>
+        <span className="map-layers__count" aria-label={`${enabled} of ${FILTER_IDS.length} legends shown`}>
           {enabled}/{FILTER_IDS.length}
         </span>
         <svg className="map-layers__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -63,4 +77,4 @@ function LayerPanel({ filters, onChange, onSetAll }: LayerPanelProps) {
   );
 }
 
-export default LayerPanel;
+export default memo(LayerPanel);

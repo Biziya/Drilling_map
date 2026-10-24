@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => {
       environment: 'jsdom',
       globals: false,
       include: ['tests/**/*.test.{js,jsx}'],
+      setupFiles: ['tests/setup/canvas.js', 'tests/setup/pointer.js'],
       css: false,
     },
   };

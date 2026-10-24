@@ -3,6 +3,7 @@ import "fake-indexeddb/auto";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import App from "../../src/App.jsx";
 import { asBackendRecord } from "./TechnoMap/backendRecord.js";
+import { drawnKinds, drawnMarkerCount, hoverAt, loadMapImages, mockViewportBox } from "./TechnoMap/canvasMap.js";
 import DrillMap from "../../src/pages/DrillMap/DrillMap.jsx";
 import TechnoMap from "../../src/pages/TechnoMap/TechnoMap.jsx";
 import { clearAllMapViews, readMapView, writeMapView } from "../../src/state/mapViewStore.js";
@@ -72,10 +73,22 @@ async function renderPage(Page) {
   return result;
 }
 
-const markerFor = (container, holeId) => [
-  ...container.querySelectorAll(".drillhole-marker"),
-].find((node) => node.getAttribute("aria-label").includes(holeId));
-const markerClassFor = (container, holeId) => markerFor(container, holeId).className;
+// The Techno Map draws markers on a canvas, which needs a laid-out viewport
+// and a loaded base map; a hole is inspected by hovering it (canvasMap.js).
+async function renderTechnoMap(Page = TechnoMap) {
+  mockViewportBox();
+  const result = await renderPage(Page);
+  await loadMapImages(result.container);
+
+  return result;
+}
+
+/** Hovers a hole by id (from RECORDS, or the given list) and returns its tooltip. */
+const technoTooltipFor = (container, holeId, records = RECORDS) => {
+  const record = records.find((entry) => entry.holeId === holeId);
+
+  return hoverAt(container, { x: record.x, y: record.y });
+};
 
 describe("map pages", () => {
   describe("titles", () => {
@@ -107,25 +120,23 @@ describe("map pages", () => {
 
   describe("Techno Map markers", () => {
     it("applies the documented priority", async () => {
-      const { container } = await renderPage(TechnoMap);
+      const { container } = await renderTechnoMap();
 
-      expect(markerClassFor(container, "P-1")).toContain("drillhole-marker--producer");
-      expect(markerClassFor(container, "I-1")).toContain("drillhole-marker--injector");
-      expect(markerClassFor(container, "R-1")).toContain("drillhole-marker--rig");
+      expect(technoTooltipFor(container, "P-1").className).toContain("drillhole-marker--producer");
+      expect(technoTooltipFor(container, "I-1").className).toContain("drillhole-marker--injector");
+      expect(technoTooltipFor(container, "R-1").className).toContain("drillhole-marker--rig");
     });
 
-    it("draws a triangle, a square and a rig icon", async () => {
-      const { container } = await renderPage(TechnoMap);
+    it("draws every hole once, the rig icon last", async () => {
+      const { container } = await renderTechnoMap();
 
-      expect(container.querySelector(".marker-symbol--triangle")).toBeTruthy();
-      expect(container.querySelector(".marker-symbol--square")).toBeTruthy();
-      expect(container.querySelector(".rig-marker-icon").getAttribute("src"))
-        .toBe("/rig.svg");
+      expect(drawnKinds(container)).toEqual(["producer", "injector", "exploration", "sediment-sampling", "rig"]);
+      expect(container.querySelector(".rig-sprite-source").getAttribute("src")).toBe("/rig.svg");
     });
   });
 
   describe("Techno Map legend", () => {
-    it("explains square, triangle and rig", async () => {
+    it("explains the square, the downward triangle and the rig", async () => {
       const { container } = await renderPage(TechnoMap);
       const legend = container.querySelector(".map-legend");
 
@@ -133,7 +144,7 @@ describe("map pages", () => {
       expect(legend.textContent).toContain("Producer");
       expect(legend.textContent).toContain("Drilling in progress");
       expect(legend.querySelector(".marker-symbol--square")).toBeTruthy();
-      expect(legend.querySelector(".marker-symbol--triangle")).toBeTruthy();
+      expect(legend.querySelector(".marker-symbol--triangle-down")).toBeTruthy();
       expect(legend.querySelector(".legend-rig-icon")).toBeTruthy();
     });
   });
@@ -183,11 +194,9 @@ describe("map pages", () => {
 
   describe("Techno Map tooltip", () => {
     it("shows HoleStatus", async () => {
-      const { container } = await renderPage(TechnoMap);
-      const marker = [...container.querySelectorAll(".drillhole-marker")]
-        .find((node) => node.getAttribute("aria-label").includes("I-1"));
+      const { container } = await renderTechnoMap();
 
-      expect(marker.querySelector(".drillhole-tooltip").textContent)
+      expect(technoTooltipFor(container, "I-1").querySelector(".drillhole-tooltip").textContent)
         .toContain("Status: VALIDATED");
     });
   });
@@ -206,13 +215,12 @@ describe("map pages", () => {
         text: () => Promise.resolve(JSON.stringify(withDuplicate)),
       }));
 
-      const { container } = await renderPage(TechnoMap);
-      const markers = [...container.querySelectorAll(".drillhole-marker")]
-        .filter((node) => node.getAttribute("aria-label").includes("P-1"));
+      const { container } = await renderTechnoMap();
 
-      expect(markers).toHaveLength(1);
-      expect(markers[0].querySelector(".rig-marker-icon")).toBeTruthy();
-      expect(markers[0].querySelector(".marker-symbol")).toBeNull();
+      // Five holes, P-1 among them once, and drawn as a rig.
+      expect(drawnMarkerCount(container)).toBe(RECORDS.length);
+      expect(technoTooltipFor(container, "P-1").className).toContain("drillhole-marker--rig");
+      expect(drawnKinds(container).filter((kind) => kind === "producer")).toHaveLength(0);
     });
 
     it("draws one marker per hole on the Exploration Map", async () => {
@@ -264,12 +272,9 @@ describe("map pages", () => {
       await writeCachedDataset(DATASET_IDS.technoMap, RECORDS);
       globalThis.fetch = vi.fn(() => new Promise(() => {}));
 
-      const { container } = await renderPage(TechnoMap);
+      const { container } = await renderTechnoMap();
 
-      await waitFor(() => {
-        expect(container.querySelectorAll(".drillhole-marker").length)
-          .toBe(RECORDS.length);
-      });
+      await waitFor(() => expect(drawnMarkerCount(container)).toBe(RECORDS.length));
 
       // Still waiting on the network, and saying so on the refresh button.
       expect(screen.getByRole("button", { name: "Refresh map data" }).getAttribute("aria-busy"))
@@ -281,12 +286,9 @@ describe("map pages", () => {
       delete globalThis.indexedDB;
 
       try {
-        const { container } = await renderPage(TechnoMap);
+        const { container } = await renderTechnoMap();
 
-        await waitFor(() => {
-          expect(container.querySelectorAll(".drillhole-marker").length)
-            .toBe(RECORDS.length);
-        });
+        await waitFor(() => expect(drawnMarkerCount(container)).toBe(RECORDS.length));
       } finally {
         globalThis.indexedDB = saved;
       }
@@ -300,11 +302,13 @@ describe("map pages", () => {
       await writeCachedDataset(DATASET_IDS.technoMap, RECORDS);
       globalThis.fetch = failingFetch();
 
-      render(<App />);
+      mockViewportBox();
+      const { container } = render(<App />);
       fireEvent.click(screen.getByRole("button", { name: "Techno Map" }));
+      await loadMapImages(container);
 
       await screen.findByText(MAP_DATA_MESSAGES.showingCached({ kind: "network" }));
-      expect(document.querySelectorAll(".drillhole-marker")).toHaveLength(RECORDS.length);
+      expect(drawnMarkerCount(container)).toBe(RECORDS.length);
       // No large inline banner or retry button any more.
       expect(screen.queryByText(/Showing cached drillholes/)).toBeNull();
       expect(screen.queryByRole("button", { name: /retry|try again/i })).toBeNull();
@@ -349,7 +353,7 @@ describe("map pages", () => {
 
     // The page plus the toast region App normally provides.
     async function renderLoadedTechnoMap() {
-      const result = await renderPage(() => <><TechnoMap /><ToastContainer /></>);
+      const result = await renderTechnoMap(() => <><TechnoMap /><ToastContainer /></>);
       await waitFor(() => expect(refreshButton().disabled).toBe(false));
 
       return result;
@@ -422,7 +426,8 @@ describe("map pages", () => {
 
       await screen.findByText(MAP_DATA_MESSAGES.refreshed);
       expect(technoRequests()).toHaveLength(1);
-      expect(markerFor(container, "NEW-1")).toBeTruthy();
+      expect(technoTooltipFor(container, "NEW-1", fresh)?.dataset.hole).toBe("NEW-1");
+      expect(drawnMarkerCount(container)).toBe(1);
       await waitFor(async () => {
         expect((await readCachedDataset(DATASET_IDS.technoMap)).records).toEqual(fresh);
       });
@@ -438,7 +443,7 @@ describe("map pages", () => {
 
       expect(technoRequests()).toHaveLength(1);
       expect(refreshButton().disabled).toBe(true);
-      expect(container.querySelectorAll(".drillhole-marker")).toHaveLength(RECORDS.length);
+      expect(drawnMarkerCount(container)).toBe(RECORDS.length);
     });
 
     it("keeps the data and stays usable after a failed refresh", async () => {
@@ -448,7 +453,7 @@ describe("map pages", () => {
       fireEvent.click(refreshButton());
 
       await screen.findByText(MAP_DATA_MESSAGES.showingCached({ kind: "network" }));
-      expect(container.querySelectorAll(".drillhole-marker")).toHaveLength(RECORDS.length);
+      expect(drawnMarkerCount(container)).toBe(RECORDS.length);
       expect(refreshButton().disabled).toBe(false);
       expect((await readCachedDataset(DATASET_IDS.technoMap)).records).toEqual(RECORDS);
     });

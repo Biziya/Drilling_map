@@ -1,24 +1,26 @@
 // PNG and SVG export of the visible viewport.
 //
 // Both formats come from one SVG document built from the same data and rules
-// as the screen: the selected base map (the geological image, embedded since
-// an export must stand alone, or the white coordinate grid), technological cells, deviation lines, markers, the measurement, then the
-// title, north arrow and scale bar. Floating UI (toolbar, filter panel,
-// tooltips) is simply never drawn. PNG rasterises that SVG at 2x.
+// as the screen: the selected base map (the Redox Map image, embedded since an
+// export must stand alone, or the white coordinate grid), technological cells,
+// deviation lines, markers, the measurement, then the title and scale bar.
+// The live map draws markers on a canvas; this is its vector twin, from the
+// same features (markerLayer.ts), shapes, sizes and colours. Floating UI
+// (legend, Legends panel, toolbar, tooltip) is never drawn. PNG rasterises
+// the SVG at 2x.
 
-import { BASE_MAP_SRC, DRILLHOLE_TYPE_CONFIG, MAP_CONFIG, MAP_UTM_BOUNDS, getGtRange } from '../config/technoMapConfig';
+import { BASE_MAP_SRC, DRILLHOLE_TYPE_CONFIG, MAP_CONFIG, MAP_UTM_BOUNDS } from '../config/technoMapConfig';
 import type { BaseMapId } from '../config/technoMapConfig';
 import type { TechnoCell } from '../mock/mockData';
 import { computeCoordinateGrid } from './coordinateGrid';
 import { outlineCentre, utmToMapRatio } from './coordinates';
-import { mapRatioToViewport } from './geometry';
 import { selectShownFeatures } from './mapFilters';
 import type { MapFilters } from './mapFilters';
-import { svgPointsFor } from './markerShapes';
-import { resolveMarkerKind } from './markerKind';
+import { buildMarkerFeatures, screenTransform } from './markerLayer';
+import type { MarkerFeature } from './markerLayer';
+import { markerSizeFor, svgPointsFor } from './markerShapes';
 import { endpointCrossPath, formatDistance, measureDistance } from './measurement';
 import { computeScaleBar } from './scaleBar';
-import { readDrillholeValue } from '../../../utils/drillholeFields';
 import type { MapTransform, Point, ProjectedDrillhole, Size, UtmCoordinates } from '../../../types/map';
 
 export type ExportFormat = 'png' | 'svg';
@@ -63,31 +65,24 @@ export function exportFileName(format: ExportFormat, date = new Date()): string 
 const escapeXml = (text: string) => text.replace(/[<>&'"]/g, (char) => `&#${char.charCodeAt(0)};`);
 const n = (value: number) => Number(value.toFixed(2));
 
-function markerSvg(drillhole: ProjectedDrillhole, at: Point, rigIcon: string): string {
-  const kind = resolveMarkerKind(drillhole);
-  if (!kind) return '';
+function markerSvg({ kind }: MarkerFeature, at: Point, rigIcon: string): string {
   if (kind === 'rig') {
-    return `<image href="${rigIcon}" x="${n(at.x - 16)}" y="${n(at.y - 16)}" width="32" height="32"/>`;
+    const size = MAP_CONFIG.markers.rigSize;
+
+    return `<image href="${rigIcon}" x="${n(at.x - size / 2)}" y="${n(at.y - size / 2)}" width="${size}" height="${size}"/>`;
   }
 
-  const { shape, color: typeColor } = DRILLHOLE_TYPE_CONFIG[kind];
-  const fill = getGtRange(readDrillholeValue(drillhole, 'gt'))?.color ?? typeColor;
+  // A white shape with the type colour inset inside it: the on-screen outline.
+  const { shape, color } = DRILLHOLE_TYPE_CONFIG[kind];
+  const size = markerSizeFor(shape);
+  const inner = size - 2 * MAP_CONFIG.markers.outline;
   if (shape === 'circle') {
-    return `<circle cx="${n(at.x)}" cy="${n(at.y)}" r="5.5" fill="${fill}" stroke="#fff" stroke-width="2"/>`;
+    return `<circle cx="${n(at.x)}" cy="${n(at.y)}" r="${size / 2}" fill="#fff"/>`
+      + `<circle cx="${n(at.x)}" cy="${n(at.y)}" r="${inner / 2}" fill="${color}"/>`;
   }
-
-  // A white shape with the fill inset inside it: the on-screen 2px white border.
-  const size = shape === 'square' ? 13 : 15;
 
   return `<polygon points="${svgPointsFor(shape, at.x, at.y, size)}" fill="#fff"/>`
-    + `<polygon points="${svgPointsFor(shape, at.x, at.y, size - 4)}" fill="${fill}"/>`;
-}
-
-function northArrowSvg(width: number): string {
-  const x = width - 23;
-
-  return `<text x="${x}" y="25" text-anchor="middle" font-family="${FONT}" font-size="11" font-weight="800" fill="#1b2d23">N</text>`
-    + `<polygon points="${x},29 ${x + 7},53 ${x - 7},53" fill="#1b2d23" stroke="#fff" stroke-width="1"/>`;
+    + `<polygon points="${svgPointsFor(shape, at.x, at.y, inner)}" fill="${color}"/>`;
 }
 
 function scaleBarSvg({ viewport, mapSize, view }: MapSnapshot): string {
@@ -134,7 +129,8 @@ function coordinateGridSvg({ viewport, view, mapOrigin, mapSize }: MapSnapshot):
     + '</g>'
     + `<g font-family="${FONT}" font-size="${style.labelFontSize}" font-weight="600" fill="${style.labelColor}" `
     + `stroke="${style.background}" stroke-width="3" paint-order="stroke">`
-    + labels.map(({ text, x, y }) => `<text x="${n(x)}" y="${n(y)}">${escapeXml(text)}</text>`).join('')
+    + labels.map(({ text, x, y, anchor, vertical }) => `<text x="${n(x)}" y="${n(y)}" text-anchor="${anchor}"`
+      + `${vertical ? ` transform="rotate(-90 ${n(x)} ${n(y)})"` : ''}>${escapeXml(text)}</text>`).join('')
     + '</g>';
 }
 
@@ -163,7 +159,8 @@ function measurementSvg(points: readonly UtmCoordinates[], toScreen: (point: Utm
 /** The export as one standalone SVG document, `pixelRatio` times the viewport size. */
 export function buildMapSvg(snapshot: MapSnapshot, assets: ExportAssets, pixelRatio = 1): string {
   const { viewport, view, mapOrigin, mapSize, drillholes, cells, filters, measurement, title } = snapshot;
-  const toScreen = (ratio: Point) => mapRatioToViewport(ratio, view, mapOrigin, mapSize);
+  const t = screenTransform(view, mapOrigin, mapSize);
+  const toScreen = (ratio: Point): Point => ({ x: t.x + ratio.x * t.width, y: t.y + ratio.y * t.height });
   const utmToScreen = (point: UtmCoordinates) => toScreen(utmToMapRatio(point));
   const isNearView = ({ x, y }: Point) => x > -EDGE_MARGIN && y > -EDGE_MARGIN
     && x < viewport.width + EDGE_MARGIN && y < viewport.height + EDGE_MARGIN;
@@ -193,20 +190,25 @@ export function buildMapSvg(snapshot: MapSnapshot, assets: ExportAssets, pixelRa
     });
   }
 
-  const features = selectShownFeatures(drillholes, filters)
-    .map((feature) => ({ ...feature, at: toScreen({ x: feature.drillhole.xPercent / 100, y: feature.drillhole.yPercent / 100 }) }))
+  const features = selectShownFeatures(buildMarkerFeatures(drillholes), filters)
+    .map((feature) => ({ feature, at: toScreen(feature) }))
     .filter(({ at }) => isNearView(at));
 
   if (filters['deviation-line'] && view.scale >= MAP_CONFIG.zoom.deviationMinZoom) {
-    features.forEach(({ at, endpoint }) => {
-      if (!endpoint) return;
-      const end = toScreen({ x: endpoint.xPercent / 100, y: endpoint.yPercent / 100 });
-      parts.push(`<line x1="${n(at.x)}" y1="${n(at.y)}" x2="${n(end.x)}" y2="${n(end.y)}" stroke="${MAP_CONFIG.deviationLine.color}" stroke-width="1" stroke-linecap="round"/>`);
+    features.forEach(({ feature: { end }, at }) => {
+      if (!end) return;
+      const to = toScreen(end);
+      parts.push(`<line x1="${n(at.x)}" y1="${n(at.y)}" x2="${n(to.x)}" y2="${n(to.y)}" stroke="${MAP_CONFIG.deviationLine.color}" stroke-width="1" stroke-linecap="round"/>`);
     });
   }
 
-  features.forEach(({ drillhole, at }) => parts.push(markerSvg(drillhole, at, assets.rigIcon)));
-  parts.push(measurementSvg(measurement, utmToScreen), titleSvg(title), northArrowSvg(viewport.width), scaleBarSvg(snapshot));
+  // Rigs on top, as on screen.
+  for (const rigs of [false, true]) {
+    features.forEach(({ feature, at }) => {
+      if (feature.isInProgress === rigs) parts.push(markerSvg(feature, at, assets.rigIcon));
+    });
+  }
+  parts.push(measurementSvg(measurement, utmToScreen), titleSvg(title), scaleBarSvg(snapshot));
 
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" `
     + `width="${viewport.width * pixelRatio}" height="${viewport.height * pixelRatio}" `

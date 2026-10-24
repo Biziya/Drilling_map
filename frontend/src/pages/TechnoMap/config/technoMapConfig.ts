@@ -2,7 +2,7 @@ import data from './technoMap.yaml';
 import { MAP_IMAGE_PATH, MAP_UTM_BOUNDS } from '../../../config/env';
 import { ConfigError, boolean, dictionary, list, number, object, oneOf, parseConfig, text } from '../../../config/schema';
 import type { Parser } from '../../../config/schema';
-import type { GtRange, MapId } from '../../../types/map';
+import type { MapId } from '../../../types/map';
 
 /** Keys this page's data and view are stored under. */
 export const MAP_ID: MapId = 'techno-map';
@@ -69,26 +69,13 @@ const positive: Parser<number> = (value, path) => {
   return parsed;
 };
 
-/** A whole number of 1 or more. */
-const count: Parser<number> = (value, path) => {
-  const parsed = number(value, path);
-  if (!Number.isInteger(parsed) || parsed < 1) throw new ConfigError(`${path}: expected a whole number of 1 or more, got ${parsed}`);
-
-  return parsed;
-};
-
 const legendLayout = {
   paddingBlock: size,
   paddingInline: size,
-  columnGap: size,
   rowGap: size,
-  titleGap: size,
-  titleFontSize: size,
   labelFontSize: size,
   labelGap: size,
   symbolSize: size,
-  gt: object({ columns: count, rowGap: size, columnGap: size }),
-  redox: object({ rowGap: size }),
 };
 
 /** Rejects a list that misses or repeats one of `ids`, so every filter appears exactly once. */
@@ -126,7 +113,6 @@ export const MAP_CONFIG = parseConfig(
     showLegends: boolean,
     deviationExaggeration: number,
     rigIconSrc: text,
-    gtRanges: list(object({ min: number, max: number, label: text, color: text })),
     redox: dictionary(text),
     drillholeTypes: list(object({
       id: oneOf(...DRILLHOLE_TYPES),
@@ -134,6 +120,7 @@ export const MAP_CONFIG = parseConfig(
       shape: oneOf(...MARKER_SHAPES),
       color: text,
     })),
+    markers: object({ size: positive, polygonSize: positive, outline: size, rigSize: positive }),
     mapFeatures: list(object({ id: oneOf(...MAP_FEATURES), label: text })),
     markerLabels,
     technologicalCells: object({ stroke: text, fill: text }),
@@ -141,7 +128,7 @@ export const MAP_CONFIG = parseConfig(
     measurement: object({ color: text }),
     legend: object({
       ...legendLayout,
-      symbols: object({ rigIconScale: size, lineThickness: size, rowGap: size, columnGap: size }),
+      symbols: object({ rigIconScale: size, lineThickness: size }),
     }),
   }),
   data,
@@ -170,22 +157,3 @@ export const FILTER_ENTRIES: readonly { id: FilterId; label: string }[] = [
 // Environment-specific, so these stay in VITE_* variables rather than YAML.
 export const BASE_MAP_SRC = MAP_IMAGE_PATH;
 export { MAP_UTM_BOUNDS };
-
-/**
- * Classifies a GT reading into its colour band.
- *
- * Takes `unknown` because the value comes straight off an API record. Null,
- * blank and non-numeric values return null: a whitespace-only string coerces
- * to 0 and would otherwise be painted as a genuine low-grade assay.
- */
-export function getGtRange(value: unknown): GtRange | null {
-  if (typeof value === 'string' && !value.trim()) return null;
-  if (typeof value !== 'number' && typeof value !== 'string') return null;
-
-  const gt = Number(value);
-  const ranges = MAP_CONFIG.gtRanges;
-  const top = ranges.at(-1)?.max ?? 0;
-  if (!Number.isFinite(gt) || gt < 0 || gt > top) return null;
-
-  return ranges.find(({ min, max }) => gt >= min && (gt < max || (max === top && gt === top))) ?? null;
-}

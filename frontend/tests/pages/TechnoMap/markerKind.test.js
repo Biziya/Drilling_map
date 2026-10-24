@@ -6,6 +6,7 @@ import {
   resolveMarkerKind,
 } from "../../../src/pages/TechnoMap/utils/markerKind.js";
 import { DRILLHOLE_TYPES, MAP_CONFIG } from "../../../src/pages/TechnoMap/config/technoMapConfig.js";
+import { svgPointsFor } from "../../../src/pages/TechnoMap/utils/markerShapes.js";
 import { asBackendRecord } from "./backendRecord.js";
 
 // Techno Map: rig > the API's category > nothing (a hole with no category
@@ -99,9 +100,9 @@ describe("SQL Type and sampling flags, end to end", () => {
 describe("resolveMarkerKind", () => {
   it("draws the category's symbol", () => {
     expect(resolveMarkerKind({ category: "producer" })).toBe("producer");
-    expect(markerShapeFor("producer")).toBe("triangle");
+    expect(markerShapeFor("producer")).toBe("square");
     expect(resolveMarkerKind({ category: "injector" })).toBe("injector");
-    expect(markerShapeFor("injector")).toBe("square");
+    expect(markerShapeFor("injector")).toBe("triangle-down");
   });
 
   // The rule the brief calls out explicitly: rig only, no shape beneath.
@@ -126,13 +127,40 @@ describe("resolveMarkerKind", () => {
 });
 
 describe("markerShapeFor", () => {
-  it("gives every type a different shape", () => {
-    const shapes = DRILLHOLE_TYPES.map(markerShapeFor);
-
-    expect(new Set(shapes).size).toBe(DRILLHOLE_TYPES.length);
-  });
-
   it("reads shapes from technoMap.yaml", () => {
     MAP_CONFIG.drillholeTypes.forEach(({ id, shape }) => expect(markerShapeFor(id)).toBe(shape));
+  });
+});
+
+describe("marker outlines", () => {
+  const points = (shape) => svgPointsFor(shape, 0, 0, 10).split(" ").map((pair) => pair.split(",").map(Number));
+  const extent = (shape) => {
+    const xs = points(shape).map(([x]) => x);
+    const ys = points(shape).map(([, y]) => y);
+
+    return { width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+  };
+
+  it("draws the diamond vertical: taller than wide", () => {
+    const { width, height } = extent("diamond");
+
+    expect(height).toBeGreaterThan(width);
+  });
+
+  it("gives the star five points", () => {
+    expect(points("star")).toHaveLength(10);
+  });
+
+  it("keeps the square square", () => {
+    const { width, height } = extent("square");
+
+    expect(width).toBe(height);
+  });
+
+  it("points the downward triangle down", () => {
+    const [left, right, tip] = points("triangle-down");
+
+    expect(tip[1]).toBeGreaterThan(left[1]);
+    expect(left[1]).toBe(right[1]);
   });
 });

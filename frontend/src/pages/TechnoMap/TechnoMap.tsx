@@ -1,16 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import BaseMapSwitcher from './Controls/BaseMapSwitcher';
 import LayerPanel from './Controls/LayerPanel';
 import MapControls from './Controls/MapControls';
 import RefreshButton from './Controls/RefreshButton';
 import MapLegend from './Legends/MapLegend';
-import DrillholeFeatures from './Map/DrillholeFeatures';
 import CoordinateGrid from './Map/CoordinateGrid';
+import DrillholeLayer from './Map/DrillholeLayer';
 import MapCanvas from './Map/MapCanvas';
 import MapScaleBar from './Map/MapScaleBar';
 import MapStatus from './Map/MapStatus';
 import MeasurementOverlay from './Map/MeasurementOverlay';
 import TechnoCells from './Map/TechnoCells';
+import MarkerTooltip from './Tooltips/MarkerTooltip';
 import { MAP_CONFIG, MAP_ID, MAP_SETTINGS } from './config/technoMapConfig';
 import { useBaseMap } from './hooks/useBaseMap';
 import { useMapData } from './hooks/useMapData';
@@ -20,15 +22,16 @@ import { drillholeExtent, mapRatioToUtm } from './utils/coordinates';
 import { exportMap } from './utils/exportMap';
 import type { ExportFormat } from './utils/exportMap';
 import { buildCanvasTransformStyle, isViewZoomed, measuredMapSize, toPixels } from './utils/geometry';
+import { selectShownFeatures } from './utils/mapFilters';
+import { buildMarkerFeatures, createHitIndex, findMarkerAt, screenTransform } from './utils/markerLayer';
+import type { MarkerFeature } from './utils/markerLayer';
 import { addMeasurementPoint } from './utils/measurement';
 import { showToast } from '../../components/Toast/toastStore';
-import type { StyleWithCssVariables, UtmCoordinates } from '../../types/map';
+import type { Point, StyleWithCssVariables, UtmCoordinates } from '../../types/map';
 import './TechnoMap.css';
 
 /** Floating panels that keep presses, the wheel and double-click for themselves. */
-const OVERLAY_SELECTOR = '.map-toolbar, .map-layers';
-/** Drags starting on these pan nothing: they are clicks on a marker or a control. */
-const DRAG_IGNORE_SELECTOR = `.drillhole-marker, ${OVERLAY_SELECTOR}`;
+const OVERLAY_SELECTOR = '.map-toolbar, .map-layers, .map-legend';
 
 /** Feature colours from technoMap.yaml, for the stylesheet. */
 const PAGE_STYLE: StyleWithCssVariables = {
@@ -46,26 +49,56 @@ function TechnoMap() {
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [measurement, setMeasurement] = useState<UtmCoordinates[]>([]);
   const [isExporting, setIsExporting] = useState(false);
+  // The hole under the pointer, and the one a click pinned open.
+  const [hovered, setHovered] = useState<MarkerFeature | null>(null);
+  const [pinned, setPinned] = useState<MarkerFeature | null>(null);
+
   // Every drillhole, whatever the filters, so Reset always frames the whole dataset.
   const fitBox = useMemo(() => drillholeExtent(drillholes), [drillholes]);
+  // Worked out once per dataset; a filter change only re-filters, and a pan
+  // or zoom only redraws.
+  const features = useMemo(() => buildMarkerFeatures(drillholes), [drillholes]);
+  const shown = useMemo(() => selectShownFeatures(features, filters), [features, filters]);
+  const hitIndex = useMemo(() => createHitIndex(shown), [shown]);
+  const shownSet = useMemo(() => new Set(shown), [shown]);
 
   const { viewportRef, view, renderedMapSize, mapOrigin, viewportSize, isDragging, viewportHandlers, image, controls } = useMapViewport({
     settings: MAP_SETTINGS,
     viewKey: MAP_ID,
-    // While measuring, a press on a marker is a press on the map: measurement
-    // wins over the marker (which also stops catching the pointer, see CSS).
-    dragIgnoreSelector: isMeasuring ? OVERLAY_SELECTOR : DRAG_IGNORE_SELECTOR,
+    dragIgnoreSelector: OVERLAY_SELECTOR,
     overlaySelector: OVERLAY_SELECTOR,
     fitBox,
+    // While measuring, a press on a marker is a press on the map: it places a
+    // point where it lands and opens no tooltip.
     onMapClick: isMeasuring
       ? (ratio) => setMeasurement((points) => addMeasurementPoint(points, mapRatioToUtm(ratio)))
       : undefined,
+    onMapTap: (point) => {
+      if (!isMeasuring) setPinned(transform && findMarkerAt(hitIndex, point, transform));
+    },
   });
 
   const mapWidth = toPixels(renderedMapSize.width);
   const mapHeight = toPixels(renderedMapSize.height);
-  const mapSize = measuredMapSize(renderedMapSize);
-  const viewportState = `${isDragging ? ' is-dragging' : ''}${isViewZoomed(view, MAP_SETTINGS.minZoom) ? ' is-zoomed' : ''}${isMeasuring ? ' is-measuring' : ''}`;
+  const mapSize = useMemo(() => measuredMapSize(renderedMapSize), [renderedMapSize]);
+  const transform = useMemo(() => (mapSize ? screenTransform(view, mapOrigin, mapSize) : null), [view, mapOrigin, mapSize]);
+  const viewportState = `${isDragging ? ' is-dragging' : ''}${isViewZoomed(view, MAP_SETTINGS.minZoom) ? ' is-zoomed' : ''}`
+    + `${isMeasuring ? ' is-measuring' : ''}${hovered && !isMeasuring ? ' is-over-marker' : ''}`;
+
+  const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const overOverlay = event.target instanceof Element && event.target.closest(OVERLAY_SELECTOR);
+    let hit: MarkerFeature | null = null;
+    if (!isMeasuring && event.buttons === 0 && !overOverlay && transform) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const point: Point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      hit = findMarkerAt(hitIndex, point, transform);
+    }
+    setHovered((current) => (current === hit ? current : hit));
+  }, [hitIndex, isMeasuring, transform]);
+
+  // Hovering wins over the pinned hole; neither shows while measuring or once
+  // its hole is filtered out.
+  const tooltipFeature = [hovered, pinned].find((feature) => feature && shownSet.has(feature)) ?? null;
 
   const handleExport = async (format: ExportFormat) => {
     // An export without its base map would misrepresent the map, so none is made.
@@ -111,7 +144,16 @@ function TechnoMap() {
       </header>
 
       <div className="map-panel">
-        <div ref={viewportRef} className={`map-viewport${viewportState}`} {...viewportHandlers}>
+        <div
+          ref={viewportRef}
+          className={`map-viewport${viewportState}`}
+          {...viewportHandlers}
+          onPointerMove={(event) => {
+            viewportHandlers.onPointerMove(event);
+            handlePointerMove(event);
+          }}
+          onPointerLeave={() => setHovered(null)}
+        >
           {/* Only the background changes with the base map; the view and every feature stay put. */}
           {baseMap === 'white-grid' && !image.hasFailed && (
             <CoordinateGrid viewport={viewportSize} view={view} mapOrigin={mapOrigin} mapSize={mapSize} />
@@ -122,22 +164,32 @@ function TechnoMap() {
             onImageError={image.onError}
             showImage={baseMap === 'geological'}
           >
-            {!image.hasFailed && (
-              <>
-                {filters['technological-cells'] && <TechnoCells cells={cells} mapWidth={mapWidth} mapHeight={mapHeight} />}
-                <DrillholeFeatures
-                  drillholes={drillholes}
-                  deviationVisible={filters['deviation-line'] && view.scale >= MAP_SETTINGS.deviationMinZoom}
-                  mapWidth={mapWidth}
-                  mapHeight={mapHeight}
-                  filters={filters}
-                />
-              </>
+            {!image.hasFailed && filters['technological-cells'] && (
+              <TechnoCells cells={cells} mapWidth={mapWidth} mapHeight={mapHeight} />
             )}
           </MapCanvas>
 
+          {!image.hasFailed && (
+            <DrillholeLayer
+              features={shown}
+              transform={transform}
+              viewport={viewportSize}
+              deviationVisible={filters['deviation-line'] && view.scale >= MAP_SETTINGS.deviationMinZoom}
+            />
+          )}
+          {tooltipFeature && transform && !isMeasuring && !isDragging && (
+            <MarkerTooltip
+              feature={tooltipFeature}
+              transform={transform}
+              viewport={viewportSize}
+              isPinned={tooltipFeature === pinned && tooltipFeature !== hovered}
+            />
+          )}
+
           <MeasurementOverlay points={measurement} view={view} mapOrigin={mapOrigin} mapSize={mapSize} />
           <MapStatus status={status} imageFailed={image.hasFailed} failure={failure} />
+          {MAP_CONFIG.showLegends && <MapLegend filters={filters} />}
+          <LayerPanel filters={filters} onChange={setFilter} onSetAll={setAll} />
           <MapControls
             zoom={view.scale}
             onZoomIn={controls.zoomIn}
@@ -147,16 +199,13 @@ function TechnoMap() {
             onToggleMeasure={() => {
               setIsMeasuring((current) => !current);
               setMeasurement([]);
+              setPinned(null);
             }}
             isExporting={isExporting}
             onExport={(format) => void handleExport(format)}
           />
-          <LayerPanel filters={filters} onChange={setFilter} onSetAll={setAll} />
-          <div className="north-arrow" aria-label="North"><span>N</span><i /></div>
           <MapScaleBar mapWidth={mapWidth} zoom={view.scale} />
         </div>
-
-        {MAP_CONFIG.showLegends && <MapLegend filters={filters} />}
       </div>
     </section>
   );

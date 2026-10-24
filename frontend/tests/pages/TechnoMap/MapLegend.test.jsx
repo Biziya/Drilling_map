@@ -1,37 +1,58 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import MapLegend from "../../../src/pages/TechnoMap/Legends/MapLegend.jsx";
-import {
-  DRILLHOLE_TYPE_CONFIG,
-  FILTER_ENTRIES,
-  MAP_CONFIG,
-} from "../../../src/pages/TechnoMap/config/technoMapConfig.js";
+import { MAP_CONFIG } from "../../../src/pages/TechnoMap/config/technoMapConfig.js";
 import { setAllFilters } from "../../../src/pages/TechnoMap/utils/mapFilters.js";
 
 afterEach(cleanup);
 
-const symbolSection = () => screen.getByRole("heading", { name: "Symbol" }).closest("section");
-const symbolItems = () => within(symbolSection()).getAllByRole("listitem");
-const itemFor = (label) => symbolItems().find((item) => item.textContent === label);
+const legend = () => screen.getByRole("complementary", { name: "Map legend" });
+const items = () => within(legend()).getAllByRole("listitem");
+const itemFor = (label) => items().find((item) => item.textContent === label);
+
+const ORDER = [
+  "Development", "Exploration", "Geotechnical", "Injector", "Monitoring", "Producer",
+  "Ra-grade-sampling", "Sediment-sampling", "Water", "Drilling in progress", "Deviation line",
+];
 
 describe("TechnoMap MapLegend", () => {
   it("is labelled for assistive tech", () => {
     render(<MapLegend />);
 
-    expect(screen.getByRole("complementary", { name: "Map legend" })).toBeTruthy();
+    expect(legend()).toBeTruthy();
   });
 
-  it("lists all 12 layers in filter order", () => {
+  it("lists the 11 map categories, one per row, in the agreed order", () => {
     render(<MapLegend />);
 
-    expect(symbolItems().map((item) => item.textContent)).toEqual(FILTER_ENTRIES.map(({ label }) => label));
-    expect(symbolItems()).toHaveLength(12);
+    expect(within(legend()).getAllByRole("list")).toHaveLength(1);
+    expect(items().map((item) => item.textContent)).toEqual(ORDER);
   });
 
-  it("does not list the Exploration Map's plain Drillhole", () => {
+  it("puts each symbol before its label, all in the same symbol box", () => {
     render(<MapLegend />);
 
-    expect(within(symbolSection()).queryByText("Drillhole")).toBeNull();
+    items().forEach((item) => {
+      expect(item.firstElementChild.className).toBe("legend-symbol");
+      expect(item.lastElementChild.tagName).toBe("SPAN");
+    });
+  });
+
+  it("leaves Technological cells to the Legends panel", () => {
+    render(<MapLegend />);
+
+    expect(itemFor("Technological cells")).toBeUndefined();
+    expect(legend().querySelector(".layer-swatch-cell")).toBeNull();
+  });
+
+  it("has no Redox Status, GT or Symbol section", () => {
+    const { container } = render(<MapLegend />);
+
+    expect(screen.queryAllByRole("heading")).toHaveLength(0);
+    expect(screen.queryByText(/Redox/)).toBeNull();
+    Object.keys(MAP_CONFIG.redox).forEach((label) => expect(screen.queryByText(label)).toBeNull());
+    expect(screen.queryByText(/GT @75/i)).toBeNull();
+    expect(container.querySelector(".legend-swatch, .legend-dot, section")).toBeNull();
   });
 
   it("draws each type with its configured shape and colour", () => {
@@ -43,41 +64,31 @@ describe("TechnoMap MapLegend", () => {
       expect(symbol.classList.contains(`marker-symbol--${shape}`)).toBe(true);
       expect(symbol.style.getPropertyValue("--status-color")).toBe(color);
     });
-    expect(itemFor("Producer").querySelector(".marker-symbol--triangle")).toBeTruthy();
-    expect(itemFor("Injector").querySelector(".marker-symbol--square")).toBeTruthy();
-    expect(DRILLHOLE_TYPE_CONFIG.producer.shape).toBe("triangle");
   });
 
-  it("uses the rig icon for drilling in progress and swatches for the feature layers", () => {
+  it("uses the rig icon for drilling in progress and the line swatch for deviation", () => {
     render(<MapLegend />);
 
     expect(itemFor("Drilling in progress").querySelector(".legend-rig-icon").getAttribute("src"))
       .toBe(MAP_CONFIG.rigIconSrc);
-    expect(itemFor("Technological cells").querySelector(".layer-swatch-cell")).toBeTruthy();
     expect(itemFor("Deviation line").querySelector(".layer-swatch-line")).toBeTruthy();
   });
 
-  it("keeps hidden layers listed, faded", () => {
+  it("keeps hidden categories listed, faded, and is not itself a control", () => {
     render(<MapLegend filters={{ ...setAllFilters(true), water: false, "deviation-line": false }} />);
 
-    expect(symbolItems()).toHaveLength(12);
+    expect(items()).toHaveLength(11);
     expect(itemFor("Water").className).toBe("is-hidden");
     expect(itemFor("Deviation line").className).toBe("is-hidden");
     expect(itemFor("Producer").className).toBe("");
+    expect(within(legend()).queryAllByRole("checkbox")).toHaveLength(0);
+    expect(within(legend()).queryAllByRole("button")).toHaveLength(0);
   });
 
-  it("fades every layer after Hide All, removing none", () => {
+  it("fades every category after Hide All, removing none", () => {
     render(<MapLegend filters={setAllFilters(false)} />);
 
-    expect(symbolItems().every((item) => item.className === "is-hidden")).toBe(true);
-  });
-
-  it("lists every GT band and redox class from this page's config", () => {
-    render(<MapLegend />);
-
-    expect(screen.getByRole("heading", { name: "GT @75 ppm" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Redox Status" })).toBeTruthy();
-    MAP_CONFIG.gtRanges.forEach(({ label }) => expect(screen.getByText(label)).toBeTruthy());
-    Object.keys(MAP_CONFIG.redox).forEach((label) => expect(screen.getByText(label)).toBeTruthy());
+    expect(items()).toHaveLength(11);
+    expect(items().every((item) => item.className === "is-hidden")).toBe(true);
   });
 });
