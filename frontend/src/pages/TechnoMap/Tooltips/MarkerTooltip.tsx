@@ -14,21 +14,34 @@ export interface MarkerTooltipProps {
 }
 
 /** Room the tooltip needs beside its marker before it turns to fit (px). */
-const SIDE_ROOM = 130;
+const SIDE_ROOM = 150;
+/** Gap from the marker (with the arrow) plus the margin kept from the map edge (px). */
+const CLEARANCE = 26;
+/** The tooltip never gets shorter than this; past it the body scrolls (px). */
+const MIN_HEIGHT = 120;
 
 /**
  * The one tooltip on the map, for the hovered or clicked hole: a highlight
  * ring on its marker and the details beside it. Placed in viewport px from the
  * same transform as the canvas, so it follows the marker through pan and zoom.
- * Above the marker in the lower part of the map, below it in the upper part,
- * and shifted sideways near the left and right edges, so it stays in view.
+ * It opens on whichever side of the marker has more room, no taller than that
+ * room (the body scrolls), and shifts sideways near the left and right edges,
+ * so it stays in view.
  */
 function MarkerTooltip({ feature, transform, viewport, isPinned }: MarkerTooltipProps) {
   const x = transform.x + feature.x * transform.width;
   const y = transform.y + feature.y * transform.height;
-  const style: StyleWithCssVariables = { left: x, top: y, '--marker-half': `${markerHalfSize(feature.kind)}px` };
+  const half = markerHalfSize(feature.kind);
+  const isBelow = y < viewport.height / 2;
+  const room = (isBelow ? viewport.height - y : y) - half - CLEARANCE;
+  const style: StyleWithCssVariables = {
+    left: x,
+    top: y,
+    '--marker-half': `${half}px`,
+    '--tooltip-max-height': `${Math.max(MIN_HEIGHT, Math.round(room))}px`,
+  };
   const placement = [
-    y < viewport.height * 0.45 ? 'is-below' : '',
+    isBelow ? 'is-below' : '',
     x < SIDE_ROOM ? 'is-start' : '',
     x > viewport.width - SIDE_ROOM ? 'is-end' : '',
     isPinned ? 'is-pinned' : '',

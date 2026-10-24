@@ -30,8 +30,11 @@ import { showToast } from '../../components/Toast/toastStore';
 import type { Point, StyleWithCssVariables, UtmCoordinates } from '../../types/map';
 import './TechnoMap.css';
 
-/** Floating panels that keep presses, the wheel and double-click for themselves. */
-const OVERLAY_SELECTOR = '.map-toolbar, .map-layers, .map-legend';
+/**
+ * Floating panels that keep presses, the wheel and double-click for themselves;
+ * a pinned tooltip among them, so its fields scroll instead of the map zooming.
+ */
+const OVERLAY_SELECTOR = '.map-toolbar, .map-layers, .map-legend, .marker-tooltip.is-pinned';
 
 /** Feature colours from technoMap.yaml, for the stylesheet. */
 const PAGE_STYLE: StyleWithCssVariables = {

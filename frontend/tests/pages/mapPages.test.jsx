@@ -197,7 +197,7 @@ describe("map pages", () => {
       const { container } = await renderTechnoMap();
 
       expect(technoTooltipFor(container, "I-1").querySelector(".drillhole-tooltip").textContent)
-        .toContain("Status: VALIDATED");
+        .toContain("StatusVALIDATED");
     });
   });
 

@@ -424,6 +424,19 @@ describe("tooltip", () => {
     expect(container.querySelector(".marker-tooltip")).toBeNull();
   });
 
+  it("keeps the wheel for a pinned tooltip's own scrolling, not for zooming the map", async () => {
+    const { container } = await renderPage();
+    clickAt(container, HOLE);
+    const tooltip = container.querySelector(".marker-tooltip.is-pinned .drillhole-tooltip__fields");
+    const before = container.querySelector(".map-canvas").style.transform;
+
+    fireEvent.wheel(tooltip, { deltaY: -100 });
+    await act(async () => {});
+
+    expect(container.querySelector(".map-canvas").style.transform).toBe(before);
+    expect(container.querySelector(".marker-tooltip.is-pinned")).toBeTruthy();
+  });
+
   it("closes when its hole is filtered out", async () => {
     const { container } = await renderPage();
     clickAt(container, HOLE);

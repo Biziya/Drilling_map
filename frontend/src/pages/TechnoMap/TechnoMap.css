@@ -327,17 +327,19 @@
   bottom: calc(var(--marker-half, 8px) + 9px);
   left: 0;
   z-index: 10;
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: max-content;
-  max-width: 240px;
-  padding: 10px 12px;
+  max-width: 300px;
+  max-height: var(--tooltip-max-height, 360px);
+  padding: 8px 10px;
   border: 1px solid rgba(255, 255, 255, .78);
   border-radius: 8px;
   color: #f8fafc;
   background: rgba(20, 34, 28, .94);
   box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
-  font-size: .72rem;
-  line-height: 1.45;
+  font-size: .7rem;
+  line-height: 1.3;
   text-align: left;
   white-space: normal;
   transform: translateX(-50%);
@@ -372,10 +374,37 @@
 .techno-map-page .marker-tooltip.is-end .drillhole-tooltip { transform: translateX(calc(-100% + 24px)); }
 .techno-map-page .marker-tooltip.is-end .drillhole-tooltip::after { left: calc(100% - 24px); }
 
-.techno-map-page .drillhole-tooltip strong,
-.techno-map-page .drillhole-tooltip span { display: block; }
-.techno-map-page .drillhole-tooltip strong { margin-bottom: 4px; font-size: .82rem; }
-.techno-map-page .drillhole-tooltip b { color: #cbd5ce; font-weight: 500; }
+/* A clicked (pinned) tooltip takes the pointer so its fields can be scrolled;
+   a hovered one never does, so it cannot catch the pointer it follows. */
+.techno-map-page .marker-tooltip.is-pinned .drillhole-tooltip { pointer-events: auto; }
+
+.techno-map-page .drillhole-tooltip strong {
+  flex: 0 0 auto;
+  margin-bottom: 5px;
+  font-size: .8rem;
+  overflow-wrap: anywhere;
+}
+
+/* Label and value columns, every row in the same order; the list scrolls
+   (vertically only) when the map leaves the tooltip too little height. */
+.techno-map-page .drillhole-tooltip__fields {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 1px 10px;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+}
+
+.techno-map-page .drillhole-tooltip__fields > div { display: contents; }
+.techno-map-page .drillhole-tooltip__fields dt { color: #cbd5ce; font-weight: 500; }
+.techno-map-page .drillhole-tooltip__fields dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
 
 /* Bottom-right, under the Legends panel. */
 .techno-map-page .map-toolbar {

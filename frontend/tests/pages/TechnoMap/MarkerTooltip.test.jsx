@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import MarkerTooltip from "../../../src/pages/TechnoMap/Tooltips/MarkerTooltip.jsx";
 import DrillholeTooltip from "../../../src/pages/TechnoMap/Tooltips/DrillholeTooltip.jsx";
+import { TOOLTIP_FIELDS } from "../../../src/pages/TechnoMap/utils/tooltipFields.js";
 import { MAP_CONFIG, MAP_UTM_BOUNDS as B } from "../../../src/pages/TechnoMap/config/technoMapConfig.js";
 import { convertUtmToMapPosition } from "../../../src/pages/TechnoMap/utils/coordinates.js";
 import { buildMarkerFeatures } from "../../../src/pages/TechnoMap/utils/markerLayer.js";
@@ -77,7 +78,7 @@ const API_HOLE = {
   drillingRig: "RIG-07",
   startDate: "2026-03-02",
   endDate: "2026-03-09",
-  billingDate: null,
+  billingDate: "2026-03-31",
   generalComment: "Re-logged",
   raGradeSampling: true,
   sedimentSampling: false,
@@ -86,61 +87,100 @@ const API_HOLE = {
 };
 
 describe("TechnoMap tooltip contents", () => {
-  const tooltipText = (drillhole) => render(<DrillholeTooltip drillhole={drillhole} />)
-    .container.querySelector(".drillhole-tooltip").textContent;
+  // [label, value] for every row, in order.
+  const rows = (drillhole) => [...render(<DrillholeTooltip drillhole={drillhole} />).container.querySelectorAll("dt")]
+    .map((dt) => [dt.textContent, dt.nextElementSibling.textContent]);
 
-  it("shows the original SQL Type next to the filter category it resolved to", () => {
-    const text = tooltipText(API_HOLE);
+  const ORDER = [
+    "ID", "Key", "Type", "License", "Stratigraphic Unit", "X (m)", "Y (m)", "Z (m)",
+    "Z (well head-topo) (m)", "Screen min depth (m)", "Screen max depth (m)", "Screen length (m)",
+    "Screen top altitude (m)", "Status", "Drilling Company", "Drilling Rig", "Start Date", "End Date",
+    "Billing Time", "Relative level", "Mining level", "Associated Production cells", "Development Flowrates (m³/h)",
+  ];
 
-    expect(text).toContain("Type: EXPLO");
-    expect(text).toContain("Category: Ra-grade-sampling");
-    expect(text).toContain("Status: COMPLETED");
+  it("shows every requested field once, in the agreed order", () => {
+    expect(rows(API_HOLE).map(([label]) => label)).toEqual(ORDER);
+    expect(TOOLTIP_FIELDS.map(({ label }) => label)).toEqual(ORDER);
+    expect(ORDER.filter((label) => label === "Screen max depth (m)")).toHaveLength(1);
   });
 
-  it("shows the pyISR_AllData_V2 details", () => {
-    const text = tooltipText(API_HOLE);
+  it("shows the pyISR_AllData_V2 values as the API sends them", () => {
+    expect(Object.fromEntries(rows(API_HOLE))).toMatchObject({
+      ID: "1042",
+      Key: "ZO-EX-118",
+      Type: "EXPLO",
+      License: "MV-017129",
+      "Stratigraphic Unit": "Sainshand",
+      "X (m)": "421,099.50",
+      "Y (m)": "4,893,548.00",
+      "Z (well head-topo) (m)": "709.74",
+      "Screen min depth (m)": "310.00",
+      "Screen max depth (m)": "342.50",
+      "Screen length (m)": "32.50",
+      "Screen top altitude (m)": "399.74",
+      Status: "COMPLETED",
+      "Drilling Company": "Drillco",
+      "Drilling Rig": "RIG-07",
+      "Start Date": "2026-03-02",
+      "End Date": "2026-03-09",
+      "Billing Time": "2026-03-31",
+      "Relative level": "12.5",
+    });
+  });
 
-    for (const expected of [
-      "ZO-EX-118",
-      "X: 421,099.5",
-      "Y: 4,893,548",
-      "Z: 709.74 m",
-      "Relative Level: 12.5",
-      "License: MV-017129",
-      "Stratigraphic Unit: Sainshand",
-      "Screen Depth: 310 m – 342.5 m",
-      "Screen Length: 32.5 m",
-      "Screen Altitude: 399.74 m – 367.24 m",
-      "Drilling Company: Drillco",
-      "Drilling Rig: RIG-07",
-      "Start Date: 2026-03-02",
-      "End Date: 2026-03-09",
-      "Ra-grade Sampling: Yes",
-      "Sediment Sampling: No",
-      "Azimuth: 307.67",
-      "Final Deviation: 1.33 m",
-      "Comment: Re-logged",
-    ]) expect(text).toContain(expected);
+  it("shows the future fields, and Z (m), as dashes with no invented value", () => {
+    const shown = Object.fromEntries(rows({ ...API_HOLE, z: 709.74, relativeLevel: "12.5" }));
+
+    ["Z (m)", "Mining level", "Associated Production cells", "Development Flowrates (m³/h)"]
+      .forEach((label) => expect(shown[label]).toBe("—"));
+    // Z (m) is not the well-head level, nor the relative level.
+    expect(shown["Z (well head-topo) (m)"]).toBe("709.74");
+    expect(shown["Relative level"]).toBe("12.5");
+  });
+
+  it("formats dates as YYYY-MM-DD, keeping a Billing Time only when one is sent", () => {
+    const shown = Object.fromEntries(rows({
+      ...API_HOLE, startDate: "2026-03-02T00:00:00", endDate: "2026-03-09T17:45:00", billingDate: "2026-03-31T14:30:00",
+    }));
+
+    expect(shown["Start Date"]).toBe("2026-03-02");
+    expect(shown["End Date"]).toBe("2026-03-09");
+    expect(shown["Billing Time"]).toBe("2026-03-31 14:30");
+    cleanup();
+    expect(Object.fromEntries(rows({ ...API_HOLE, billingDate: "2026-03-31" }))["Billing Time"]).toBe("2026-03-31");
   });
 
   it("reads PascalCase fields the same way", () => {
-    const text = tooltipText({ HoleId: "P-1", HolePurpose: "PRODUCT", HoleStatus: "INPROGRESS", Category: "producer", DrillingRig: "RIG-02" });
+    const shown = Object.fromEntries(rows({ Id: 7, HoleId: "P-1", HolePurpose: "PRODUCT", HoleStatus: "INPROGRESS", DrillingRig: "RIG-02", X: "418000" }));
 
-    expect(text).toContain("Type: PRODUCT");
-    expect(text).toContain("Status: INPROGRESS");
-    expect(text).toContain("Category: Producer");
-    expect(text).toContain("Drilling Rig: RIG-02");
+    expect(shown).toMatchObject({ ID: "7", Key: "P-1", Type: "PRODUCT", Status: "INPROGRESS", "Drilling Rig": "RIG-02", "X (m)": "418,000.00" });
   });
 
-  it("never prints null, undefined or NaN, and leaves out rows the API did not send", () => {
-    const text = tooltipText({ holeId: "Z-1", holePurpose: "SER", category: null, holeStatus: null, x: 421000, y: 4893000, z: null, billingDate: null, raGradeSampling: null, screenMinDepth: "abc" });
+  it("never prints null, undefined or NaN: a missing or unreadable value is a dash", () => {
+    const { container } = render(<DrillholeTooltip drillhole={{ holeId: "Z-1", holePurpose: "SER", holeStatus: null, x: 421000, z: null, screenMinDepth: "abc", license: "  ", billingDate: null }} />);
+    const shown = Object.fromEntries([...container.querySelectorAll("dt")].map((dt) => [dt.textContent, dt.nextElementSibling.textContent]));
 
-    expect(text).not.toMatch(/null|undefined|NaN/);
-    expect(text).toContain("Type: SER");
-    expect(text).toContain("Status: —");
-    expect(text).toContain("Z: —");
-    for (const absent of ["Category", "Billing Date", "Ra-grade Sampling", "Screen Depth", "Azimuth", "GT"]) {
-      expect(text).not.toContain(absent);
-    }
+    expect(container.textContent).not.toMatch(/null|undefined|NaN/);
+    expect(Object.keys(shown)).toHaveLength(23);
+    expect(shown).toMatchObject({ Type: "SER", Status: "—", "Z (well head-topo) (m)": "—", "Screen min depth (m)": "—", License: "—", "Billing Time": "—" });
+  });
+
+  it("lets long values wrap rather than widen the tooltip", () => {
+    const shown = rows({ ...API_HOLE, drillingCompany: "A very long drilling company name that runs on and on" });
+
+    expect(shown.find(([label]) => label === "Drilling Company")[1]).toBe("A very long drilling company name that runs on and on");
+  });
+});
+
+describe("MarkerTooltip room", () => {
+  it("caps the tooltip at the room on its side of the marker, so it stays inside the map", () => {
+    const below = renderTooltip({ holeId: "A", category: "producer", ...at(0.5, 0.1) });
+    // 70 px from the top: the tooltip opens below, with 630 px less the marker and clearance.
+    expect(parseFloat(below.style.getPropertyValue("--tooltip-max-height"))).toBeLessThan(630);
+    expect(parseFloat(below.style.getPropertyValue("--tooltip-max-height"))).toBeGreaterThan(550);
+    cleanup();
+    const nearBottom = renderTooltip({ holeId: "B", category: "producer", ...at(0.5, 0.95) });
+    expect(nearBottom.className).not.toContain("is-below");
+    expect(parseFloat(nearBottom.style.getPropertyValue("--tooltip-max-height"))).toBeLessThan(665);
   });
 });
