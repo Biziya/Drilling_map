@@ -23,6 +23,12 @@ interface ImportMetaEnv {
   readonly VITE_MAP_MAX_Y?: string;
   /** Public path of the base map image. */
   readonly VITE_MAP_IMAGE_PATH?: string;
+  /** Base path of the Weekly Geos reporting API. Defaults to the `/weekly-api` proxy. */
+  readonly VITE_WEEKLY_API_BASE_URL?: string;
+  /** `true` runs the Weekly Geos pages on generated data, with no backend. */
+  readonly VITE_WEEKLY_USE_MOCK?: string;
+  /** Dev-server only: where `/weekly-api` is forwarded. Read in vite.config.ts. */
+  readonly VITE_WEEKLY_PROXY_TARGET?: string;
 }
 
 interface ImportMeta {

@@ -9,6 +9,12 @@ navigation:
   - id: techno-map
     label: Techno Map
     icon: ⌖
+  - id: drilling-details
+    label: Drilling Details
+    icon: ▥
+  - id: drilling-by-rigs
+    label: Drilling by Rig
+    icon: ⛏
 
 # Backend health polling behind the sidebar Online/Offline indicator.
 connection:

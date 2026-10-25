@@ -1,0 +1,15 @@
+# Weekly Geos dashboard. Owned by this page alone; the map pages have their
+# own files under pages/DrillMap and pages/TechnoMap.
+
+# Headings for the two sidebar entries. `category` is the plain dashboard,
+# `rig` is the same dashboard with the metres chart stacked by rig.
+titles:
+  category: Drilling details
+  rig: Drilling details by rig
+
+# Campaign year selected before the year slicer has loaded its options.
+defaultYear: 2026
+
+# How long a loaded figure is treated as current. Weekly data; there is
+# nothing to gain from refetching on every return to the page.
+staleTimeMs: 300000

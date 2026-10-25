@@ -29,6 +29,33 @@ function createContext(canvas) {
     fill: record("fill"),
     stroke: record("stroke"),
     drawImage: record("drawImage"),
+
+    // Text metrics, for the Weekly Geos charts. ECharts measures every
+    // axis label before it lays an axis out, and does so through a 2D
+    // context even when it renders to SVG, so without these it throws
+    // rather than drawing.
+    //
+    // Deliberately NOT recorded: the map tests read `__calls` to assert
+    // what was drawn on a frame, and measuring is not drawing.
+    font: "12px sans-serif",
+    textAlign: "left",
+    textBaseline: "alphabetic",
+    measureText: (text) => ({
+      // Roughly 6px a character at the chart label sizes. Nothing asserts
+      // on the number; it only has to be finite and to grow with the
+      // string, or ECharts' overlap checks divide by zero.
+      width: String(text).length * 6,
+      actualBoundingBoxAscent: 8,
+      actualBoundingBoxDescent: 2,
+    }),
+    save: () => {},
+    restore: () => {},
+    rect: () => {},
+    clip: () => {},
+    fillText: () => {},
+    strokeText: () => {},
+    createLinearGradient: () => ({ addColorStop: () => {} }),
+    createRadialGradient: () => ({ addColorStop: () => {} }),
   };
 }
 

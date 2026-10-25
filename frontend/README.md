@@ -1,9 +1,16 @@
 # Drilling Map — frontend
 
 React + TypeScript + Vite frontend for the Drilling Map application. It
-renders two independent map pages — **Exploration Map** and **Techno Map** —
-each plotting drillholes from UTM coordinates onto a base map image with pan,
+renders four pages.
+
+Two are independent maps — **Exploration Map** and **Techno Map** — each
+plotting drillholes from UTM coordinates onto a base map image with pan,
 cursor-centred zoom, deviation lines, tooltips, a legend and a scale bar.
+
+Two are the drilling dashboard merged in from the Weekly Geos application —
+**Drilling Details** and **Drilling by Rig** — charting weekly metres against
+the campaign plan, with slicers, cored/destructive donuts and cross-filtering
+by week. They differ only in whether the metres chart is split by rig.
 
 > **Note for reviewers:** this file was rewritten during the TypeScript
 > migration. The migration archive did not include the previous
@@ -38,7 +45,12 @@ npm run build -- --outDir frontend/publish
 ## Requirements
 
 - Node 20.19+ or 22.12+ (Vite 7)
-- A reachable backend exposing `/api/exploration-map` and `/api/techno-map`
+- A reachable drilling backend exposing `/api/exploration-map` and
+  `/api/techno-map`
+- For the dashboard pages, a reachable reporting backend exposing
+  `/api/Dashboard/*`. This is a **second service on a different port**; see
+  the environment table below. `VITE_WEEKLY_USE_MOCK=true` runs those two
+  pages on generated data with no backend at all.
 
 ---
 
@@ -55,6 +67,22 @@ overrides existed, so an empty environment behaves exactly as before.
 | `VITE_MAP_MAX_X` | `423375.13` | UTM easting of the map's right edge |
 | `VITE_MAP_MIN_Y` | `4890500` | UTM northing of the map's bottom edge |
 | `VITE_MAP_MAX_Y` | `4898190.29` | UTM northing of the map's top edge |
+| `VITE_WEEKLY_API_BASE_URL` | `/weekly-api` | Base path of the reporting API |
+| `VITE_WEEKLY_USE_MOCK` | `false` | `true` runs the dashboard on generated data |
+| `VITE_WEEKLY_PROXY_TARGET` | `http://localhost:5156` | Dev server only: where `/weekly-api` is forwarded |
+
+### Two backends
+
+The map pages and the dashboard read different services, and they do not
+share a port, so they cannot both own `/api`. The dashboard gets the
+`/weekly-api` prefix instead; the dev server forwards it to
+`VITE_WEEKLY_PROXY_TARGET` and rewrites it back to `/api` on the way out, so
+the browser only ever makes same-origin requests and CORS never comes up.
+
+A production build has no dev server. Either serve the site behind something
+that forwards `/weekly-api` the same way, or set `VITE_WEEKLY_API_BASE_URL`
+to the reporting API's absolute URL and have that service send CORS headers
+for this origin.
 
 They are typed in `src/vite-env.d.ts` as `string | undefined` — which is what
 Vite actually provides — and converted in `src/config/env.ts` with explicit
@@ -88,9 +116,10 @@ frontend/
 │  │  ├─ Sidebar/             navigation, collapse toggle, Online/Offline
 │  │  └─ Toast/               app-wide toast store + container
 │  ├─ config/                 app.yaml, env readers, YAML schema validation
-│  ├─ pages/                  one self-contained folder per map page
+│  ├─ pages/                  one self-contained folder per page
 │  │  ├─ DrillMap/            Exploration Map — see its README
-│  │  └─ TechnoMap/           Techno Map — see its README
+│  │  ├─ TechnoMap/           Techno Map — see its README
+│  │  └─ WeeklyGeos/          the two dashboard pages — see its README
 │  ├─ services/
 │  │  ├─ api/                 fetch plumbing, map endpoints, health check
 │  │  └─ cache/               IndexedDB cache of the raw responses
@@ -103,13 +132,14 @@ frontend/
 
 Each page's README describes its sections, loading, refresh and toasts:
 [`src/pages/DrillMap/README.md`](src/pages/DrillMap/README.md),
-[`src/pages/TechnoMap/README.md`](src/pages/TechnoMap/README.md).
+[`src/pages/TechnoMap/README.md`](src/pages/TechnoMap/README.md),
+[`src/pages/WeeklyGeos/README.md`](src/pages/WeeklyGeos/README.md).
 
 ---
 
 ## Architecture
 
-### Two independent pages
+### Independent pages
 
 The Exploration and Techno maps look alike today but will diverge, so each
 page folder owns its whole implementation: components, hooks, maths, YAML

@@ -1,6 +1,13 @@
 // The Exploration Map (src/pages/DrillMap) and Techno Map (src/pages/TechnoMap)
-// each own a full copy of the map code so they can diverge. These checks keep
-// either page from quietly depending on, or leaking into, the other.
+// each own a full copy of the map code so they can diverge, and Weekly Geos
+// (src/pages/WeeklyGeos) owns the whole dashboard it was merged in from.
+// These checks keep any page from quietly depending on, or leaking into,
+// another.
+//
+// The CSS scoping check matters most for Weekly Geos: it arrived with its own
+// `.sidebar`, `.sidebar__link`, `.sidebar__label` and `.sidebar__icon` rules,
+// and with a stylesheet that restyled `:root` and `body` outright. All of it
+// is scoped now, and this is what keeps it that way.
 import { describe, expect, it } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
@@ -11,9 +18,13 @@ import * as technoConfig from "../../src/pages/TechnoMap/config/technoMapConfig.
 const PAGES_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../../src/pages");
 
 const PAGES = [
-  { name: "DrillMap", other: "TechnoMap", rootClass: "drill-map-page", css: "DrillMap.css" },
-  { name: "TechnoMap", other: "DrillMap", rootClass: "techno-map-page", css: "TechnoMap.css" },
+  { name: "DrillMap", rootClass: "drill-map-page", css: "DrillMap.css", minFiles: 10 },
+  { name: "TechnoMap", rootClass: "techno-map-page", css: "TechnoMap.css", minFiles: 10 },
+  // Fewer files than a map page: one dashboard, not a map engine.
+  { name: "WeeklyGeos", rootClass: "weekly-geos-page", css: "WeeklyGeos.css", minFiles: 8 },
 ];
+
+const otherPages = (name) => PAGES.filter((page) => page.name !== name);
 
 function sourceFiles(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -117,17 +128,18 @@ describe("page config independence", () => {
   });
 });
 
-describe.each(PAGES)("$name source independence", ({ name, other, rootClass, css }) => {
+describe.each(PAGES)("$name source independence", ({ name, rootClass, css, minFiles }) => {
   const pageDir = join(PAGES_DIR, name);
-  const otherDir = join(PAGES_DIR, other);
   const files = sourceFiles(pageDir);
 
   it("has source files to check", () => {
-    expect(files.length).toBeGreaterThan(10);
+    expect(files.length).toBeGreaterThanOrEqual(minFiles);
     expect(files.some((file) => file.endsWith(".css"))).toBe(true);
   });
 
-  it(`imports nothing from ${other}`, () => {
+  it.each(otherPages(name))("imports nothing from $name", ({ name: other }) => {
+    const otherDir = join(PAGES_DIR, other);
+
     const offenders = files.flatMap((file) => importSpecifiers(readFileSync(file, "utf8"))
       .filter((specifier) => {
         if (specifier.includes(`pages/${other}`)) return true;
@@ -154,9 +166,19 @@ describe.each(PAGES)("$name source independence", ({ name, other, rootClass, css
     expect(selectors.filter((selector) => !scoped.test(selector))).toEqual([]);
   });
 
-  it(`never mentions the other page's root class in ${css}`, () => {
-    const otherClass = PAGES.find((page) => page.name === other).rootClass;
-
+  it.each(otherPages(name))(`never mentions $rootClass in ${css}`, ({ rootClass: otherClass }) => {
     expect(readFileSync(join(pageDir, css), "utf8")).not.toContain(otherClass);
   });
+
+  // The application sidebar owns these, and Weekly Geos shipped with rules
+  // for every one of them. An unscoped rule here would restyle the
+  // navigation from inside a page.
+  it.each(["sidebar", "sidebar__link", "sidebar__label", "sidebar__icon", "sidebar__brand"])(
+    `never styles .%s from ${css}`,
+    (shared) => {
+      const selectors = styleRuleSelectors(readFileSync(join(pageDir, css), "utf8"));
+
+      expect(selectors.filter((selector) => selector.includes(`.${shared}`))).toEqual([]);
+    },
+  );
 });

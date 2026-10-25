@@ -1,7 +1,12 @@
-import data from './app.yaml';
-import { list, number, object, oneOf, parseConfig, text } from './schema';
+import data from "./app.yaml";
+import { list, number, object, oneOf, parseConfig, text } from "./schema";
 
-export const APP_PAGE_IDS = ['drill-map', 'techno-map'] as const;
+export const APP_PAGE_IDS = [
+  "drill-map",
+  "techno-map",
+  "drilling-details",
+  "drilling-by-rigs",
+] as const;
 
 /** Pages the sidebar can navigate between. */
 export type AppPageId = (typeof APP_PAGE_IDS)[number];
@@ -9,11 +14,17 @@ export type AppPageId = (typeof APP_PAGE_IDS)[number];
 export const APP_CONFIG = parseConfig(
   object({
     title: text,
-    navigation: list(object({ id: oneOf(...APP_PAGE_IDS), label: text, icon: text })),
-    connection: object({ checkIntervalMs: number, timeoutMs: number, requestTimeoutMs: number }),
+    navigation: list(
+      object({ id: oneOf(...APP_PAGE_IDS), label: text, icon: text }),
+    ),
+    connection: object({
+      checkIntervalMs: number,
+      timeoutMs: number,
+      requestTimeoutMs: number,
+    }),
   }),
   data,
-  'app.yaml',
+  "app.yaml",
 );
 
 export type NavItem = (typeof APP_CONFIG.navigation)[number];

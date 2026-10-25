@@ -1,0 +1,800 @@
+/* Weekly Geos styles, scoped under .weekly-geos-page so they cannot reach the
+   map pages. Three files in the standalone app — design tokens, shell
+   components and the dashboard grid — merged into one stylesheet here.
+
+   Everything is scoped, including what used to sit on :root and body: the
+   `.sidebar`, `.sidebar__link`, `.sidebar__label`, `.sidebar__icon` and
+   `is-active` class names are shared with the application sidebar, and the
+   token file restyled body outright. Nothing here may touch either.
+
+   The standalone sidebar's own rules are gone rather than scoped: the
+   application sidebar replaced it, so they styled nothing. */
+
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500&display=swap");
+/* Palette is taken from the Power BI report and the Badrakh Energy mark,
+   not invented: #3172C1 is the brand blue, #AA865D the sand from the
+   logo's ridgeline, #038403 the positive green used on the cards.
+
+   Typeface is IBM Plex Sans. Every number on this page sits in a column
+   that has to line up, so tabular figures are switched on globally —
+   proportional digits are the usual reason ported dashboards read as
+   sloppy next to the original. */
+
+.weekly-geos-page {
+  /* Brand */
+  --blue-700: #24559a;
+  --blue-600: #3172c1;
+  --blue-300: #8fb4e0;
+  --blue-50: #eaf1fa;
+
+  --sand-600: #8d6c46;
+  --sand-500: #aa865d;
+  --sand-200: #e6d9c6;
+
+  --green-600: #038403;
+  --green-400: #5cd261;
+  --amber-500: #c88a04;
+  --red-500: #c0392b;
+
+  /* Surfaces and ink */
+  --page: #eef1f5;
+  --surface: #ffffff;
+  --sunken: #f6f8fb;
+  --border: #dde4ec;
+  --border-strong: #c3cedb;
+
+  --ink: #152433;
+  --ink-muted: #5b6b7d;
+  --ink-faint: #8a98a8;
+
+  /* Series colours. Destructive is the blue mass and cored the sand
+     highlight, matching the original report — cored is usually the
+     smaller slice, so it gets the accent. */
+  --series-cored: #aa865d;
+  --series-destructive: #3172c1;
+  --rig-1: #3172c1;
+  --rig-2: #aa865d;
+  --rig-3: #4e8fa8;
+  --rig-4: #8a6ea8;
+  --rig-5: #5a8a5a;
+  --rig-6: #b2734a;
+
+  /* Type */
+  --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-condensed: "IBM Plex Sans Condensed", var(--font);
+
+  --fs-display: 2rem; /* card figures */
+  --fs-lg: 1.0625rem;
+  --fs-base: 0.875rem;
+  --fs-sm: 0.8125rem;
+  --fs-xs: 0.75rem;
+
+  /* Space — 4px base */
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.5rem;
+  --s-6: 2rem;
+
+  /* Chart heights. Fixed pixels on purpose: tying these to vh made every
+     chart grow with the window, so a tall monitor stretched them out of
+     proportion to their width. Tune these three values; nothing else
+     sets a chart height. */
+  --h-chart-lg: 200px; /* weekly + cumulative */
+  --h-chart-md: 160px; /* the three rate charts */
+  --h-chart-sm: 200px; /* donuts */
+
+  /* A chart enlarged in a dialog. Bounded by the viewport so it never
+     needs scrolling, and capped so it stays proportionate on a very
+     large screen. */
+  --h-chart-zoom: min(68vh, 720px);
+
+  --radius: 6px;
+  --shadow: 0 1px 2px rgba(21, 36, 51, 0.06), 0 1px 8px rgba(21, 36, 51, 0.04);
+
+  --sidebar-w: 220px;
+  --sidebar-w-collapsed: 60px;
+}
+
+.weekly-geos-page *,
+.weekly-geos-page *::before,
+.weekly-geos-page *::after {
+  box-sizing: border-box;
+}
+
+.weekly-geos-page,
+.weekly-geos-page,
+.weekly-geos-page {
+  height: 100%;
+}
+
+.weekly-geos-page {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs-base);
+  line-height: 1.45;
+  font-feature-settings:
+    "tnum" 1,
+    "lnum" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+.weekly-geos-page :focus-visible {
+  outline: 2px solid var(--blue-600);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weekly-geos-page *,
+  .weekly-geos-page *::before,
+  .weekly-geos-page *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- Panel: the one repeated container on the page ---- */
+
+.weekly-geos-page .panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.weekly-geos-page .panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4) 0;
+}
+
+.weekly-geos-page .panel__title {
+  margin: 0;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.weekly-geos-page .panel__note {
+  font-size: var(--fs-xs);
+  color: var(--ink-faint);
+}
+
+/* `flex: 1` here would mean flex-basis: 0, collapsing any child that
+   sizes itself with a percentage height. Charts set their own height, so
+   the body just wraps them. */
+.weekly-geos-page .panel__body {
+  min-width: 0;
+  padding: var(--s-2);
+}
+
+/* ---- Page frame --------------------------------------------------- */
+
+/* The map pages fill their area exactly and never scroll; this one is a
+   tall dashboard, so it owns the scrollbar for the main region. The app
+   shell sets `overflow: hidden` on <main>, so without this the lower
+   panels would simply be cut off. */
+.weekly-geos-page {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  /* The grid below reflows against the width of this element rather than
+     the window, so the layout is right whatever the sidebar is doing. */
+  container: weekly-geos / inline-size;
+}
+
+/* The enlarged-chart dialog is portalled to <body> to escape that
+   container, which would otherwise become the containing block for its
+   `position: fixed` backdrop and leave it covering only the main area.
+   It still needs the tokens and the typeface, so it carries the same
+   class, with is-overlay turning the page frame back off. */
+.weekly-geos-page.is-overlay {
+  height: auto;
+  overflow: visible;
+  background: none;
+  container: none;
+}
+
+/* ---- Slicers ----------------------------------------------------- */
+
+.weekly-geos-page .slicer {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 150px;
+}
+
+.weekly-geos-page .slicer__label {
+  font-size: var(--fs-xs);
+  color: var(--ink-muted);
+}
+
+.weekly-geos-page .slicer__input {
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  padding: 5px 8px;
+  min-height: 32px;
+}
+.weekly-geos-page .slicer__input:hover {
+  border-color: var(--blue-300);
+}
+
+/* ---- Stat cards -------------------------------------------------- */
+
+.weekly-geos-page .stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--s-1) var(--s-4);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.weekly-geos-page .stat__label {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--ink-muted);
+}
+
+.weekly-geos-page .stat__value {
+  margin: 2px 0 0;
+  font-size: var(--fs-display);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.weekly-geos-page .stat--positive .stat__value {
+  color: var(--green-600);
+}
+
+.weekly-geos-page .stat__sub {
+  margin: 2px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--ink-faint);
+}
+
+/* ---- Campaign banner --------------------------------------------- */
+
+.weekly-geos-page .banner {
+  grid-area: banner;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  background: var(--blue-600);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: var(--s-3) var(--s-4);
+  font-size: var(--fs-lg);
+  font-weight: 500;
+}
+.weekly-geos-page .banner__sep {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(255, 255, 255, 0.35);
+}
+.weekly-geos-page .banner__target {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.weekly-geos-page .banner--empty {
+  background: var(--sunken);
+  color: var(--ink-muted);
+  border: 1px solid var(--border);
+  font-size: var(--fs-base);
+  font-weight: 400;
+}
+
+/* ---- States ------------------------------------------------------ */
+
+/* Matched to the charts they stand in for, so a panel does not jump
+   height when its data arrives. */
+.weekly-geos-page .state {
+  display: grid;
+  place-content: center;
+  gap: var(--s-2);
+  min-height: var(--h-chart-md);
+  padding: var(--s-4);
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: var(--ink-faint);
+}
+.weekly-geos-page .state--error {
+  color: var(--red-500);
+}
+.weekly-geos-page .state--error p {
+  margin: 0;
+  max-width: 32ch;
+}
+
+.weekly-geos-page .state--empty {
+  color: var(--ink-muted);
+}
+.weekly-geos-page .state--empty p {
+  margin: 0;
+  max-width: 34ch;
+}
+
+/* The reason, rather than the fact — quieter than the line above it. */
+.weekly-geos-page .state__hint {
+  color: var(--ink-faint);
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+}
+
+.weekly-geos-page .state__retry {
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--blue-600);
+  background: none;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  justify-self: center;
+}
+.weekly-geos-page .state__retry:hover {
+  background: var(--blue-50);
+}
+
+/* ---- Segmented control ------------------------------------------- */
+
+.weekly-geos-page .segmented {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.weekly-geos-page .segmented__option {
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--ink-muted);
+  background: var(--surface);
+  border: none;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition:
+    background 120ms,
+    color 120ms;
+}
+.weekly-geos-page .segmented__option + .segmented__option {
+  border-left: 1px solid var(--border);
+}
+.weekly-geos-page .segmented__option:hover {
+  background: var(--sunken);
+}
+
+.weekly-geos-page .segmented__option.is-selected {
+  background: var(--blue-600);
+  color: #fff;
+}
+
+.weekly-geos-page .panel__action {
+  margin-left: auto;
+}
+
+/* ---- Multi-select ------------------------------------------------- */
+
+.weekly-geos-page .slicer {
+  position: relative;
+}
+
+.weekly-geos-page .slicer__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+.weekly-geos-page .slicer__trigger.is-active {
+  border-color: var(--blue-600);
+  color: var(--blue-700);
+  font-weight: 500;
+}
+
+.weekly-geos-page .slicer__summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weekly-geos-page .slicer__caret {
+  flex: none;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  opacity: 0.6;
+}
+
+.weekly-geos-page .slicer__menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  min-width: 100%;
+  max-height: 260px;
+  overflow-y: auto;
+  margin-top: 4px;
+  padding: var(--s-1);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px rgba(21, 36, 51, 0.12);
+}
+
+.weekly-geos-page .slicer__option {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 5px var(--s-2);
+  border-radius: 3px;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.weekly-geos-page .slicer__option:hover {
+  background: var(--sunken);
+}
+.weekly-geos-page .slicer__option input {
+  accent-color: var(--blue-600);
+  margin: 0;
+}
+
+.weekly-geos-page .slicer__none {
+  margin: 0;
+  padding: var(--s-2);
+  font-size: var(--fs-xs);
+  color: var(--ink-faint);
+}
+
+.weekly-geos-page .slicer__clear {
+  width: 100%;
+  margin-top: var(--s-1);
+  padding: 5px var(--s-2);
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--blue-600);
+  text-align: left;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+}
+.weekly-geos-page .slicer__clear:hover {
+  background: var(--blue-50);
+}
+
+/* ---- Selection banner --------------------------------------------- */
+
+.weekly-geos-page .selection {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 3px var(--s-2) 3px var(--s-3);
+  background: var(--blue-50);
+  border: 1px solid var(--blue-300);
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  color: var(--blue-700);
+}
+
+.weekly-geos-page .selection__clear {
+  font: inherit;
+  font-size: var(--fs-xs);
+  line-height: 1;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  opacity: 0.75;
+}
+.weekly-geos-page .selection__clear:hover {
+  background: rgba(49, 114, 193, 0.14);
+  opacity: 1;
+}
+
+/* ---- Enlarge ------------------------------------------------------ */
+
+.weekly-geos-page .panel__expand {
+  display: inline-flex;
+  padding: 3px;
+  color: var(--ink-faint);
+  background: none;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  /* Quiet until the panel is hovered — one of these on every chart would
+     otherwise clutter the page. Kept visible on keyboard focus. */
+  opacity: 0;
+  transition:
+    opacity 120ms,
+    color 120ms;
+}
+.weekly-geos-page .panel:hover .panel__expand,
+.weekly-geos-page .donut:hover .panel__expand,
+.weekly-geos-page .panel__expand:focus-visible {
+  opacity: 1;
+}
+.weekly-geos-page .panel__expand:hover {
+  color: var(--blue-600);
+  background: var(--sunken);
+}
+.weekly-geos-page .panel__expand svg {
+  width: 15px;
+  height: 15px;
+}
+
+@media (hover: none) {
+  /* No hover on touch, so never hide it there. */
+  .weekly-geos-page .panel__expand {
+    opacity: 1;
+  }
+}
+
+.weekly-geos-page .modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: var(--s-5);
+  background: rgba(21, 36, 51, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.weekly-geos-page .modal__panel {
+  display: flex;
+  flex-direction: column;
+  width: min(1200px, 100%);
+  max-height: 100%;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 48px rgba(21, 36, 51, 0.28);
+  overflow: hidden;
+}
+
+.weekly-geos-page .modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.weekly-geos-page .modal__title {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.weekly-geos-page .modal__close {
+  font: inherit;
+  font-size: var(--fs-base);
+  line-height: 1;
+  color: var(--ink-muted);
+  background: none;
+  border: none;
+  border-radius: 3px;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+.weekly-geos-page .modal__close:hover {
+  background: var(--sunken);
+  color: var(--ink);
+}
+
+.weekly-geos-page .modal__body {
+  padding: var(--s-4);
+  overflow: auto;
+}
+
+@media (max-width: 720px) {
+  .weekly-geos-page .modal {
+    padding: var(--s-3);
+  }
+}
+
+/* The original was a fixed 1280×720 canvas. This keeps the same reading
+   order — progress, then plan, then quality, then mix — but reflows, so
+   it survives a laptop, a 4K meeting-room screen and a phone. */
+
+.weekly-geos-page .dash {
+  display: grid;
+  gap: var(--s-4);
+  padding: var(--s-5);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-areas:
+    "head   head   head   head"
+    "banner banner banner banner"
+    "kpis   kpis   kpis   kpis"
+    "weekly weekly cum    cum"
+    "rate1  rate2  rate3  rate3"
+    "donuts donuts donuts donuts";
+}
+
+.weekly-geos-page .dash__head {
+  grid-area: head;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+
+.weekly-geos-page .dash__title {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.weekly-geos-page .dash__slicers {
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.weekly-geos-page .dash__reset {
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--ink-muted);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  padding: 5px 10px;
+  min-height: 32px;
+  cursor: pointer;
+}
+.weekly-geos-page .dash__reset:hover {
+  border-color: var(--blue-300);
+  color: var(--blue-700);
+}
+
+.weekly-geos-page .dash__panelActions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.weekly-geos-page .dash__kpis {
+  grid-area: kpis;
+  display: grid;
+  gap: var(--s-4);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* No heights here. Each chart sets its own from the --h-chart-* tokens,
+   so these rules only place the panels on the grid. Setting min-height on
+   .panel-based selectors collided with `.panel { min-height: 0 }` at equal
+   specificity, which made the result depend on stylesheet order. */
+.weekly-geos-page .dash__weekly {
+  grid-area: weekly;
+}
+.weekly-geos-page .dash__cumulative {
+  grid-area: cum;
+}
+.weekly-geos-page .dash__rate1 {
+  grid-area: rate1;
+}
+.weekly-geos-page .dash__rate2 {
+  grid-area: rate2;
+}
+.weekly-geos-page .dash__rate3 {
+  grid-area: rate3;
+}
+
+/* ---- Donuts ------------------------------------------------------ */
+
+/* The report had exactly four donuts. The data has seven categories, and
+   could gain more, so this flows instead of assuming a count. */
+.weekly-geos-page .dash__donuts {
+  grid-area: donuts;
+  display: grid;
+  gap: var(--s-4);
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+/* Sized by the donut chart inside it; position only. */
+.weekly-geos-page .donut__chart {
+  position: relative;
+}
+
+/* Four donuts across a wide row leaves each panel short and wide, which
+   shrinks the ring (ECharts scales it by the smaller dimension) while
+   leaving dead space either side. A little more height evens it out. */
+.weekly-geos-page .donut {
+  min-height: 0;
+}
+
+/* The hole count sits in the hole of the donut. No disc behind it: it
+   hid part of the ring, served no purpose, and its positioning was the
+   source of two layout bugs. Plain text reads perfectly well. */
+.weekly-geos-page .donut__centre {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+  pointer-events: none;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.weekly-geos-page .donut__count {
+  display: block;
+  font-size: clamp(1.125rem, 1.9vh, 1.5rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.weekly-geos-page .donut__unit {
+  display: block;
+  font-size: 0.5625rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+}
+
+/* ---- Reflow ------------------------------------------------------ */
+
+@container weekly-geos (max-width: 1180px) {
+  .weekly-geos-page .dash {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "head   head"
+      "banner banner"
+      "kpis   kpis"
+      "weekly weekly"
+      "cum    cum"
+      "rate1  rate2"
+      "rate3  rate3"
+      "donuts donuts";
+  }
+}
+
+@container weekly-geos (max-width: 720px) {
+  .weekly-geos-page .dash {
+    padding: var(--s-4);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "head" "banner" "kpis" "weekly" "cum" "rate1" "rate2" "rate3" "donuts";
+  }
+  .weekly-geos-page .dash__kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .weekly-geos-page .dash__head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
