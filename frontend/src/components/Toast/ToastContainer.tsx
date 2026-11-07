@@ -2,9 +2,9 @@ import { dismissToast, useToasts } from './toastStore';
 import type { Toast, ToastType } from './toastStore';
 
 const TOAST_STYLES: Readonly<Record<ToastType, { icon: string; accent: string }>> = {
-  success: { icon: '✓', accent: 'bg-green-600' },
-  warning: { icon: '⚠', accent: 'bg-amber-500' },
-  error: { icon: '✕', accent: 'bg-red-600' },
+  success: { icon: '✓', accent: 'bg-success' },
+  warning: { icon: '⚠', accent: 'bg-warning' },
+  error: { icon: '✕', accent: 'bg-error' },
 };
 
 function ToastItem({ id, type, message, leaving }: Toast) {
@@ -25,7 +25,7 @@ function ToastItem({ id, type, message, leaving }: Toast) {
       <span className="min-w-0">{message}</span>
       <button
         type="button"
-        className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-md text-muted hover:bg-brand-soft hover:text-ink focus-visible:outline-2 focus-visible:outline-blue-600"
+        className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-md text-muted hover:bg-brand-soft hover:text-ink focus-visible:outline-2 focus-visible:outline-focus"
         aria-label="Dismiss notification"
         onClick={() => dismissToast(id)}
       >

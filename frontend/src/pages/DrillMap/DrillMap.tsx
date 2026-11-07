@@ -1,3 +1,5 @@
+import MapScreenshot from '../../components/MapScreenshot/MapScreenshot';
+import type { CaptureRect } from '../../components/MapScreenshot/MapScreenshot';
 import { useState } from 'react';
 import BaseMapSwitcher from './Controls/BaseMapSwitcher';
 import MapControls from './Controls/MapControls';
@@ -35,6 +37,7 @@ function DrillMap() {
   const { baseMap, setBaseMap } = useBaseMap();
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [measurement, setMeasurement] = useState<UtmCoordinates[]>([]);
+  const [isSelecting, setIsSelecting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
   const { viewportRef, view, renderedMapSize, mapOrigin, viewportSize, isDragging, viewportHandlers, image, controls } = useMapViewport({
@@ -53,7 +56,7 @@ function DrillMap() {
   const mapSize = measuredMapSize(renderedMapSize);
   const viewportState = `${isDragging ? ' is-dragging' : ''}${isViewZoomed(view, MAP_SETTINGS.minZoom) ? ' is-zoomed' : ''}${isMeasuring ? ' is-measuring' : ''}`;
 
-  const handleExport = async (format: ExportFormat) => {
+  const handleExport = async (format: ExportFormat, capture: CaptureRect) => {
     // An export without its base map would misrepresent the map, so none is made.
     if (!mapSize || image.hasFailed) {
       showToast('error', 'Map export failed: the base map is not loaded.');
@@ -62,7 +65,7 @@ function DrillMap() {
 
     setIsExporting(true);
     try {
-      await exportMap(format, { viewport: viewportSize, view, mapOrigin, mapSize, drillholes, measurement, title: MAP_CONFIG.title, baseMap });
+      await exportMap(format, { capture, viewport: viewportSize, view, mapOrigin, mapSize, drillholes, measurement, title: MAP_CONFIG.title, baseMap });
       showToast('success', 'Map exported successfully');
     } catch {
       showToast('error', 'Map export failed.');
@@ -83,7 +86,7 @@ function DrillMap() {
       </header>
 
       <div className="map-panel">
-        <div ref={viewportRef} className={`map-viewport${viewportState}`} {...viewportHandlers}>
+        <div ref={viewportRef} className={`map-viewport${viewportState}${isSelecting ? ' is-selecting' : ''}`} {...viewportHandlers}>
           {/* Only the background changes with the base map; the view and every feature stay put. */}
           {baseMap === 'white-grid' && !image.hasFailed && (
             <CoordinateGrid viewport={viewportSize} view={view} mapOrigin={mapOrigin} mapSize={mapSize} />
@@ -116,10 +119,17 @@ function DrillMap() {
               setIsMeasuring((current) => !current);
               setMeasurement([]);
             }}
+            isSelecting={isSelecting}
+            onToggleScreenshot={() => {
+              setIsSelecting((current) => !current);
+              setIsMeasuring(false);
+            }}
             isExporting={isExporting}
-            onExport={(format) => void handleExport(format)}
           />
           <div className="north-arrow" aria-label="North"><span>N</span><i /></div>
+          {isSelecting && <MapScreenshot viewportRef={viewportRef}
+            onCancel={() => setIsSelecting(false)}
+            onCapture={(rect, format) => { setIsSelecting(false); void handleExport(format, rect); }} />}
           <MapScaleBar mapWidth={mapWidth} zoom={view.scale} />
         </div>
 

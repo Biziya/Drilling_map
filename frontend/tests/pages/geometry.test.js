@@ -139,13 +139,13 @@ describe.each(PAGES)("%s map geometry", (_page, {
   // crossesThreshold / snapToThreshold / clampScale were folded into
   // resolveScale; their behaviour is pinned through it.
   describe("resolveScale", () => {
-    describe("deviation threshold snapping", () => {
-      it("snaps an upward crossing to the threshold", () => {
-        expect(resolveScale(9.8, 10.2, SETTINGS)).toBe(10);
+    describe("linear zoom across deviation threshold", () => {
+      it("preserves an upward increment across the threshold", () => {
+        expect(resolveScale(9.8, 10.2, SETTINGS)).toBe(10.2);
       });
 
-      it("snaps a downward crossing to the threshold", () => {
-        expect(resolveScale(10.2, 9.8, SETTINGS)).toBe(10);
+      it("preserves a downward increment across the threshold", () => {
+        expect(resolveScale(10.2, 9.8, SETTINGS)).toBe(9.8);
       });
 
       it("passes the requested scale through when both sit on the same side", () => {
@@ -227,9 +227,9 @@ describe.each(PAGES)("%s map geometry", (_page, {
       expect(result.scale).toBe(2);
     });
 
-    it("applies threshold snapping through the full pipeline", () => {
+    it("preserves increments through the full pipeline", () => {
       const near = { scale: 9.8, translateX: 0, translateY: 0 };
-      expect(zoomView(near, 10.5, anchor, origin, SETTINGS).scale).toBe(10);
+      expect(zoomView(near, 10.5, anchor, origin, SETTINGS).scale).toBe(10.5);
     });
   });
 

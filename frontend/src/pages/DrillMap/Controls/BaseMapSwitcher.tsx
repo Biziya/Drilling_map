@@ -30,7 +30,7 @@ function BaseMapSwitcher({ value, onChange }: BaseMapSwitcherProps) {
     >
       <button
         type="button"
-        className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-full border border-[#d3ddd6] bg-white/72 text-[#496052] hover:bg-white hover:text-brand focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-blue-600 aria-expanded:bg-white aria-expanded:text-brand"
+        className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-full border border-line bg-paper/95 text-muted hover:bg-control-hover hover:text-brand focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus aria-expanded:bg-control-selected aria-expanded:text-brand"
         onClick={() => setIsOpen((open) => !open)}
         aria-haspopup="menu"
         aria-expanded={isOpen}
@@ -56,7 +56,7 @@ function BaseMapSwitcher({ value, onChange }: BaseMapSwitcherProps) {
 
       {isOpen && (
         <div
-          className="absolute top-[calc(100%+6px)] right-0 grid min-w-[170px] rounded-[10px] border border-[rgba(33,53,42,.16)] bg-white p-1 shadow-[0_8px_24px_rgba(15,31,21,.16)]"
+          className="absolute top-[calc(100%+6px)] right-0 grid min-w-[170px] rounded-[10px] border border-line bg-paper p-1 shadow-[0_8px_24px_rgba(15,31,21,.16)]"
           role="menu"
           aria-label="Base map"
         >
@@ -66,7 +66,7 @@ function BaseMapSwitcher({ value, onChange }: BaseMapSwitcherProps) {
               type="button"
               role="menuitemradio"
               aria-checked={id === value}
-              className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-left text-[.76rem] font-semibold text-[#21352a] hover:bg-[#edf4ef] focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-blue-600 aria-checked:text-brand"
+              className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-left text-[.76rem] font-semibold text-ink hover:bg-control-hover focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-focus aria-checked:text-brand aria-checked:bg-control-selected"
               onClick={() => {
                 setIsOpen(false);
                 onChange(id);

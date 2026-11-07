@@ -9,6 +9,7 @@
 // (legend, Legends panel, toolbar, tooltip) is never drawn. PNG rasterises
 // the SVG at 2x.
 
+import type { CaptureRect } from '../../../components/MapScreenshot/MapScreenshot';
 import { BASE_MAP_SRC, DRILLHOLE_TYPE_CONFIG, MAP_CONFIG, MAP_UTM_BOUNDS } from '../config/technoMapConfig';
 import type { BaseMapId } from '../config/technoMapConfig';
 import type { TechnoCell } from '../mock/mockData';
@@ -28,6 +29,7 @@ export type ExportFormat = 'png' | 'svg';
 /** Everything on screen that the export reproduces. */
 export interface MapSnapshot {
   viewport: Size;
+  capture?: CaptureRect;
   view: MapTransform;
   mapOrigin: Point;
   mapSize: Size;
@@ -55,11 +57,11 @@ const EDGE_MARGIN = 40;
 
 const pad = (value: number) => String(value).padStart(2, '0');
 
-/** TechnoMap_YYYY-MM-DD_HH-mm.<ext>, in local time. */
+/** TechnoMap_YYYY-MM-DD_HH-mm-ss.<ext>, in local time. */
 export function exportFileName(format: ExportFormat, date = new Date()): string {
   const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
-  return `TechnoMap_${day}_${pad(date.getHours())}-${pad(date.getMinutes())}.${format}`;
+  return `TechnoMap_${day}_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}.${format}`;
 }
 
 const escapeXml = (text: string) => text.replace(/[<>&'"]/g, (char) => `&#${char.charCodeAt(0)};`);
@@ -191,8 +193,8 @@ export function buildMapSvg(snapshot: MapSnapshot, assets: ExportAssets, pixelRa
   }
 
   const features = selectShownFeatures(buildMarkerFeatures(drillholes), filters)
-    .map((feature) => ({ feature, at: toScreen(feature) }))
-    .filter(({ at }) => isNearView(at));
+    .map((feature) => ({ feature, at: toScreen(feature) }));
+  const visibleFeatures = features.filter(({ at }) => isNearView(at));
 
   if (filters['deviation-line'] && view.scale >= MAP_CONFIG.zoom.deviationMinZoom) {
     features.forEach(({ feature: { end }, at }) => {
@@ -204,15 +206,16 @@ export function buildMapSvg(snapshot: MapSnapshot, assets: ExportAssets, pixelRa
 
   // Rigs on top, as on screen.
   for (const rigs of [false, true]) {
-    features.forEach(({ feature, at }) => {
+    visibleFeatures.forEach(({ feature, at }) => {
       if (feature.isInProgress === rigs) parts.push(markerSvg(feature, at, assets.rigIcon));
     });
   }
-  parts.push(measurementSvg(measurement, utmToScreen), titleSvg(title), scaleBarSvg(snapshot));
+  parts.push(measurementSvg(measurement, utmToScreen), ...(snapshot.capture ? [] : [titleSvg(title)]), scaleBarSvg(snapshot));
 
+  const crop = snapshot.capture ?? { x: 0, y: 0, ...viewport };
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" `
-    + `width="${viewport.width * pixelRatio}" height="${viewport.height * pixelRatio}" `
-    + `viewBox="0 0 ${viewport.width} ${viewport.height}">${parts.join('')}</svg>`;
+    + `width="${crop.width * pixelRatio}" height="${crop.height * pixelRatio}" `
+    + `viewBox="${crop.x} ${crop.y} ${crop.width} ${crop.height}">${parts.join('')}</svg>`;
 }
 
 // Fetched once per session: the base map is large and does not change.
@@ -279,7 +282,7 @@ export async function exportMap(format: ExportFormat, snapshot: MapSnapshot): Pr
     loadDataUrl(MAP_CONFIG.rigIconSrc),
   ]);
   const assets = { baseMap, rigIcon };
-  const { width, height } = snapshot.viewport;
+  const { width, height } = snapshot.capture ?? snapshot.viewport;
 
   const blob = format === 'svg'
     ? new Blob([buildMapSvg(snapshot, assets)], { type: 'image/svg+xml' })

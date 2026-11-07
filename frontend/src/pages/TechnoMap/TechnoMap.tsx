@@ -1,3 +1,5 @@
+import MapScreenshot from '../../components/MapScreenshot/MapScreenshot';
+import type { CaptureRect } from '../../components/MapScreenshot/MapScreenshot';
 import { useCallback, useMemo, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import BaseMapSwitcher from './Controls/BaseMapSwitcher';
@@ -54,6 +56,7 @@ function TechnoMap() {
   const { baseMap, setBaseMap } = useBaseMap();
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [measurement, setMeasurement] = useState<UtmCoordinates[]>([]);
+  const [isSelecting, setIsSelecting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   // The hole under the pointer, and the one a click pinned open, by feature
   // key (the record ID), so a pin survives a data refresh.
@@ -69,8 +72,8 @@ function TechnoMap() {
   const hitIndex = useMemo(() => createHitIndex(shown), [shown]);
   const shownByKey = useMemo(() => new Map(shown.map((feature) => [feature.key, feature])), [shown]);
   // Neither applies to a hole that is filtered out, or while measuring.
-  const hovered = (!isMeasuring && hoveredKey && shownByKey.get(hoveredKey)) || null;
-  const pinned = (!isMeasuring && pinnedKey && shownByKey.get(pinnedKey)) || null;
+  const hovered = (!isSelecting && !isMeasuring && hoveredKey && shownByKey.get(hoveredKey)) || null;
+  const pinned = (!isSelecting && !isMeasuring && pinnedKey && shownByKey.get(pinnedKey)) || null;
 
   const { viewportRef, view, renderedMapSize, mapOrigin, viewportSize, isDragging, viewportHandlers, image, controls } = useMapViewport({
     settings: MAP_SETTINGS,
@@ -102,7 +105,7 @@ function TechnoMap() {
   const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const overOverlay = event.target instanceof Element && event.target.closest(OVERLAY_SELECTOR);
     let hit: MarkerFeature | null = null;
-    if (!isMeasuring && event.buttons === 0 && !overOverlay && transform) {
+    if (!isSelecting && !isMeasuring && event.buttons === 0 && !overOverlay && transform) {
       const rect = event.currentTarget.getBoundingClientRect();
       const point: Point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
       hit = findMarkerAt(hitIndex, point, transform);
@@ -110,12 +113,12 @@ function TechnoMap() {
     // A key, so the page re-renders only when the hole under the pointer changes.
     const key = hit?.key ?? null;
     setHoveredKey((current) => (current === key ? current : key));
-  }, [hitIndex, isMeasuring, transform]);
+  }, [hitIndex, isMeasuring, isSelecting, transform]);
 
   // The popup shows the hovered hole, else the pinned one.
   const tooltipFeature = hovered ?? pinned;
 
-  const handleExport = async (format: ExportFormat) => {
+  const handleExport = async (format: ExportFormat, capture: CaptureRect) => {
     // An export without its base map would misrepresent the map, so none is made.
     if (!mapSize || image.hasFailed) {
       showToast('error', 'Map export failed: the base map is not loaded.');
@@ -125,6 +128,7 @@ function TechnoMap() {
     setIsExporting(true);
     try {
       await exportMap(format, {
+        capture,
         viewport: viewportSize,
         view,
         mapOrigin,
@@ -161,7 +165,7 @@ function TechnoMap() {
       <div className="map-panel">
         <div
           ref={viewportRef}
-          className={`map-viewport${viewportState}`}
+          className={`map-viewport${viewportState}${isSelecting ? ' is-selecting' : ''}`}
           {...viewportHandlers}
           onPointerMove={(event) => {
             viewportHandlers.onPointerMove(event);
@@ -219,9 +223,16 @@ function TechnoMap() {
               setMeasurement([]);
               setPinnedKey(null);
             }}
+            isSelecting={isSelecting}
+            onToggleScreenshot={() => {
+              setIsSelecting((current) => !current);
+              setIsMeasuring(false);
+            }}
             isExporting={isExporting}
-            onExport={(format) => void handleExport(format)}
           />
+          {isSelecting && <MapScreenshot viewportRef={viewportRef}
+            onCancel={() => setIsSelecting(false)}
+            onCapture={(rect, format) => { setIsSelecting(false); void handleExport(format, rect); }} />}
           <MapScaleBar mapWidth={mapWidth} zoom={view.scale} />
         </div>
       </div>

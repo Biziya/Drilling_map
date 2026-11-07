@@ -69,17 +69,10 @@ export function buildCanvasTransformStyle(view: MapTransform, renderedMapSize: R
 
 export type ScaleSettings = Pick<MapZoomSettings, 'minZoom' | 'maxZoom' | 'deviationMinZoom'>;
 
-/**
- * Clamps a requested zoom, pinning it to the deviation threshold when a step
- * would jump over it, so the zoom where lines appear is always reachable.
- */
-export function resolveScale(currentScale: number, requestedScale: number, settings: ScaleSettings): number {
-  const threshold = settings.deviationMinZoom;
-  const crosses = (currentScale < threshold && requestedScale > threshold)
-    || (currentScale > threshold && requestedScale < threshold);
-  const snapped = crosses ? threshold : requestedScale;
-
-  return Math.min(settings.maxZoom, Math.max(settings.minZoom, snapped));
+/** Clamp only at the limits so equal input produces equal increments. */
+export function resolveScale(_currentScale: number, requestedScale: number, settings: ScaleSettings): number {
+  void _currentScale; // Retained for the existing page-specific geometry API.
+  return Math.min(settings.maxZoom, Math.max(settings.minZoom, requestedScale));
 }
 
 /** Rescales so the map point under `anchor` (viewport coordinates) stays under it. */

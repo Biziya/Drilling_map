@@ -1,0 +1,90 @@
+.map-screenshot {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: none;
+  background: var(--color-overlay-soft);
+}
+.map-screenshot:has(.map-screenshot__selection) { background: transparent; }
+.map-screenshot__selection {
+  position: absolute;
+  outline: 1px solid var(--color-selection-border);
+  box-shadow: 0 0 0 100vmax var(--color-overlay);
+  pointer-events: none;
+}
+.map-screenshot__hint {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  pointer-events: none;
+}
+.map-viewport.is-selecting .map-toolbar { z-index: 61; }
+.map-screenshot.is-finalized { cursor: default; }
+.map-screenshot__dialog {
+  position: fixed;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  width: min(300px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  box-shadow: var(--ui-modal-shadow);
+  font-size: .82rem;
+}
+.map-screenshot__dialog::backdrop { background: transparent; }
+.map-screenshot__dialog header,
+.map-screenshot__dialog footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+}
+.map-screenshot__dialog header { border-bottom: 1px solid var(--color-line); }
+.map-screenshot__dialog h2 { margin: 0; font-size: .9rem; font-weight: 700; }
+.map-screenshot__dialog fieldset { display: grid; gap: 8px; margin: 16px; padding: 0; border: 0; }
+.map-screenshot__dialog legend { margin-bottom: 10px; color: var(--color-muted); }
+.map-screenshot__dialog label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.map-screenshot__dialog label:hover { background: var(--color-control-hover); }
+.map-screenshot__dialog label:has(input:checked) {
+  border-color: var(--color-brand);
+  background: var(--color-control-selected);
+  color: var(--color-brand-dark);
+}
+.map-screenshot__dialog input { accent-color: var(--color-brand); }
+.map-screenshot__dialog footer { border-top: 1px solid var(--color-line); }
+.map-screenshot__dialog button {
+  padding: 7px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-weight: 600;
+  cursor: pointer;
+}
+.map-screenshot__dialog button:hover { background: var(--color-control-hover); }
+.map-screenshot__dialog button:active { background: var(--color-control-selected); }
+.map-screenshot__dialog :is(button, input):focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.map-screenshot__dialog .map-screenshot__close { padding: 2px 7px; border-color: transparent; color: var(--color-muted); font-size: 1.1rem; }
+.map-screenshot__dialog .map-screenshot__export { background: var(--color-brand); color: var(--color-on-primary); border-color: var(--color-brand); }
+.map-screenshot__dialog .map-screenshot__export:hover,
+.map-screenshot__dialog .map-screenshot__export:active { background: var(--color-brand-dark); }

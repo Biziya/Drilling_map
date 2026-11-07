@@ -256,26 +256,71 @@ describe("toolbar", () => {
   it("has zoom, reset, measure and a single export button", async () => {
     await renderPage();
 
-    ["Zoom in", "Zoom out", "Reset", "Measure distance", "Export map"].forEach((name) => {
+    ["Zoom in", "Zoom out", "Reset", "Measure distance", "Screenshot map"].forEach((name) => {
       expect(screen.getByRole("button", { name })).toBeTruthy();
     });
+    expect(screen.queryByRole("button", { name: "Export as SVG" })).toBeNull();
+    expect(document.querySelectorAll('.map-controls button')).toHaveLength(5);
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
-  it("opens an export menu with PNG and SVG", async () => {
+  it("camera cancels on a second click, suspends the ruler and removes zoom percentage", async () => {
+    const { container } = await renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Measure distance" }));
+    const camera = screen.getByRole("button", { name: "Screenshot map" });
+    fireEvent.click(camera);
+    expect(screen.getByRole("button", { name: "Measure distance" }).getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("button", { name: "Zoom in" }).disabled).toBe(true);
+    expect(container.querySelector(".map-controls__level")).toBeNull();
+    expect(container.querySelector(".map-scale-bar")).toBeTruthy();
+    fireEvent.click(camera);
+    expect(screen.queryByLabelText("Screenshot selection")).toBeNull();
+    expect(screen.getByRole("button", { name: "Zoom in" }).disabled).toBe(false);
+  });
+
+  it("restores map interaction after a selected capture fails", async () => {
     await renderPage();
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("Asset unavailable"));
+    fireEvent.click(screen.getByRole("button", { name: "Screenshot map" }));
+    const overlay = screen.getByLabelText("Screenshot selection");
+    Object.defineProperties(overlay, { clientWidth: { value: 1000 }, clientHeight: { value: 700 } });
+    fireEvent.pointerDown(overlay, { button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerUp(overlay, { clientX: 400, clientY: 300 });
+    expect(screen.getByRole("dialog", { name: "Export Screenshot" })).toBeTruthy();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Export", exact: true }));
+    expect(screen.queryByLabelText("Screenshot selection")).toBeNull();
+    expect(await screen.findByText("Map export failed.")).toBeTruthy();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Screenshot map" }).disabled).toBe(false));
+    expect(screen.getByRole("button", { name: "Zoom in" }).disabled).toBe(false);
+  });
 
-    fireEvent.click(screen.getByRole("button", { name: "Export map" }));
-
-    expect(within(screen.getByRole("menu")).getAllByRole("menuitem").map((item) => item.textContent))
-      .toEqual(["Export as PNG", "Export as SVG"]);
+  it("offers PNG and SVG through the camera without a standalone SVG button", async () => {
+    await renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Screenshot map" }));
+    expect(screen.getByLabelText("Screenshot selection")).toBeTruthy();
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Export as SVG" })).toBeNull();
+    const overlay = screen.getByLabelText("Screenshot selection");
+    fireEvent.pointerDown(overlay, { button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerUp(overlay, { clientX: 400, clientY: 300 });
+    expect(screen.getByRole("dialog", { name: "Export Screenshot" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "PNG" }).checked).toBe(true);
+    fireEvent.click(screen.getByRole("radio", { name: "SVG" }));
+    expect(screen.getByRole("radio", { name: "SVG" }).checked).toBe(true);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByLabelText("Screenshot selection")).toBeNull();
   });
 
   it("refuses to export before the base map has loaded", async () => {
     await renderPage({ loadImages: false });
 
-    fireEvent.click(screen.getByRole("button", { name: "Export map" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Export as PNG" }));
+    fireEvent.click(screen.getByRole("button", { name: "Screenshot map" }));
+    const overlay = screen.getByLabelText("Screenshot selection");
+    fireEvent.pointerDown(overlay, { button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerUp(overlay, { clientX: 400, clientY: 300 });
+    fireEvent.click(screen.getByRole("radio", { name: "SVG" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export", exact: true }));
 
     expect(await screen.findByText("Map export failed: the base map is not loaded.")).toBeTruthy();
     expect(screen.queryByRole("menu")).toBeNull();
@@ -516,6 +561,6 @@ describe("layout", () => {
   it("shows a camera on the export button", async () => {
     await renderPage();
 
-    expect(screen.getByRole("button", { name: "Export map" }).querySelector('svg[data-icon="camera"]')).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Screenshot map" }).querySelector('svg[data-icon="camera"]')).toBeTruthy();
   });
 });

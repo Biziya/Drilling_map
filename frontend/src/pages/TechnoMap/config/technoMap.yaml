@@ -12,10 +12,11 @@ dataSource: backend
 
 zoom:
   minZoom: 1
-  maxZoom: 90
+  # Linear CSS scale, not tile zoom: halves metres per pixel versus 90x.
+  # SVG/grid overzoom needs no extra tiles. Marker sizes remain constant.
+  maxZoom: 180
   zoomStep: 0.4
-  # Zoom the wheel/button steps snap to, and the zoom from which deviation
-  # lines are drawn.
+  # Scale from which deviation lines are drawn; zoom steps stay linear.
   deviationMinZoom: 10
   # Space kept around the drillholes when Reset fits them into view, in px.
   fitPadding: 48

@@ -2,6 +2,7 @@
 // zoom about a point, clicks on the map, and persisting the view across page
 // switches.
 
+import { wheelZoomDelta } from '../../../utils/mapWheel';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   MouseEvent as ReactMouseEvent,
@@ -123,7 +124,7 @@ export function useMapViewport({ settings, viewKey, dragIgnoreSelector, overlayS
       // A floating control keeps the wheel; it does not zoom the map underneath.
       if (event.target instanceof Element && event.target.closest(overlaySelector)) return;
       event.preventDefault();
-      zoomBy(event.deltaY < 0 ? settings.zoomStep : -settings.zoomStep, pointWithin(viewport, event));
+      zoomBy(wheelZoomDelta(event, settings.zoomStep), pointWithin(viewport, event));
     };
 
     viewport.addEventListener('wheel', handleWheel, { passive: false });

@@ -34,8 +34,8 @@ describe("exportFileName", () => {
   it("uses the local date and time", () => {
     const date = new Date(2026, 9, 21, 9, 5);
 
-    expect(exportFileName("png", date)).toBe("TechnoMap_2026-10-21_09-05.png");
-    expect(exportFileName("svg", date)).toBe("TechnoMap_2026-10-21_09-05.svg");
+    expect(exportFileName("png", date)).toBe("TechnoMap_2026-10-21_09-05-00.png");
+    expect(exportFileName("svg", date)).toBe("TechnoMap_2026-10-21_09-05-00.svg");
   });
 });
 
@@ -193,7 +193,7 @@ describe("exportMap", () => {
     await exportMap("svg", snapshot());
 
     expect(click).toHaveBeenCalledTimes(1);
-    expect(click.downloaded).toMatch(/^TechnoMap_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}\.svg$/);
+    expect(click.downloaded).toMatch(/^TechnoMap_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.svg$/);
     expect(created[0].type).toBe("image/svg+xml");
   });
 
