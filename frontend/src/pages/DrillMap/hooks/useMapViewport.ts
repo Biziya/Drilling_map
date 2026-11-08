@@ -2,7 +2,7 @@
 // zoom about a point, clicks on the map, and persisting the view across page
 // switches.
 
-import { wheelZoomDelta } from '../../../utils/mapWheel';
+import { getWheelZoomStep, wheelZoomDelta } from '../../../utils/mapWheel';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   MouseEvent as ReactMouseEvent,
@@ -103,7 +103,7 @@ export function useMapViewport({ settings, viewKey, dragIgnoreSelector, overlayS
   const mapOrigin = useMemo(() => computeMapOrigin(viewportSize, renderedMapSize), [viewportSize, renderedMapSize]);
 
   /** Zooms keeping `anchor` fixed; without an anchor, zooms about the centre. */
-  const zoomBy = useCallback((delta: number, anchor?: Point) => {
+  const zoomBy = useCallback((delta: number | ((scale: number) => number), anchor?: Point) => {
     const viewport = viewportRef.current;
     if (!viewport) return;
 
@@ -111,7 +111,7 @@ export function useMapViewport({ settings, viewKey, dragIgnoreSelector, overlayS
     const origin = computeMapOrigin(rect, renderedMapSize);
     const point = anchor ?? { x: rect.width / 2, y: rect.height / 2 };
 
-    updateView((current) => zoomView(current, current.scale + delta, point, origin, settings));
+    updateView((current) => zoomView(current, current.scale + (typeof delta === 'function' ? delta(current.scale) : delta), point, origin, settings));
   }, [renderedMapSize, settings, updateView]);
 
   // Registered natively: React attaches wheel listeners passively, and this
@@ -124,13 +124,16 @@ export function useMapViewport({ settings, viewKey, dragIgnoreSelector, overlayS
       // A floating control keeps the wheel; it does not zoom the map underneath.
       if (event.target instanceof Element && event.target.closest(overlaySelector)) return;
       event.preventDefault();
-      zoomBy(wheelZoomDelta(event, settings.zoomStep), pointWithin(viewport, event));
+      const input = wheelZoomDelta(event, 1);
+      if (input === 0) return;
+      // Evaluate against the live view, even when several events share a frame.
+      zoomBy((scale) => input * getWheelZoomStep(scale, settings), pointWithin(viewport, event));
     };
 
     viewport.addEventListener('wheel', handleWheel, { passive: false });
 
     return () => viewport.removeEventListener('wheel', handleWheel);
-  }, [overlaySelector, settings.zoomStep, zoomBy]);
+  }, [overlaySelector, settings, zoomBy]);
 
   // Drag-to-pan. The pointer is captured, so a fast drag that leaves the
   // viewport keeps panning instead of stopping dead. `moved` turns true once

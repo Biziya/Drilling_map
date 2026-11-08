@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/react';
 import MapScreenshot from '../../src/components/MapScreenshot/MapScreenshot';
-import { wheelZoomDelta } from '../../src/utils/mapWheel';
+import { getWheelZoomStep, wheelZoomDelta } from '../../src/utils/mapWheel';
 import * as drillGeometry from '../../src/pages/DrillMap/utils/geometry';
 import * as technoGeometry from '../../src/pages/TechnoMap/utils/geometry';
 import * as drillExport from '../../src/pages/DrillMap/utils/exportMap';
@@ -17,13 +17,13 @@ describe.each([
   ['DrillMap', drillGeometry, drillExport, drillSettings],
   ['TechnoMap', technoGeometry, technoExport, technoSettings],
 ])('%s zoom and capture', (page, geometry, exporter, settings) => {
-  it('keeps a wheel notch constant at low, threshold and high scales, with a fixed cursor anchor', () => {
+  it('applies progressive wheel steps at low, middle and high scales with a fixed cursor anchor', () => {
     const origin = { x: 5, y: 0 }, anchor = { x: 400, y: 300 }, mapSize = { width: 990, height: 700 };
-    for (const scale of [1, 9.8, 15, 90, 179]) {
+    for (const scale of [1, 9.8, 15, 90, 170]) {
       const view = { scale, translateX: -100, translateY: -50 };
-      const delta = wheelZoomDelta({ deltaY: -100, deltaMode: 0 }, settings.zoomStep);
+      const delta = wheelZoomDelta({ deltaY: -100, deltaMode: 0 }, getWheelZoomStep(scale, settings));
       const next = geometry.zoomView(view, scale + delta, anchor, origin, settings);
-      expect(next.scale - scale).toBeCloseTo(settings.zoomStep);
+      expect(next.scale - scale).toBeCloseTo(getWheelZoomStep(scale, settings));
       const before = geometry.viewportToMapRatio(anchor, view, origin, mapSize);
       const after = geometry.viewportToMapRatio(anchor, next, origin, mapSize);
       expect(after.x).toBeCloseTo(before.x, 12);

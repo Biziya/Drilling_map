@@ -58,8 +58,12 @@ export interface MapTransform {
 export interface MapZoomSettings {
   minZoom: number;
   maxZoom: number;
+  /** Toolbar/double-click step, and wheel fallback when adaptive zoom is off. */
   zoomStep: number;
-  /** Zoom the steps snap to, and from which deviation lines are drawn. */
+  adaptiveZoomEnabled: boolean;
+  minWheelZoomStep: number;
+  maxWheelZoomStep: number;
+  /** Scale from which deviation lines are drawn. */
   deviationMinZoom: number;
 }
 

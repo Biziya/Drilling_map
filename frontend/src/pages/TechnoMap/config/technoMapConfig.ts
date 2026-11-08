@@ -97,7 +97,16 @@ export const MAP_CONFIG = parseConfig(
   object({
     title: text,
     dataSource: oneOf('mock', 'backend'),
-    zoom: object({ minZoom: number, maxZoom: number, zoomStep: number, deviationMinZoom: number, fitPadding: number }),
+    zoom: object({
+      minZoom: number,
+      maxZoom: number,
+      zoomStep: number,
+      adaptiveZoomEnabled: boolean,
+      minWheelZoomStep: positive,
+      maxWheelZoomStep: positive,
+      deviationMinZoom: number,
+      fitPadding: number,
+    }),
     baseMap: object({
       options: list(object({ id: oneOf(...BASE_MAP_IDS), label: text })),
       default: oneOf(...BASE_MAP_IDS),
@@ -139,6 +148,10 @@ export const MAP_CONFIG = parseConfig(
 coversExactly(MAP_CONFIG.drillholeTypes, DRILLHOLE_TYPES, 'technoMap.yaml.drillholeTypes');
 coversExactly(MAP_CONFIG.mapFeatures, MAP_FEATURES, 'technoMap.yaml.mapFeatures');
 checkBaseMapOptions(MAP_CONFIG.baseMap, 'technoMap.yaml.baseMap');
+
+if (MAP_CONFIG.zoom.maxWheelZoomStep < MAP_CONFIG.zoom.minWheelZoomStep) {
+  throw new ConfigError('technoMap.yaml.zoom.maxWheelZoomStep: expected at least minWheelZoomStep');
+}
 
 export const MAP_SETTINGS = MAP_CONFIG.zoom;
 

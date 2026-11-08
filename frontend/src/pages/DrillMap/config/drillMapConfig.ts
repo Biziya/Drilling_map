@@ -61,7 +61,15 @@ function checkBaseMapOptions({ options, default: fallback }: { options: readonly
 export const MAP_CONFIG = parseConfig(
   object({
     title: text,
-    zoom: object({ minZoom: number, maxZoom: number, zoomStep: number, deviationMinZoom: number }),
+    zoom: object({
+      minZoom: number,
+      maxZoom: number,
+      zoomStep: number,
+      adaptiveZoomEnabled: boolean,
+      minWheelZoomStep: positive,
+      maxWheelZoomStep: positive,
+      deviationMinZoom: number,
+    }),
     baseMap: object({
       options: list(object({ id: oneOf(...BASE_MAP_IDS), label: text })),
       default: oneOf(...BASE_MAP_IDS),
@@ -94,6 +102,10 @@ export const MAP_CONFIG = parseConfig(
 );
 
 checkBaseMapOptions(MAP_CONFIG.baseMap, 'drillMap.yaml.baseMap');
+
+if (MAP_CONFIG.zoom.maxWheelZoomStep < MAP_CONFIG.zoom.minWheelZoomStep) {
+  throw new ConfigError('drillMap.yaml.zoom.maxWheelZoomStep: expected at least minWheelZoomStep');
+}
 
 export const MAP_SETTINGS = MAP_CONFIG.zoom;
 

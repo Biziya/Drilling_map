@@ -15,8 +15,14 @@ zoom:
   # Linear CSS scale, not tile zoom: halves metres per pixel versus 90x.
   # SVG/grid overzoom needs no extra tiles. Marker sizes remain constant.
   maxZoom: 180
+  # Toolbar/double-click step; also used by the wheel when adaptive zoom is off.
   zoomStep: 0.4
-  # Scale from which deviation lines are drawn; zoom steps stay linear.
+  adaptiveZoomEnabled: true
+  # Wheel steps interpolate linearly between these values over minZoom..maxZoom.
+  # Touchpads use fractional steps; a single wheel event is capped at one step.
+  minWheelZoomStep: 0.4
+  maxWheelZoomStep: 6
+  # Scale from which deviation lines are drawn; no threshold snapping.
   deviationMinZoom: 10
   # Space kept around the drillholes when Reset fits them into view, in px.
   fitPadding: 48
