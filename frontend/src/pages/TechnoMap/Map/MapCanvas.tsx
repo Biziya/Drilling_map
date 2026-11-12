@@ -1,5 +1,4 @@
-import type { CSSProperties, ReactEventHandler, ReactNode } from 'react';
-import { BASE_MAP_SRC } from '../config/technoMapConfig';
+import type { CSSProperties, ReactEventHandler } from 'react';
 
 export interface MapCanvasProps {
   /** Transform and size, from buildCanvasTransformStyle. */
@@ -12,13 +11,12 @@ export interface MapCanvasProps {
    * so switching back is instant and nothing moves.
    */
   showImage?: boolean;
-  /** The image the map is laid out on; the default base map's when left out. */
-  src?: string;
-  children?: ReactNode;
+  /** The image the map is laid out on. */
+  src: string;
 }
 
-/** The pannable, zoomable layer: the base map with the features on top. */
-function MapCanvas({ style, onImageLoad, onImageError, showImage = true, src = BASE_MAP_SRC, children }: MapCanvasProps) {
+/** The pannable, zoomable base map image. */
+function MapCanvas({ style, onImageLoad, onImageError, showImage = true, src }: MapCanvasProps) {
   return (
     <div className="map-canvas" style={style}>
       <img
@@ -30,7 +28,6 @@ function MapCanvas({ style, onImageLoad, onImageError, showImage = true, src = B
         onLoad={onImageLoad}
         onError={onImageError}
       />
-      {children}
     </div>
   );
 }

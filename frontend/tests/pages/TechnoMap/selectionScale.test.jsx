@@ -4,27 +4,21 @@
 // Also covers switching base maps with a big selection.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import TechnoMap from "../../../src/pages/TechnoMap/TechnoMap.jsx";
 import { clearAllMapViews } from "../../../src/state/mapViewStore.js";
-import { clearMapData } from "../../../src/state/mapDataStore.js";
+import { clearMapData, getMapData } from "../../../src/state/mapDataStore.js";
 import { DATASET_IDS, clearCachedDataset } from "../../../src/services/cache/drillholeCache.js";
 import { loadMapImages, markerCanvas, selectedRingCount } from "./canvasMap.js";
 
 const tableRenders = vi.hoisted(() => ({ count: 0 }));
 
-vi.mock("../../../src/pages/TechnoMap/config/technoMapConfig.js", async (importOriginal) => {
-  const actual = await importOriginal();
-
-  return { ...actual, MAP_CONFIG: { ...actual.MAP_CONFIG, dataSource: "mock" } };
-});
-
-// The demo dataset becomes the 5,000-hole performance dataset.
-vi.mock("../../../src/pages/TechnoMap/mock/mockData.js", async (importOriginal) => {
+// The page loads a 5,000-hole dataset through its normal backend path.
+vi.mock("../../../src/services/api/mapData.js", async (importOriginal) => {
   const actual = await importOriginal();
   const { buildPerfDataset } = await import("./perfDataset.js");
 
-  return { ...actual, MOCK_DRILLHOLES: Object.freeze(buildPerfDataset(5000)), MOCK_CELLS: Object.freeze([]) };
+  return { ...actual, fetchTechnoMap: vi.fn(() => Promise.resolve(buildPerfDataset(5000))) };
 });
 
 // Every render of the selection table calls this hook once: a render counter.
@@ -80,7 +74,7 @@ const selectedCount = (container) => Number(container.querySelector(".selection-
 /** The page with every drawn hole selected by one box over the whole map. */
 async function selectEverything() {
   const result = render(<TechnoMap />);
-  await act(async () => {});
+  await waitFor(() => expect(getMapData("techno-map").records).not.toBeNull());
   await loadMapImages(result.container);
   const drawn = Number(markerCanvas(result.container).dataset.drawn);
 

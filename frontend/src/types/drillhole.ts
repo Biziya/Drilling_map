@@ -59,7 +59,7 @@ export interface DrillholeMapItem {
 }
 
 /** PascalCase spellings the API also sends. Aliases, never additional data. */
-export interface DrillholePascalCaseAliases {
+interface DrillholePascalCaseAliases {
   HoleId?: ApiText;
   Hole_ID?: ApiText;
   CoordinateType?: ApiText;

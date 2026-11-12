@@ -22,27 +22,11 @@ export default defineConfig(({ mode }) => {
       __APP_VERSION__: JSON.stringify(readFileSync('../VERSION', 'utf8')),
     },
 
-    // Two backends: the map pages read the drilling API, the Weekly Geos
-    // pages the reporting API, and they do not share a port. Each gets its
-    // own prefix so a same-origin setup can reach both without CORS.
+    // Forwards same-origin /api calls to the backend in development.
     server: {
-      proxy: {
-        // Only used when VITE_API_BASE_URL is blank and the API is reached same-origin.
-        ...(env.VITE_API_BASE_URL
-          ? { '/api': { target: env.VITE_API_BASE_URL, changeOrigin: true } }
-          : {}),
-
-        // The reporting API serves these under /api; the prefix is only
-        // how the browser tells the two backends apart, so it is rewritten
-        // away before the request leaves the dev server.
-        '/weekly-api': {
-          target: env.VITE_WEEKLY_PROXY_TARGET || 'http://localhost:5156',
-          changeOrigin: true,
-          // The https profile's certificate is self-signed.
-          secure: false,
-          rewrite: (path) => path.replace(/^\/weekly-api/, '/api'),
-        },
-      },
+      proxy: env.VITE_API_BASE_URL
+        ? { '/api': { target: env.VITE_API_BASE_URL, changeOrigin: true } }
+        : undefined,
     },
 
     test: {
@@ -51,6 +35,8 @@ export default defineConfig(({ mode }) => {
       include: ['tests/**/*.test.{js,jsx}'],
       setupFiles: ['tests/setup/canvas.js', 'tests/setup/pointer.js'],
       css: false,
+      // Node 25+ has its own localStorage global, which hides jsdom's.
+      poolOptions: { forks: { execArgv: ['--no-experimental-webstorage'] } },
     },
   };
 });

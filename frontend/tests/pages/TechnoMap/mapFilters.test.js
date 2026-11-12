@@ -52,8 +52,8 @@ describe("isDrillholeShown", () => {
     expect(isDrillholeShown(PRODUCER, without("drilling-in-progress"))).toBe(true);
   });
 
-  it("is unaffected by the technological cells and deviation layers", () => {
-    expect(isDrillholeShown(PRODUCER, without("technological-cells", "deviation-line"))).toBe(true);
+  it("is unaffected by the deviation layer", () => {
+    expect(isDrillholeShown(PRODUCER, without("deviation-line"))).toBe(true);
   });
 });
 
@@ -72,7 +72,7 @@ describe("selectShownFeatures", () => {
 });
 
 describe("setAllFilters and parseFilters", () => {
-  it("covers all 12 filters", () => {
+  it("covers every filter", () => {
     expect(Object.keys(setAllFilters(true)).sort()).toEqual([...FILTER_IDS].sort());
     expect(Object.values(setAllFilters(false)).every((value) => value === false)).toBe(true);
   });

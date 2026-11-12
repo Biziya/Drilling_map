@@ -25,7 +25,7 @@ export interface BackendStatusStore {
   poll: () => Promise<void>;
 }
 
-export function createBackendStatusStore({
+function createBackendStatusStore({
   checkIntervalMs,
   timeoutMs,
   check = checkBackendHealth,
@@ -72,7 +72,7 @@ export function createBackendStatusStore({
   return { subscribe, getStatus: () => status, poll };
 }
 
-export const backendStatusStore = createBackendStatusStore(APP_CONFIG.connection);
+const backendStatusStore = createBackendStatusStore(APP_CONFIG.connection);
 
 export function useBackendStatus(store: BackendStatusStore = backendStatusStore): BackendStatus {
   return useSyncExternalStore(store.subscribe, store.getStatus);

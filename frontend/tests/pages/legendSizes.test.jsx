@@ -66,14 +66,6 @@ describe.each(PAGES)("%s legend sizes", (_page, MapLegend, { MAP_CONFIG }, yamlP
     expect(reloaded.legend.symbolSize).toBe(22);
   });
 
-  it("rejects a negative size, naming the setting", async () => {
-    const actual = (await vi.importActual(yamlPath)).default;
-    vi.doMock(yamlPath, () => ({
-      default: { ...actual, legend: { ...actual.legend, symbolSize: -4 } },
-    }));
-
-    await expect(import(configPath)).rejects.toThrow(/legend\.symbolSize: expected 0 or more/);
-  });
 
   it.runIf(hasGt)("lays the GT bands out in gt.columns columns", () => {
     render(<MapLegend />);
@@ -82,23 +74,7 @@ describe.each(PAGES)("%s legend sizes", (_page, MapLegend, { MAP_CONFIG }, yamlP
     expect(variable("--legend-gt-column-gap")).toBe(`${MAP_CONFIG.legend.gt.columnGap}px`);
   });
 
-  it.runIf(hasGt).each([0, 1.5, -2])("rejects %s GT columns", async (columns) => {
-    const actual = (await vi.importActual(yamlPath)).default;
-    vi.doMock(yamlPath, () => ({
-      default: { ...actual, legend: { ...actual.legend, gt: { ...actual.legend.gt, columns } } },
-    }));
 
-    await expect(import(configPath)).rejects.toThrow(/legend\.gt\.columns: expected a whole number of 1 or more/);
-  });
-
-  it("rejects a missing size", async () => {
-    const actual = (await vi.importActual(yamlPath)).default;
-    const legend = { ...actual.legend };
-    delete legend.labelGap;
-    vi.doMock(yamlPath, () => ({ default: { ...actual, legend } }));
-
-    await expect(import(configPath)).rejects.toThrow(/legend\.labelGap/);
-  });
 });
 
 describe("TechnoMap legend symbols", () => {

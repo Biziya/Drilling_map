@@ -20,9 +20,6 @@ describe("zoom settings", () => {
     expect(MAP_SETTINGS.deviationMinZoom).toBe(10);
   });
 
-  it("no longer carries the old Exploration-only threshold either", () => {
-    expect(MAP_SETTINGS.deviationVisibleFromZoom).toBeUndefined();
-  });
 });
 
 describe("Techno Map config", () => {
@@ -46,12 +43,8 @@ describe("Techno Map config", () => {
     MARKER_KINDS.forEach((kind) => expect(MAP_CONFIG.markerLabels[kind]).toEqual(expect.any(String)));
   });
 
-  it("defaults to the backend dataset", () => {
-    expect(MAP_CONFIG.dataSource).toBe("backend");
-  });
-
-  it("defines exactly 12 filters: nine drillhole types and three feature layers", () => {
-    expect(FILTER_IDS).toHaveLength(12);
+  it("defines 11 filters: nine drillhole types and two feature layers", () => {
+    expect(FILTER_IDS).toHaveLength(11);
     expect(MAP_CONFIG.drillholeTypes.map(({ id }) => id)).toEqual([...DRILLHOLE_TYPES]);
     expect(MAP_CONFIG.mapFeatures.map(({ id }) => id)).toEqual([...MAP_FEATURES]);
     expect(MAP_CONFIG.drillholeTypes.map(({ label }) => label)).toEqual([
@@ -59,7 +52,7 @@ describe("Techno Map config", () => {
       "Producer", "Ra-grade-sampling", "Sediment-sampling", "Water",
     ]);
     expect(MAP_CONFIG.mapFeatures.map(({ label }) => label))
-      .toEqual(["Technological cells", "Drilling in progress", "Deviation line"]);
+      .toEqual(["Drilling in progress", "Deviation line"]);
   });
 
   // The marker table: shapes and colour families per category. Development,

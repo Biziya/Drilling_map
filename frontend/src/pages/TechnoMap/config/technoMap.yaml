@@ -3,13 +3,6 @@
 
 title: Techno Map
 
-# Where the drillholes come from:
-#   mock    - the fixed demo dataset in mock/mockData.ts. No backend request,
-#             nothing written to IndexedDB, and a "Demo" badge by the title.
-#   backend - GET /api/techno-map (pyISR_AllData_V2), cached in IndexedDB
-#             under techno-map. Never falls back to the demo dataset.
-dataSource: backend
-
 zoom:
   minZoom: 1
   # Linear CSS scale, not tile zoom: halves metres per pixel versus 90x.
@@ -100,7 +93,6 @@ markers:
 
 # Map feature layers, in filter-panel and legend order.
 mapFeatures:
-  - { id: technological-cells, label: Technological cells }
   - { id: drilling-in-progress, label: Drilling in progress }
   - { id: deviation-line, label: Deviation line }
 
@@ -117,10 +109,6 @@ markerLabels:
   sediment-sampling: Sediment-sampling drillhole
   water: Water drillhole
 
-technologicalCells:
-  stroke: '#166534'
-  fill: 'rgba(34, 197, 94, 0.12)'
-
 deviationLine:
   color: '#ff0000'
 
@@ -135,9 +123,8 @@ interaction:
   pinnedColor: '#16a34a'
 
 # The legend anchored in the map's top-left corner: one row per drillhole type,
-# then the rig and the deviation line, in filter order (technological cells
-# stay in the Legends panel only). Dimensions in px unless noted; all must be
-# 0 or more. symbolSize is the one base size of every legend symbol. Each
+# then the rig and the deviation line, in filter order. Dimensions in px
+# unless noted; all must be 0 or more. symbolSize is the one base size of every legend symbol. Each
 # symbol is centred in a box 1.9 x symbolSize wide and as tall as the rig icon,
 # so every label starts at the same x; the rig icon and line swatch scale too.
 legend:

@@ -7,8 +7,6 @@ function LayerSymbol({ id }: { id: FilterId }) {
   let symbol;
   if (id === 'drilling-in-progress') {
     symbol = <img className="legend-rig-icon" src={MAP_CONFIG.rigIconSrc} alt="" draggable="false" />;
-  } else if (id === 'technological-cells') {
-    symbol = <i className="layer-swatch-cell" />;
   } else if (id === 'deviation-line') {
     symbol = <i className="layer-swatch-line" />;
   } else {

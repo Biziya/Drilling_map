@@ -11,12 +11,11 @@ export interface LayerPanelProps {
 }
 
 /**
- * A filter's label colour: a drillhole type's marker colour, the cell outline
- * and deviation line colours for those layers (all from technoMap.yaml), and
+ * A filter's label colour: a drillhole type's marker colour, the deviation
+ * line colour for that layer (all from technoMap.yaml), and
  * the panel's own text colour for Drilling in progress, whose symbol is the rig.
  */
 function labelColor(id: FilterId): string | undefined {
-  if (id === 'technological-cells') return MAP_CONFIG.technologicalCells.stroke;
   if (id === 'deviation-line') return MAP_CONFIG.deviationLine.color;
   if (id === 'drilling-in-progress') return undefined;
 
@@ -24,7 +23,7 @@ function labelColor(id: FilterId): string | undefined {
 }
 
 /**
- * Floating "Legends" panel in the map's top-right corner: the 12 filters,
+ * Floating "Legends" panel in the map's top-right corner: every filter,
  * Show All / Hide All, and a collapse toggle. Opens expanded on every visit;
  * only the filter choices are remembered.
  */

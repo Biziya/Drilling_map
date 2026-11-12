@@ -2,8 +2,7 @@
 //
 // Both formats come from one SVG document built from the same data and rules
 // as the screen: the selected base map (the Redox Map image, embedded since an
-// export must stand alone, or the white coordinate grid), technological cells,
-// deviation lines, markers, the measurement, then the title and scale bar.
+// export must stand alone, or the white coordinate grid), deviation lines, markers, the measurement, then the title and scale bar.
 // The live map draws markers on a canvas; this is its vector twin, from the
 // same features (markerLayer.ts), shapes, sizes and colours. Floating UI
 // (legend, Legends panel, toolbar, tooltip) is never drawn. PNG rasterises
@@ -12,9 +11,8 @@
 import type { CaptureRect } from '../../../components/MapScreenshot/MapScreenshot';
 import { DRILLHOLE_TYPE_CONFIG, MAP_CONFIG, baseMapLayout } from '../config/technoMapConfig';
 import type { BaseMapId } from '../config/technoMapConfig';
-import type { TechnoCell } from '../mock/mockData';
 import { computeCoordinateGrid } from './coordinateGrid';
-import { outlineCentre, utmToMapRatio } from './coordinates';
+import { utmToMapRatio } from './coordinates';
 import { selectShownFeatures } from './mapFilters';
 import type { MapFilters } from './mapFilters';
 import { buildMarkerFeatures, screenTransform } from './markerLayer';
@@ -34,7 +32,6 @@ export interface MapSnapshot {
   mapOrigin: Point;
   mapSize: Size;
   drillholes: readonly ProjectedDrillhole[];
-  cells: readonly TechnoCell[];
   filters: MapFilters;
   measurement: readonly UtmCoordinates[];
   title: string;
@@ -166,7 +163,7 @@ function measurementSvg(points: readonly UtmCoordinates[], toScreen: (point: Utm
 
 /** The export as one standalone SVG document, `pixelRatio` times the viewport size. */
 export function buildMapSvg(snapshot: MapSnapshot, assets: ExportAssets, pixelRatio = 1): string {
-  const { viewport, view, mapOrigin, mapSize, drillholes, cells, filters, measurement, title } = snapshot;
+  const { viewport, view, mapOrigin, mapSize, drillholes, filters, measurement, title } = snapshot;
   const t = screenTransform(view, mapOrigin, mapSize);
   const toScreen = (ratio: Point): Point => ({ x: t.x + ratio.x * t.width, y: t.y + ratio.y * t.height });
   const { bounds } = layoutOf(snapshot);
@@ -181,23 +178,6 @@ export function buildMapSvg(snapshot: MapSnapshot, assets: ExportAssets, pixelRa
       : `<image href="${assets.baseMap}" x="${n(mapOrigin.x + view.translateX)}" y="${n(mapOrigin.y + view.translateY)}" `
         + `width="${n(mapSize.width * view.scale)}" height="${n(mapSize.height * view.scale)}" preserveAspectRatio="none"/>`,
   ];
-
-  if (filters['technological-cells']) {
-    const { stroke, fill } = MAP_CONFIG.technologicalCells;
-    cells.forEach((cell) => {
-      const points = cell.vertices.map((vertex) => {
-        const { x, y } = utmToScreen(vertex);
-
-        return `${n(x)},${n(y)}`;
-      });
-      const centre = utmToScreen(outlineCentre(cell.vertices));
-      parts.push(
-        `<polygon points="${points.join(' ')}" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>`,
-        `<text x="${n(centre.x)}" y="${n(centre.y + 4)}" text-anchor="middle" font-family="${FONT}" font-size="11" `
-          + `font-weight="700" fill="${stroke}" stroke="#fff" stroke-width="3" paint-order="stroke">${escapeXml(cell.label)}</text>`,
-      );
-    });
-  }
 
   const features = selectShownFeatures(buildMarkerFeatures(drillholes, bounds), filters)
     .map((feature) => ({ feature, at: toScreen(feature) }));

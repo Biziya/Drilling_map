@@ -1,11 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
-import { MAP_CONFIG, MAP_ID } from '../config/technoMapConfig';
-import { MOCK_CELLS, MOCK_DRILLHOLES } from '../mock/mockData';
-import type { TechnoCell } from '../mock/mockData';
+import { useEffect, useMemo } from 'react';
+import { MAP_ID } from '../config/technoMapConfig';
 import { convertUtmToMapPosition } from '../utils/coordinates';
-import { showToast } from '../../../components/Toast/toastStore';
 import { fetchTechnoMap } from '../../../services/api/mapData';
-import { MAP_DATA_MESSAGES, loadMapData, useMapDataEntry } from '../../../state/mapDataStore';
+import { loadMapData, useMapDataEntry } from '../../../state/mapDataStore';
 import type { MapDataFailure } from '../../../state/mapDataStore';
 import type { DrillholeApiRecord } from '../../../types/drillhole';
 import type { MapBounds, ProjectedDrillhole } from '../../../types/map';
@@ -23,20 +20,12 @@ export type MapDataStatus = 'loading' | 'ready' | 'empty' | 'unplaceable' | 'una
 export interface MapData {
   status: MapDataStatus;
   drillholes: ProjectedDrillhole[];
-  /** Technological cell outlines. Only the demo dataset has them; the API does not. */
-  cells: readonly TechnoCell[];
   isFetching: boolean;
   /** Why the last request failed, or null. */
   failure: MapDataFailure | null;
-  /** True while showing the fixed demo dataset instead of backend data. */
-  isDemo: boolean;
-  /** Reloads the data: the backend, bypassing the cache, or the demo dataset. */
+  /** Reloads from the backend, bypassing the cache. */
   refresh: () => void;
 }
-
-/** Long enough for the refresh icon to visibly turn while the demo data reloads. */
-const DEMO_RELOAD_MS = 500;
-const NO_CELLS: readonly TechnoCell[] = Object.freeze([]);
 
 /** Projects every record, dropping the ones that cannot be placed. */
 export function projectRecords(records: readonly DrillholeApiRecord[], bounds?: MapBounds): ProjectedDrillhole[] {
@@ -44,43 +33,17 @@ export function projectRecords(records: readonly DrillholeApiRecord[], bounds?: 
 }
 
 /**
- * This page's drillholes. Backend mode: /api/techno-map, cache first, then the
- * backend, automatically. Mock mode: the fixed demo dataset, with no request
- * and nothing written to IndexedDB. Holes are placed on the base map whose UTM
- * corners are `bounds` (the shown background's).
+ * This page's drillholes from /api/techno-map: cache first, then the backend.
+ * Holes are placed on the base map whose UTM corners are `bounds`.
  */
 export function useMapData(bounds?: MapBounds): MapData {
-  const isDemo = MAP_CONFIG.dataSource === 'mock';
   const { records, isFetching, failure } = useMapDataEntry(MAP_ID);
-  const [isReloadingDemo, setIsReloadingDemo] = useState(false);
 
   useEffect(() => {
-    if (!isDemo) void loadMapData(MAP_ID, fetchTechnoMap);
-  }, [isDemo]);
+    void loadMapData(MAP_ID, fetchTechnoMap);
+  }, []);
 
-  const activeRecords = isDemo ? MOCK_DRILLHOLES : records;
-  const drillholes = useMemo(() => projectRecords(activeRecords ?? [], bounds), [activeRecords, bounds]);
-
-  if (isDemo) {
-    return {
-      status: drillholes.length ? 'ready' : 'unplaceable',
-      drillholes,
-      cells: MOCK_CELLS,
-      isFetching: isReloadingDemo,
-      failure: null,
-      isDemo,
-      // The dataset is a constant, so reloading it changes nothing on screen:
-      // positions, filters, view and measurement all stay put.
-      refresh: () => {
-        if (isReloadingDemo) return;
-        setIsReloadingDemo(true);
-        window.setTimeout(() => {
-          setIsReloadingDemo(false);
-          showToast('success', MAP_DATA_MESSAGES.refreshed);
-        }, DEMO_RELOAD_MS);
-      },
-    };
-  }
+  const drillholes = useMemo(() => projectRecords(records ?? [], bounds), [records, bounds]);
 
   let status: MapDataStatus = 'ready';
   if (!records) status = failure && !isFetching ? 'unavailable' : 'loading';
@@ -90,10 +53,8 @@ export function useMapData(bounds?: MapBounds): MapData {
   return {
     status,
     drillholes,
-    cells: NO_CELLS,
     isFetching,
     failure,
-    isDemo,
     refresh: () => void loadMapData(MAP_ID, fetchTechnoMap, { manual: true }),
   };
 }

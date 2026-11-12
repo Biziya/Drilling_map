@@ -86,9 +86,6 @@ describe("zoom settings", () => {
     expect(MAP_SETTINGS.deviationMinZoom).toBe(10);
   });
 
-  it("no longer carries the old Exploration-only threshold", () => {
-    expect(MAP_SETTINGS.deviationVisibleFromZoom).toBeUndefined();
-  });
 });
 
 describe("Exploration Map config", () => {

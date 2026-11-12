@@ -3,10 +3,10 @@ import { buildMapSvg, exportFileName, exportMap } from "../../../src/pages/Techn
 import { ALL_VISIBLE, setAllFilters } from "../../../src/pages/TechnoMap/utils/mapFilters.js";
 import { convertUtmToMapPosition } from "../../../src/pages/TechnoMap/utils/coordinates.js";
 import { MAP_CONFIG } from "../../../src/pages/TechnoMap/config/technoMapConfig.js";
-import { MOCK_CELLS, MOCK_DRILLHOLES } from "../../../src/pages/TechnoMap/mock/mockData.js";
+import { DEMO_DRILLHOLES } from "./demoDataset.js";
 
 const ASSETS = { baseMap: "data:image/svg+xml;base64,AAAA", rigIcon: "data:image/svg+xml;base64,BBBB" };
-const drillholes = MOCK_DRILLHOLES.map((hole) => convertUtmToMapPosition(hole));
+const drillholes = DEMO_DRILLHOLES.map((hole) => convertUtmToMapPosition(hole));
 
 // The whole map in view at scale 1: 990 x 700 map in a 1000 x 700 viewport.
 const snapshot = (overrides = {}) => ({
@@ -15,7 +15,6 @@ const snapshot = (overrides = {}) => ({
   mapOrigin: { x: 5, y: 0 },
   mapSize: { width: 990, height: 700 },
   drillholes,
-  cells: MOCK_CELLS,
   filters: ALL_VISIBLE,
   measurement: [],
   title: "Techno Map",
@@ -88,7 +87,7 @@ describe("buildMapSvg", () => {
     expect(text).toContain("Techno Map");
   });
 
-  // /api/techno-map rows: no cells, an unmapped Type, a deviation endpoint.
+  // /api/techno-map rows: an unmapped Type, a deviation endpoint.
   it("exports backend records by their category, with the API's deviation endpoint", () => {
     const records = [
       { holeId: "P-1", x: 418200, y: 4894300, holePurpose: "PRODUCT", category: "producer", deviationEndX: 418210, deviationEndY: 4894300 },
@@ -96,11 +95,10 @@ describe("buildMapSvg", () => {
     ].map((hole) => convertUtmToMapPosition(hole));
     // Zoomed onto the wellfield, past the deviation zoom.
     const view = { scale: 12, translateX: -5730, translateY: -3900 };
-    const doc = parse(buildMapSvg(snapshot({ drillholes: records, cells: [], view }), ASSETS));
+    const doc = parse(buildMapSvg(snapshot({ drillholes: records, view }), ASSETS));
 
     expect(doc.querySelectorAll("polygon[fill='#fff']")).toHaveLength(1);
     expect(doc.querySelectorAll(`line[stroke='${MAP_CONFIG.deviationLine.color}']`)).toHaveLength(1);
-    expect(doc.querySelectorAll(`polygon[stroke='${MAP_CONFIG.technologicalCells.stroke}']`)).toHaveLength(0);
   });
 
   // The export is the canvas's vector twin: same shapes, sizes and colours.
@@ -113,7 +111,7 @@ describe("buildMapSvg", () => {
       { holeId: "I", ...at, x: 418260, category: "injector" },
     ].map((hole) => convertUtmToMapPosition(hole));
     const view = { scale: 12, translateX: -5730, translateY: -3900 };
-    const doc = parse(buildMapSvg(snapshot({ drillholes: records, cells: [], view }), ASSETS));
+    const doc = parse(buildMapSvg(snapshot({ drillholes: records, view }), ASSETS));
     const fills = (selector) => [...doc.querySelectorAll(selector)].map((node) => node.getAttribute("fill"));
     const colour = (id) => MAP_CONFIG.drillholeTypes.find((type) => type.id === id).color;
 
@@ -123,14 +121,6 @@ describe("buildMapSvg", () => {
     // The rig is the last marker drawn.
     const markers = [...doc.querySelectorAll("circle, polygon, image")].filter((node) => node.getAttribute("href") !== ASSETS.baseMap);
     expect(markers.at(-1).getAttribute("href")).toBe(ASSETS.rigIcon);
-  });
-
-  it("draws the technological cells and their labels when enabled", () => {
-    const doc = parse(buildMapSvg(snapshot(), ASSETS));
-    const text = [...doc.querySelectorAll("text")].map((node) => node.textContent);
-
-    expect(doc.querySelectorAll(`polygon[stroke='${MAP_CONFIG.technologicalCells.stroke}']`)).toHaveLength(5);
-    expect(text).toEqual(expect.arrayContaining(["TC-001", "TC-005"]));
   });
 
   it("draws deviation lines only past the deviation zoom and with the layer on", () => {
