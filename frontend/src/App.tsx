@@ -1,6 +1,12 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import Sidebar from "./components/Sidebar/Sidebar";
 import ToastContainer from "./components/Toast/ToastContainer";
+import NewYearGreeting from "./components/NewYearGreeting/NewYearGreeting";
+import {
+  isGreetingSeason,
+  markGreetingSeen,
+  shouldShowGreeting,
+} from "./components/NewYearGreeting/greeting";
 import DrillMap from "./pages/DrillMap/DrillMap";
 import TechnoMap from "./pages/TechnoMap/TechnoMap";
 import { APP_CONFIG } from "./config/app";
@@ -17,6 +23,16 @@ const WeeklyGeos = lazy(() => import("./pages/WeeklyGeos/WeeklyGeos"));
 function App() {
   const [activePage, setActivePage] = useState<AppPageId>("drill-map");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  // The Data Team's New Year greeting: once per browser, Nov 12 – Dec 31.
+  const [isGreetingOpen, setIsGreetingOpen] = useState(() =>
+    shouldShowGreeting(),
+  );
+  const [isInGreetingSeason] = useState(() => isGreetingSeason(new Date()));
+
+  const closeGreeting = () => {
+    markGreetingSeen();
+    setIsGreetingOpen(false);
+  };
 
   // Keeps the browser tab title correct even if index.html still ships the
   // old placeholder title.
@@ -36,6 +52,9 @@ function App() {
         isCollapsed={isSidebarCollapsed}
         onNavigate={setActivePage}
         onToggle={() => setIsSidebarCollapsed((current) => !current)}
+        onOpenGreeting={
+          isInGreetingSeason ? () => setIsGreetingOpen(true) : undefined
+        }
       />
 
       <main className="min-h-0 min-w-0 overflow-hidden">
@@ -54,6 +73,7 @@ function App() {
       </main>
 
       <ToastContainer />
+      <NewYearGreeting open={isGreetingOpen} onClose={closeGreeting} />
     </div>
   );
 }

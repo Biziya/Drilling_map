@@ -1,0 +1,175 @@
+/* New Year greeting (components/NewYearGreeting): a night sky with falling
+   snow behind a navy-and-gold card. Its own palette on purpose: it looks the
+   same whatever the app's theme. */
+.ny-greeting {
+  --ny-night: #0b1630;
+  --ny-night-deep: #050b1c;
+  --ny-card: #12224a;
+  --ny-gold: #e8c26a;
+  --ny-gold-soft: #f3dca0;
+  --ny-text: #eef2fb;
+  --ny-muted: #b8c3dc;
+
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 16px;
+  /* The card scrolls on short screens; the snow canvas may round a pixel wider. */
+  overflow: hidden auto;
+  border: 0;
+  color: var(--ny-text);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgb(60 90 170 / .45), transparent 60%),
+    radial-gradient(ellipse at 50% 120%, rgb(232 194 106 / .14), transparent 55%),
+    linear-gradient(180deg, var(--ny-night) 0%, var(--ny-night-deep) 100%);
+  animation: ny-fade 500ms ease-out both;
+}
+.ny-greeting[open] { display: grid; place-items: center; }
+.ny-greeting::backdrop { background: var(--ny-night-deep); }
+
+.ny-greeting__snow {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.ny-greeting__card {
+  position: relative;
+  width: min(92vw, 470px);
+  padding: 22px 30px 26px;
+  border: 1px solid rgb(232 194 106 / .55);
+  border-radius: 18px;
+  text-align: center;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / .05), transparent 40%),
+    var(--ny-card);
+  box-shadow:
+    0 0 0 6px rgb(232 194 106 / .07),
+    0 24px 60px rgb(0 0 0 / .5);
+  animation: ny-rise 650ms 120ms cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.ny-greeting__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -8px -16px 0;
+}
+
+.ny-greeting__languages {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid rgb(232 194 106 / .35);
+  border-radius: 999px;
+}
+.ny-greeting__language {
+  min-width: 36px;
+  padding: 3px 9px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--ny-muted);
+  background: transparent;
+  font: inherit;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  cursor: pointer;
+}
+.ny-greeting__language:hover { color: var(--ny-gold-soft); }
+.ny-greeting__language[aria-pressed='true'] { color: var(--ny-night); background: var(--ny-gold); }
+
+.ny-greeting__close {
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--ny-muted);
+  background: transparent;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.ny-greeting__close:hover { color: var(--ny-text); background: rgb(255 255 255 / .08); }
+
+.ny-greeting__star {
+  width: 38px;
+  height: 38px;
+  margin: 4px auto 6px;
+  fill: var(--ny-gold);
+  filter: drop-shadow(0 0 10px rgb(232 194 106 / .7));
+  animation: ny-twinkle 3.2s ease-in-out infinite;
+}
+
+.ny-greeting__heading {
+  margin: 0 0 16px;
+  color: var(--ny-gold);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.5rem, 5vw, 1.95rem);
+  font-weight: 700;
+  line-height: 1.2;
+  text-shadow: 0 0 18px rgb(232 194 106 / .35);
+}
+
+.ny-greeting__body p {
+  margin: 0 0 14px;
+  color: var(--ny-text);
+  font-size: .98rem;
+  line-height: 1.65;
+  white-space: pre-line;
+}
+
+.ny-greeting__signature {
+  margin: 6px 0 20px;
+  color: var(--ny-gold-soft);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1rem;
+  font-style: italic;
+  text-align: right;
+}
+
+.ny-greeting__thanks {
+  padding: 9px 26px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--ny-night);
+  background: linear-gradient(180deg, var(--ny-gold-soft), var(--ny-gold));
+  box-shadow: 0 6px 18px rgb(232 194 106 / .25);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.ny-greeting__thanks:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgb(232 194 106 / .4); }
+
+.ny-greeting button:focus-visible {
+  outline: 3px solid var(--ny-gold-soft);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .ny-greeting__card { padding: 18px 20px 22px; }
+  .ny-greeting__toolbar { margin-inline: -8px; }
+  /* Too narrow for the poem's own line breaks: let the lines flow instead. */
+  .ny-greeting__body p { font-size: .92rem; white-space: normal; }
+}
+
+@keyframes ny-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ny-rise {
+  from { opacity: 0; transform: translateY(18px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ny-twinkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .75; transform: scale(.92); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ny-greeting__card,
+  .ny-greeting__star { animation: none; }
+  .ny-greeting__thanks { transition: none; }
+}
