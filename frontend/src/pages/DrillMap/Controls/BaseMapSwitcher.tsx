@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MAP_CONFIG } from '../config/drillMapConfig';
 import type { BaseMapId } from '../config/drillMapConfig';
+import { LayersIcon } from './icons';
 
 export interface BaseMapSwitcherProps {
   value: BaseMapId;
@@ -37,21 +38,7 @@ function BaseMapSwitcher({ value, onChange }: BaseMapSwitcherProps) {
         aria-label="Base map"
         title={current ? `Base map: ${current}` : 'Base map'}
       >
-        {/* Two stacked sheets: map layers. */}
-        <svg
-          className="size-4"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-          data-icon="layers"
-        >
-          <path d="m12 3 9 5-9 5-9-5z" />
-          <path d="m3 13 9 5 9-5" />
-        </svg>
+        <LayersIcon />
       </button>
 
       {isOpen && (

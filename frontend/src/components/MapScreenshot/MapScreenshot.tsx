@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent, RefObject } from 'react';
-import type { Point, Size } from '../../types/map';
+import type { Point } from '../../types/map';
+import { selectionRect } from './selectionRect';
+import type { CaptureRect } from './selectionRect';
 import './MapScreenshot.css';
 
-export interface CaptureRect extends Point, Size {}
+export type { CaptureRect } from './selectionRect';
 export type ScreenshotFormat = 'png' | 'svg';
-
-function selectionRect(a: Point, b: Point): CaptureRect {
-  return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(b.x - a.x), height: Math.abs(b.y - a.y) };
-}
 
 interface Props {
   viewportRef: RefObject<HTMLDivElement | null>;

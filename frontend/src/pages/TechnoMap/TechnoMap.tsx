@@ -1,4 +1,5 @@
 import MapScreenshot from '../../components/MapScreenshot/MapScreenshot';
+import HelpButton from '../../components/HelpDialog/HelpDialog';
 import type { CaptureRect } from '../../components/MapScreenshot/MapScreenshot';
 import { useCallback, useMemo, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
@@ -15,8 +16,11 @@ import MapStatus from './Map/MapStatus';
 import MeasurementOverlay from './Map/MeasurementOverlay';
 import TechnoCells from './Map/TechnoCells';
 import MarkerHighlight from './Map/MarkerHighlight';
+import BoxSelectOverlay from './Map/BoxSelectOverlay';
+import SelectionTable from './Table/SelectionTable';
 import MarkerTooltip from './Tooltips/MarkerTooltip';
 import { MAP_CONFIG, MAP_ID, MAP_SETTINGS } from './config/technoMapConfig';
+import { HELP_SECTIONS } from './config/helpContent';
 import { useBaseMap } from './hooks/useBaseMap';
 import { useMapData } from './hooks/useMapData';
 import { useMapFilters } from './hooks/useMapFilters';
@@ -26,7 +30,7 @@ import { exportMap } from './utils/exportMap';
 import type { ExportFormat } from './utils/exportMap';
 import { buildCanvasTransformStyle, isViewZoomed, measuredMapSize, toPixels } from './utils/geometry';
 import { selectShownFeatures } from './utils/mapFilters';
-import { buildMarkerFeatures, createHitIndex, findMarkerAt, screenTransform } from './utils/markerLayer';
+import { buildMarkerFeatures, createHitIndex, findMarkerAt, findMarkersInRect, screenTransform } from './utils/markerLayer';
 import type { MarkerFeature } from './utils/markerLayer';
 import { addMeasurementPoint } from './utils/measurement';
 import { showToast } from '../../components/Toast/toastStore';
@@ -38,6 +42,16 @@ import './TechnoMap.css';
  * a pinned tooltip among them, so its fields scroll instead of the map zooming.
  */
 const OVERLAY_SELECTOR = '.map-toolbar, .map-layers, .map-legend, .marker-tooltip.is-pinned';
+
+const NO_SELECTION: ReadonlySet<string> = new Set();
+
+/** A copy of `keys` with `key` added, or removed when already there. */
+function toggleKey(keys: ReadonlySet<string>, key: string): ReadonlySet<string> {
+  const next = new Set(keys);
+  if (next.has(key)) next.delete(key); else next.add(key);
+
+  return next;
+}
 
 /** Feature colours from technoMap.yaml, for the stylesheet. */
 const PAGE_STYLE: StyleWithCssVariables = {
@@ -56,12 +70,18 @@ function TechnoMap() {
   const { baseMap, setBaseMap } = useBaseMap();
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [measurement, setMeasurement] = useState<UtmCoordinates[]>([]);
+  // Screenshot mode (the name predates area selection).
   const [isSelecting, setIsSelecting] = useState(false);
+  // The rectangle select tool.
+  const [isBoxSelecting, setIsBoxSelecting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   // The hole under the pointer, and the one a click pinned open, by feature
   // key (the record ID), so a pin survives a data refresh.
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [pinnedKey, setPinnedKey] = useState<string | null>(null);
+  // The multi-selection (Ctrl+click and the rectangle tool), by feature key,
+  // in the order holes were added.
+  const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(NO_SELECTION);
 
   // Every drillhole, whatever the filters, so Reset always frames the whole dataset.
   const fitBox = useMemo(() => drillholeExtent(drillholes), [drillholes]);
@@ -71,9 +91,18 @@ function TechnoMap() {
   const shown = useMemo(() => selectShownFeatures(features, filters), [features, filters]);
   const hitIndex = useMemo(() => createHitIndex(shown), [shown]);
   const shownByKey = useMemo(() => new Map(shown.map((feature) => [feature.key, feature])), [shown]);
-  // Neither applies to a hole that is filtered out, or while measuring.
-  const hovered = (!isSelecting && !isMeasuring && hoveredKey && shownByKey.get(hoveredKey)) || null;
-  const pinned = (!isSelecting && !isMeasuring && pinnedKey && shownByKey.get(pinnedKey)) || null;
+  // Neither applies to a hole that is filtered out, or while measuring or area-selecting.
+  const isPointerBusy = isSelecting || isMeasuring || isBoxSelecting;
+  const hovered = (!isPointerBusy && hoveredKey && shownByKey.get(hoveredKey)) || null;
+  const pinned = (!isPointerBusy && pinnedKey && shownByKey.get(pinnedKey)) || null;
+  // The table lists every selected hole, whatever the layer filters; only
+  // shown ones get a ring (none while measuring or taking a screenshot).
+  const featuresByKey = useMemo(() => new Map(features.map((feature) => [feature.key, feature])), [features]);
+  const selectedFeatures = useMemo(
+    () => [...selectedKeys].flatMap((key) => featuresByKey.get(key) ?? []),
+    [selectedKeys, featuresByKey],
+  );
+  const selectedRings = isSelecting || isMeasuring ? [] : selectedFeatures.filter((feature) => shownByKey.has(feature.key));
 
   const { viewportRef, view, renderedMapSize, mapOrigin, viewportSize, isDragging, viewportHandlers, image, controls } = useMapViewport({
     settings: MAP_SETTINGS,
@@ -87,10 +116,15 @@ function TechnoMap() {
       ? (ratio) => setMeasurement((points) => addMeasurementPoint(points, mapRatioToUtm(ratio)))
       : undefined,
     // A click pins the hole's popup (one at a time); a click on the pinned
-    // hole, or on empty map, unpins it.
-    onMapTap: (point) => {
+    // hole, or on empty map, unpins it. Ctrl+click adds the hole to the
+    // selection, or takes it out; Ctrl+click on empty map does nothing.
+    onMapTap: (point, { additive }) => {
       if (isMeasuring || !transform) return;
       const key = findMarkerAt(hitIndex, point, transform)?.key ?? null;
+      if (additive) {
+        if (key) setSelectedKeys((current) => toggleKey(current, key));
+        return;
+      }
       setPinnedKey((current) => (key === current ? null : key));
     },
   });
@@ -100,12 +134,12 @@ function TechnoMap() {
   const mapSize = useMemo(() => measuredMapSize(renderedMapSize), [renderedMapSize]);
   const transform = useMemo(() => (mapSize ? screenTransform(view, mapOrigin, mapSize) : null), [view, mapOrigin, mapSize]);
   const viewportState = `${isDragging ? ' is-dragging' : ''}${isViewZoomed(view, MAP_SETTINGS.minZoom) ? ' is-zoomed' : ''}`
-    + `${isMeasuring ? ' is-measuring' : ''}${hovered && !isMeasuring ? ' is-over-marker' : ''}`;
+    + `${isMeasuring ? ' is-measuring' : ''}${hovered && !isMeasuring ? ' is-over-marker' : ''}${isBoxSelecting ? ' is-box-selecting' : ''}`;
 
   const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const overOverlay = event.target instanceof Element && event.target.closest(OVERLAY_SELECTOR);
     let hit: MarkerFeature | null = null;
-    if (!isSelecting && !isMeasuring && event.buttons === 0 && !overOverlay && transform) {
+    if (!isPointerBusy && event.buttons === 0 && !overOverlay && transform) {
       const rect = event.currentTarget.getBoundingClientRect();
       const point: Point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
       hit = findMarkerAt(hitIndex, point, transform);
@@ -113,7 +147,22 @@ function TechnoMap() {
     // A key, so the page re-renders only when the hole under the pointer changes.
     const key = hit?.key ?? null;
     setHoveredKey((current) => (current === key ? current : key));
-  }, [hitIndex, isMeasuring, isSelecting, transform]);
+  }, [hitIndex, isPointerBusy, transform]);
+
+  const exitBoxSelect = useCallback(() => setIsBoxSelecting(false), []);
+  const handleBoxSelect = useCallback((rect: CaptureRect) => {
+    if (!transform) return;
+    const inside = findMarkersInRect(shown, rect, transform);
+    if (!inside.length) return;
+    setSelectedKeys((current) => {
+      const next = new Set(current);
+      for (const feature of inside) next.add(feature.key);
+
+      return next.size === current.size ? current : next;
+    });
+  }, [shown, transform]);
+  const removeSelected = useCallback((key: string) => setSelectedKeys((current) => toggleKey(current, key)), []);
+  const clearSelection = useCallback(() => setSelectedKeys(NO_SELECTION), []);
 
   // The popup shows the hovered hole, else the pinned one.
   const tooltipFeature = hovered ?? pinned;
@@ -159,10 +208,11 @@ function TechnoMap() {
           <RefreshButton isRefreshing={isFetching} onRefresh={refresh} />
           <BaseMapSwitcher value={baseMap} onChange={setBaseMap} />
           <strong>{drillholes.length} drillholes</strong>
+          <HelpButton title={MAP_CONFIG.title} sections={HELP_SECTIONS} />
         </div>
       </header>
 
-      <div className="map-panel">
+      <div className={`map-panel${selectedFeatures.length > 0 ? ' has-selection' : ''}`}>
         <div
           ref={viewportRef}
           className={`map-viewport${viewportState}${isSelecting ? ' is-selecting' : ''}`}
@@ -196,7 +246,9 @@ function TechnoMap() {
               deviationVisible={filters['deviation-line'] && view.scale >= MAP_SETTINGS.deviationMinZoom}
             />
           )}
-          {/* Rings: green on the pinned marker, blue on a different hovered one. */}
+          {/* Rings: green on selected and pinned markers, blue on a different hovered one. */}
+          {transform && selectedRings.map((feature) => (feature === pinned || feature === hovered ? null
+            : <MarkerHighlight key={feature.key} feature={feature} transform={transform} state="selected" />))}
           {pinned && transform && <MarkerHighlight feature={pinned} transform={transform} state="pinned" />}
           {hovered && hovered !== pinned && transform && <MarkerHighlight feature={hovered} transform={transform} state="hovered" />}
           {tooltipFeature && transform && !isDragging && (
@@ -222,19 +274,38 @@ function TechnoMap() {
               setIsMeasuring((current) => !current);
               setMeasurement([]);
               setPinnedKey(null);
+              setIsBoxSelecting(false);
+            }}
+            isBoxSelecting={isBoxSelecting}
+            onToggleBoxSelect={() => {
+              setIsBoxSelecting((current) => !current);
+              setIsMeasuring(false);
+              setMeasurement([]);
+              setPinnedKey(null);
             }}
             isSelecting={isSelecting}
             onToggleScreenshot={() => {
               setIsSelecting((current) => !current);
               setIsMeasuring(false);
+              setIsBoxSelecting(false);
             }}
             isExporting={isExporting}
           />
+          {isBoxSelecting && !isSelecting && <BoxSelectOverlay onSelect={handleBoxSelect} onExit={exitBoxSelect} />}
           {isSelecting && <MapScreenshot viewportRef={viewportRef}
             onCancel={() => setIsSelecting(false)}
             onCapture={(rect, format) => { setIsSelecting(false); void handleExport(format, rect); }} />}
           <MapScaleBar mapWidth={mapWidth} zoom={view.scale} />
         </div>
+        {selectedFeatures.length > 0 && (
+          <SelectionTable
+            features={selectedFeatures}
+            pinnedKey={pinnedKey}
+            onRowClick={(key) => setPinnedKey((current) => (current === key ? null : key))}
+            onRemove={removeSelected}
+            onClear={clearSelection}
+          />
+        )}
       </div>
     </section>
   );

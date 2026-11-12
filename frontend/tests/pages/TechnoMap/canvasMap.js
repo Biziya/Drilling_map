@@ -64,3 +64,20 @@ export function clickAt(container, utm) {
   fireEvent.pointerDown(viewport, { clientX: x, clientY: y, button: 0, buttons: 1, pointerId: 1 });
   fireEvent.pointerUp(viewport, { clientX: x, clientY: y, button: 0, buttons: 0, pointerId: 1 });
 }
+
+/** A Ctrl+click on a UTM point: adds the hole there to the selection, or takes it out. */
+export function ctrlClickAt(container, utm) {
+  const { x, y } = screenPointOf(utm);
+  const viewport = viewportOf(container);
+  fireEvent.pointerDown(viewport, { clientX: x, clientY: y, button: 0, buttons: 1, pointerId: 1, ctrlKey: true });
+  fireEvent.pointerUp(viewport, { clientX: x, clientY: y, button: 0, buttons: 0, pointerId: 1, ctrlKey: true });
+}
+
+/** With the rectangle tool on, drags a box of `half` px around a UTM point. */
+export function dragBoxAround(container, utm, half = 6) {
+  const { x, y } = screenPointOf(utm);
+  const overlay = container.querySelector(".techno-map-page .box-select");
+  fireEvent.pointerDown(overlay, { clientX: x - half, clientY: y - half, button: 0, buttons: 1, pointerId: 1 });
+  fireEvent.pointerMove(overlay, { clientX: x + half, clientY: y + half, buttons: 1, pointerId: 1 });
+  fireEvent.pointerUp(overlay, { clientX: x + half, clientY: y + half, button: 0, buttons: 0, pointerId: 1 });
+}

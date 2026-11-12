@@ -9,6 +9,7 @@ import {
   createSpriteSet,
   drawMarkerLayer,
   findMarkerAt,
+  findMarkersInRect,
   markerHalfSize,
   screenTransform,
 } from "../../../src/pages/TechnoMap/utils/markerLayer.js";
@@ -104,6 +105,26 @@ describe("findMarkerAt", () => {
     const zoomed = { x: -9000, y: -6000, width: 20000, height: 14000 };
 
     expect(findMarkerAt(index, screenOf(features[0], zoomed), zoomed)?.drillhole.holeId).toBe("A");
+  });
+});
+
+describe("findMarkersInRect", () => {
+  const features = buildMarkerFeatures(project([
+    { holeId: "A", x: 418000, y: 4894000, holePurpose: "PRODUCT" },
+    { holeId: "B", x: 418150, y: 4894000, holePurpose: "INJECT" },
+    { holeId: "C", x: 419500, y: 4895500, holePurpose: "PRODUCT" },
+  ]));
+  const [a, b, c] = features.map((feature) => screenOf(feature));
+  const box = (p, q) => ({ x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, width: Math.abs(q.x - p.x) + 2, height: Math.abs(q.y - p.y) + 2 });
+
+  it("returns every collar inside the rectangle, in feature order", () => {
+    expect(findMarkersInRect(features, box(a, b), FIT).map((f) => f.drillhole.holeId)).toEqual(["A", "B"]);
+    expect(findMarkersInRect(features, box(c, c), FIT).map((f) => f.drillhole.holeId)).toEqual(["C"]);
+  });
+
+  it("finds nothing in an empty area or before the map is measured", () => {
+    expect(findMarkersInRect(features, { x: -50, y: -50, width: 10, height: 10 }, FIT)).toEqual([]);
+    expect(findMarkersInRect(features, box(a, c), { ...FIT, width: 0 })).toEqual([]);
   });
 });
 

@@ -5,8 +5,11 @@ import type { StyleWithCssVariables } from '../../../types/map';
 export interface MarkerHighlightProps {
   feature: MarkerFeature;
   transform: ScreenTransform;
-  /** Blue while hovered, green while pinned (interaction colours in technoMap.yaml). */
-  state: 'hovered' | 'pinned';
+  /**
+   * Blue while hovered, green while pinned or part of the multi-selection
+   * (interaction colours in technoMap.yaml).
+   */
+  state: 'hovered' | 'pinned' | 'selected';
 }
 
 /**

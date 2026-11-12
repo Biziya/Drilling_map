@@ -221,3 +221,29 @@ describe("Exploration Map export", () => {
     expect(text).toEqual(expect.arrayContaining(["Exploration Map", "N", "500 m"]));
   });
 });
+
+describe("help", () => {
+  const accessibleName = (button) => button.getAttribute("aria-label") ?? button.textContent.trim();
+
+  it("puts a round ? button last in the header, describing every toolbar and header button", async () => {
+    const { container } = await renderLoaded();
+    const headerButtons = [...container.querySelectorAll(".map-header button")];
+    expect(headerButtons.at(-1)).toBe(screen.getByRole("button", { name: "Help" }));
+
+    const labels = [...container.querySelectorAll(".map-controls button, .map-header button")].map(accessibleName);
+    fireEvent.click(screen.getByRole("button", { name: "Help" }));
+    const help = screen.getByRole("dialog", { name: "Exploration Map help" });
+    const names = [...help.querySelectorAll(".help-dialog__buttons strong")].map((name) => name.textContent);
+    expect(names).toEqual(expect.arrayContaining(labels));
+  });
+
+  it("leaves out the Techno Map's selection tools", async () => {
+    await renderLoaded();
+    fireEvent.click(screen.getByRole("button", { name: "Help" }));
+    const help = screen.getByRole("dialog", { name: "Exploration Map help" });
+
+    expect(help.textContent).not.toContain("Select drillholes by area");
+    expect(help.textContent).not.toContain("Selection table");
+    expect([...help.querySelectorAll("kbd")].map((key) => key.textContent)).not.toContain("Ctrl");
+  });
+});

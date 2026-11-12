@@ -1,4 +1,5 @@
 import { MAP_SETTINGS } from '../config/technoMapConfig';
+import { BoxSelectIcon, CameraIcon, RulerIcon } from './icons';
 
 export interface MapControlsProps {
   /** Current zoom level, for the disabled states. */
@@ -8,23 +9,16 @@ export interface MapControlsProps {
   onReset: () => void;
   isMeasuring: boolean;
   onToggleMeasure: () => void;
+  /** The rectangle select tool. */
+  isBoxSelecting: boolean;
+  onToggleBoxSelect: () => void;
   /** True while a screenshot export runs; the camera is disabled meanwhile. */
   isExporting: boolean;
   isSelecting: boolean;
   onToggleScreenshot: () => void;
 }
 
-const ICON_PROPS = {
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 2,
-  strokeLinecap: 'round',
-  strokeLinejoin: 'round',
-  'aria-hidden': true,
-} as const;
-
-/** Floating toolbar: zoom in/out, reset, measure, screenshot. */
+/** Floating toolbar: zoom in/out, reset, measure, area select, screenshot. */
 function MapControls({
   zoom,
   onZoomIn,
@@ -32,6 +26,8 @@ function MapControls({
   onReset,
   isMeasuring,
   onToggleMeasure,
+  isBoxSelecting,
+  onToggleBoxSelect,
   isExporting,
   isSelecting,
   onToggleScreenshot,
@@ -50,11 +46,17 @@ function MapControls({
           aria-label="Measure distance"
           title="Measure distance"
         >
-          {/* A ruler laid diagonally, with tick marks. */}
-          <svg {...ICON_PROPS}>
-            <path d="M3 17 17 3l4 4L7 21z" />
-            <path d="m7 13 2 2M10 10l2 2M13 7l2 2" />
-          </svg>
+          <RulerIcon />
+        </button>
+        <button
+          className={`map-controls__icon${isBoxSelecting ? ' is-active' : ''}`}
+          type="button"
+          disabled={isSelecting} onClick={onToggleBoxSelect}
+          aria-pressed={isBoxSelecting}
+          aria-label="Select drillholes by area"
+          title="Select drillholes by area"
+        >
+          <BoxSelectIcon />
         </button>
         <button
           className="map-controls__icon"
@@ -66,11 +68,7 @@ function MapControls({
           aria-label="Screenshot map"
           title="Screenshot map"
         >
-          {/* A camera: the export is a picture of the current view. */}
-          <svg {...ICON_PROPS} data-icon="camera">
-            <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" />
-            <circle cx="12" cy="13" r="3.5" />
-          </svg>
+          <CameraIcon />
         </button>
       </div>
     </div>

@@ -27,7 +27,8 @@ DrillMap/
 ├─ Controls/
 │  ├─ MapControls.tsx       zoom in/out, reset, measure, export menu, zoom readout
 │  ├─ RefreshButton.tsx     header button: fetch fresh data
-│  └─ BaseMapSwitcher.tsx   header menu right of Refresh: Geological / White Grid
+│  ├─ BaseMapSwitcher.tsx   header menu right of Refresh: Geological / White Grid
+│  └─ icons.tsx             control icons, shared with the help dialog
 ├─ Tooltips/
 │  └─ DrillholeTooltip      the hole's details on hover, focus or click
 ├─ hooks/
@@ -36,7 +37,8 @@ DrillMap/
 │  └─ useMapViewport.ts     sizing, drag-pan, zoom, map clicks, view persistence
 ├─ config/
 │  ├─ drillMap.yaml           title, zoom, GT bands, colours, labels, legend
-│  └─ drillMapConfig.ts       validates the YAML; MAP_ID, getGtRange
+│  ├─ drillMapConfig.ts       validates the YAML; MAP_ID, getGtRange
+│  └─ helpContent.tsx         what the ? help dialog lists: shortcuts and buttons
 └─ utils/                   pure functions
    ├─ coordinateGrid.ts     white grid lines/labels for the view (screen + export)
    ├─ coordinates.ts        UTM → map %, deviation endpoints, pixel offsets
@@ -67,6 +69,16 @@ Marker priority (`utils/markerKind.ts`): in-progress → rig; PRODUCT →
 triangle (producer); INJECT → square (injector); anything else → square
 (drillhole). The dataset is SEDIMENT/DEVELOP holes, so most draw as
 "Drillhole".
+
+## Help
+
+The round **?** button at the right end of the header (shared
+`components/HelpDialog`) opens a dialog listing every shortcut and every
+button on this page; pressing **?** anywhere on the page opens it too (not while
+typing). Esc, × or a click outside closes it. The wording lives in
+`config/helpContent.tsx`; button names there must match the controls'
+accessible names, which the page test checks, so a new toolbar button cannot ship undocumented. Icons come from
+`Controls/icons.tsx`, the same components the controls draw.
 
 ## Data loading (global infrastructure)
 

@@ -1,4 +1,5 @@
 import MapScreenshot from '../../components/MapScreenshot/MapScreenshot';
+import HelpButton from '../../components/HelpDialog/HelpDialog';
 import type { CaptureRect } from '../../components/MapScreenshot/MapScreenshot';
 import { useState } from 'react';
 import BaseMapSwitcher from './Controls/BaseMapSwitcher';
@@ -12,6 +13,7 @@ import MapScaleBar from './Map/MapScaleBar';
 import MapStatus from './Map/MapStatus';
 import MeasurementOverlay from './Map/MeasurementOverlay';
 import { MAP_CONFIG, MAP_ID, MAP_SETTINGS } from './config/drillMapConfig';
+import { HELP_SECTIONS } from './config/helpContent';
 import { useBaseMap } from './hooks/useBaseMap';
 import { useMapData } from './hooks/useMapData';
 import { useMapViewport } from './hooks/useMapViewport';
@@ -82,6 +84,7 @@ function DrillMap() {
           <RefreshButton isRefreshing={isFetching} onRefresh={refresh} />
           <BaseMapSwitcher value={baseMap} onChange={setBaseMap} />
           <strong>{drillholes.length} drillholes</strong>
+          <HelpButton title={MAP_CONFIG.title} sections={HELP_SECTIONS} />
         </div>
       </header>
 

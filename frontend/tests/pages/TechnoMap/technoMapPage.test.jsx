@@ -14,7 +14,7 @@ import { MAP_DATA_MESSAGES, clearMapData, getMapData } from "../../../src/state/
 import { clearToasts } from "../../../src/components/Toast/toastStore.js";
 import { DATASET_IDS, clearCachedDataset, readCachedDataset } from "../../../src/services/cache/drillholeCache.js";
 import { MOCK_DRILLHOLES } from "../../../src/pages/TechnoMap/mock/mockData.js";
-import { clickAt, drawnKinds, drawnMarkerCount, hoverAt, loadMapImages } from "./canvasMap.js";
+import { clickAt, ctrlClickAt, dragBoxAround, drawnKinds, drawnMarkerCount, hoverAt, loadMapImages } from "./canvasMap.js";
 
 vi.mock("../../../src/pages/TechnoMap/config/technoMapConfig.js", async (importOriginal) => {
   const actual = await importOriginal();
@@ -253,14 +253,14 @@ describe("Legends panel", () => {
 });
 
 describe("toolbar", () => {
-  it("has zoom, reset, measure and a single export button", async () => {
+  it("has zoom, reset, measure, area select and a single export button", async () => {
     await renderPage();
 
-    ["Zoom in", "Zoom out", "Reset", "Measure distance", "Screenshot map"].forEach((name) => {
+    ["Zoom in", "Zoom out", "Reset", "Measure distance", "Select drillholes by area", "Screenshot map"].forEach((name) => {
       expect(screen.getByRole("button", { name })).toBeTruthy();
     });
     expect(screen.queryByRole("button", { name: "Export as SVG" })).toBeNull();
-    expect(document.querySelectorAll('.map-controls button')).toHaveLength(5);
+    expect(document.querySelectorAll('.map-controls button')).toHaveLength(6);
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
@@ -562,5 +562,142 @@ describe("layout", () => {
     await renderPage();
 
     expect(screen.getByRole("button", { name: "Screenshot map" }).querySelector('svg[data-icon="camera"]')).toBeTruthy();
+  });
+});
+
+describe("selection", () => {
+  const table = (container) => container.querySelector(".selection-table");
+  const tableKeys = (container) => [...container.querySelectorAll(".selection-table tbody tr[data-key]")].map((row) => row.dataset.key);
+  const selectedRings = (container) => [...container.querySelectorAll(".marker-highlight.is-selected")].map((ring) => ring.dataset.key);
+  const OTHER = MOCK_DRILLHOLES.find((hole) => hole.holeStatus !== "INPROGRESS" && Math.abs(hole.x - HOLE.x) > 300);
+
+  it("Ctrl+click adds a hole with a green ring and a table row; a second Ctrl+click takes it out", async () => {
+    const { container } = await renderPage();
+    expect(table(container)).toBeNull();
+
+    ctrlClickAt(container, HOLE);
+    expect(tableKeys(container)).toEqual([`id:${HOLE.id}`]);
+    expect(selectedRings(container)).toEqual([`id:${HOLE.id}`]);
+    // A selection is not a pin.
+    expect(container.querySelector(".marker-tooltip.is-pinned")).toBeNull();
+
+    ctrlClickAt(container, OTHER);
+    expect(tableKeys(container)).toEqual([`id:${HOLE.id}`, `id:${OTHER.id}`]);
+
+    ctrlClickAt(container, HOLE);
+    expect(tableKeys(container)).toEqual([`id:${OTHER.id}`]);
+    ctrlClickAt(container, OTHER);
+    expect(table(container)).toBeNull();
+  });
+
+  it("a plain click still only pins, and Ctrl+click on empty map keeps the selection", async () => {
+    const { container } = await renderPage();
+    clickAt(container, HOLE);
+    expect(table(container)).toBeNull();
+
+    ctrlClickAt(container, OTHER);
+    // Far off the map, where no hole can be.
+    ctrlClickAt(container, { x: MAP_UTM_BOUNDS.minX - 50000, y: MAP_UTM_BOUNDS.minY - 50000 });
+    expect(tableKeys(container)).toEqual([`id:${OTHER.id}`]);
+  });
+
+  it("the area tool sits right of the ruler, turns the ruler off, and adds the holes inside a box", async () => {
+    const { container } = await renderPage();
+    const buttons = [...container.querySelectorAll(".map-controls button")].map((button) => button.getAttribute("aria-label"));
+    expect(buttons.indexOf("Select drillholes by area")).toBe(buttons.indexOf("Measure distance") + 1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Measure distance" }));
+    const tool = screen.getByRole("button", { name: "Select drillholes by area" });
+    fireEvent.click(tool);
+    expect(tool.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Measure distance" }).getAttribute("aria-pressed")).toBe("false");
+
+    const before = readMapView("techno-map", null);
+    dragBoxAround(container, HOLE);
+    expect(tableKeys(container)).toContain(`id:${HOLE.id}`);
+    // The drag drew a box; it did not pan.
+    expect(readMapView("techno-map", null)).toEqual(before);
+
+    // The tool stays on for another box, which adds to the selection.
+    dragBoxAround(container, OTHER);
+    expect(tableKeys(container)).toEqual(expect.arrayContaining([`id:${HOLE.id}`, `id:${OTHER.id}`]));
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(container.querySelector(".box-select")).toBeNull();
+    expect(tool.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("a row click pins that hole; × removes it; Clear selection closes the table", async () => {
+    const { container } = await renderPage();
+    ctrlClickAt(container, HOLE);
+    ctrlClickAt(container, OTHER);
+
+    fireEvent.click(container.querySelector(`.selection-table tr[data-key="id:${OTHER.id}"]`));
+    expect(container.querySelector(".marker-tooltip.is-pinned").dataset.hole).toBe(OTHER.holeId);
+
+    fireEvent.click(within(table(container)).getByRole("button", { name: `Remove ${HOLE.holeId} from selection` }));
+    expect(tableKeys(container)).toEqual([`id:${OTHER.id}`]);
+
+    fireEvent.click(within(table(container)).getByRole("button", { name: "Clear selection" }));
+    expect(table(container)).toBeNull();
+    expect(container.querySelector(".marker-highlight.is-selected")).toBeNull();
+  });
+
+  it("filters and sorts rows from a column menu", async () => {
+    const { container } = await renderPage();
+    ctrlClickAt(container, HOLE);
+    ctrlClickAt(container, OTHER);
+
+    fireEvent.click(within(table(container)).getByRole("button", { name: /^Key/ }));
+    const menu = screen.getByRole("dialog", { name: "Filter Key" });
+    fireEvent.click(within(menu).getByRole("button", { name: "Unselect all" }));
+    expect(tableKeys(container)).toEqual([]);
+    expect(table(container).textContent).toContain("No selected drillholes match the filters.");
+
+    fireEvent.click(within(menu).getByRole("checkbox", { name: new RegExp(`^${OTHER.holeId}`) }));
+    expect(tableKeys(container)).toEqual([`id:${OTHER.id}`]);
+
+    fireEvent.click(within(menu).getByRole("button", { name: "Select all" }));
+    expect(tableKeys(container)).toHaveLength(2);
+
+    const ordered = [HOLE, OTHER].sort((a, b) => a.holeId.localeCompare(b.holeId, undefined, { numeric: true }));
+    fireEvent.click(within(menu).getByRole("button", { name: "Sort Z → A" }));
+    expect(tableKeys(container)).toEqual(ordered.reverse().map((hole) => `id:${hole.id}`));
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Filter Key" })).toBeNull();
+  });
+
+  it("offers ascending/descending, not A-Z, on number columns", async () => {
+    const { container } = await renderPage();
+    ctrlClickAt(container, HOLE);
+
+    fireEvent.click(within(table(container)).getByRole("button", { name: /^X \(m\)/ }));
+    const menu = screen.getByRole("dialog", { name: "Filter X (m)" });
+    expect(within(menu).getByRole("button", { name: "Sort ascending" })).toBeTruthy();
+    expect(within(menu).getByRole("button", { name: "Sort descending" })).toBeTruthy();
+  });
+});
+
+describe("help", () => {
+  const accessibleName = (button) => button.getAttribute("aria-label") ?? button.textContent.trim();
+
+  it("puts a round ? button last in the header", async () => {
+    const { container } = await renderPage();
+    const headerButtons = [...container.querySelectorAll(".map-header button")];
+    expect(headerButtons.at(-1)).toBe(screen.getByRole("button", { name: "Help" }));
+  });
+
+  it("describes every toolbar and header button, Ctrl+click, area select and the table filters", async () => {
+    const { container } = await renderPage();
+    const labels = [...container.querySelectorAll(".map-controls button, .map-header button")].map(accessibleName);
+    fireEvent.click(screen.getByRole("button", { name: "Help" }));
+    const help = screen.getByRole("dialog", { name: `${MAP_CONFIG.title} help` });
+    const names = [...help.querySelectorAll(".help-dialog__buttons strong")].map((name) => name.textContent);
+
+    expect(names).toEqual(expect.arrayContaining(labels));
+    expect([...help.querySelectorAll("kbd")].map((key) => key.textContent)).toEqual(expect.arrayContaining(["Ctrl", "Click", "Esc", "?"]));
+    expect(help.textContent).toContain("Select drillholes by area");
+    expect(help.textContent).toContain("Selection table");
   });
 });

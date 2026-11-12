@@ -1,0 +1,114 @@
+/* Help dialog (components/HelpDialog): shared by the map pages, so scoped
+   to its own root class rather than a page's. */
+.help-dialog {
+  width: min(860px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  color: var(--color-ink);
+  background: var(--color-paper);
+  box-shadow: var(--ui-modal-shadow);
+  font-size: .8rem;
+}
+.help-dialog::backdrop { background: var(--color-overlay-soft); }
+
+.help-dialog__panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  max-height: calc(100dvh - 34px);
+}
+
+.help-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-line);
+}
+.help-dialog__header h2 { margin: 0; font-size: .95rem; font-weight: 700; }
+.help-dialog__close {
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--color-muted);
+  background: transparent;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.help-dialog__close:hover { color: var(--color-ink); background: var(--color-control-hover); }
+
+/* The body scrolls; the columns box inside it has no height limit, so its two
+   balanced columns (one on narrow screens) grow down instead of overflowing
+   sideways. */
+.help-dialog__body {
+  min-height: 0;
+  overflow: hidden auto;
+  padding: 6px 16px 16px;
+}
+.help-dialog__columns {
+  columns: 2 320px;
+  column-gap: 28px;
+}
+.help-dialog__section { break-inside: avoid; padding-top: 10px; }
+.help-dialog__section h3 {
+  margin: 0 0 6px;
+  color: var(--color-brand);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.help-dialog__shortcuts,
+.help-dialog__buttons { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.help-dialog__row {
+  display: grid;
+  grid-template-columns: minmax(118px, auto) 1fr;
+  align-items: start;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 60%, transparent);
+}
+.help-dialog__buttons .help-dialog__row { grid-template-columns: 30px 1fr; }
+.help-dialog__row dt { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.help-dialog__row dd { margin: 0; color: var(--color-ink); }
+.help-dialog kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 6px;
+  border: 1px solid var(--color-line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  color: var(--color-ink);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: .72rem;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+  white-space: nowrap;
+}
+.help-dialog__plus { margin: 0 3px; color: var(--color-muted); }
+
+.help-dialog__icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  color: var(--color-ink);
+  background: var(--color-surface);
+  font-size: .95rem;
+  font-weight: 700;
+}
+.help-dialog__icon svg { width: 16px; height: 16px; }
+.help-dialog__buttons strong { display: block; font-weight: 700; }
+.help-dialog__description { display: block; color: var(--color-muted); }
+
+.help-dialog button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 1px; }

@@ -154,6 +154,24 @@ export function findMarkerAt(index: HitIndex, point: Point, transform: ScreenTra
   return best;
 }
 
+/** Every feature whose collar lies inside a viewport rectangle (px), in feature order. */
+export function findMarkersInRect(
+  features: readonly MarkerFeature[],
+  rect: Point & Size,
+  transform: ScreenTransform,
+): MarkerFeature[] {
+  if (!(transform.width > 0 && transform.height > 0)) return [];
+  const right = rect.x + rect.width;
+  const bottom = rect.y + rect.height;
+
+  return features.filter((feature) => {
+    const x = transform.x + feature.x * transform.width;
+    const y = transform.y + feature.y * transform.height;
+
+    return x >= rect.x && x <= right && y >= rect.y && y <= bottom;
+  });
+}
+
 // --- Sprites -----------------------------------------------------------------
 
 /** A marker pre-rendered once at device resolution, stamped with drawImage. */

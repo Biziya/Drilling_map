@@ -27,6 +27,8 @@ TechnoMap/
 │  ├─ TechnoCells.tsx       technological cell outlines and labels
 │  ├─ DrillholeLayer.tsx    one canvas: every shown marker and deviation line
 │  ├─ MeasurementOverlay    the A–B measurement, in viewport pixels
+│  ├─ BoxSelectOverlay.tsx  rectangle select tool: drag a box to select holes
+│  ├─ MarkerHighlight.tsx   ring on a hovered, pinned or selected marker
 │  ├─ MapScaleBar.tsx       metre scale for the current zoom
 │  └─ MapStatus.tsx         small notice: loading / empty / no data / no base map
 ├─ Legends/
@@ -34,10 +36,14 @@ TechnoMap/
 │  ├─ LayerSymbol.tsx       one layer's swatch, shared by legend and Legends panel
 │  └─ MarkerSymbol.tsx      the type shapes in miniature, for legend and panel
 ├─ Controls/
-│  ├─ MapControls.tsx       zoom in/out, reset, measure, export (camera), zoom readout
+│  ├─ MapControls.tsx       zoom in/out, reset, measure, area select, export (camera), zoom readout
 │  ├─ LayerPanel.tsx        floating "Legends" panel: 12 filters, Show/Hide All
 │  ├─ RefreshButton.tsx     header button: reload the data
-│  └─ BaseMapSwitcher.tsx   header menu right of Refresh: Redox Map / White Grid
+│  ├─ BaseMapSwitcher.tsx   header menu right of Refresh: Redox Map / White Grid
+│  └─ icons.tsx             control icons, shared with the help dialog
+├─ Table/
+│  ├─ SelectionTable.tsx    the selected holes under the map, per-column filter/sort
+│  └─ ColumnFilterMenu.tsx  Excel-style menu: sort, search, Select/Unselect all, checkboxes
 ├─ Tooltips/
 │  ├─ MarkerTooltip.tsx     the one tooltip: highlight ring + details, on the marker
 │  └─ DrillholeTooltip      the hole's details
@@ -50,7 +56,8 @@ TechnoMap/
 │  └─ mockData.ts           the fixed demo drillholes and cells
 ├─ config/
 │  ├─ technoMap.yaml        data source, zoom, types, marker sizes, layers, colours
-│  └─ technoMapConfig.ts    validates the YAML; ids, MAP_ID
+│  ├─ technoMapConfig.ts    validates the YAML; ids, MAP_ID
+│  └─ helpContent.tsx       what the ? help dialog lists: shortcuts and buttons
 └─ utils/                   pure functions
    ├─ coordinateGrid.ts     white grid lines/labels for the view (screen + export)
    ├─ coordinates.ts        UTM ↔ map ratio, deviation endpoints, extent
@@ -60,6 +67,8 @@ TechnoMap/
    ├─ markerShapes.ts       shape outlines and sizes: canvas, CSS clip-paths, export
    ├─ mapFilters.ts         which holes and layers the filters let through
    ├─ measurement.ts        distance, formatting, click cycle
+   ├─ selectionTable.ts     selection table rows, column filters and sorting
+   ├─ tooltipFields.ts      popup rows = table columns: label, formatting, sort kind
    ├─ exportMap.ts          PNG/SVG export of the visible viewport
    ├─ scaleBar.ts           a round 1/2/5 distance for the scale bar
    └─ storage.ts            localStorage read/write that never throws
@@ -160,6 +169,40 @@ base map, cells, deviation lines, markers (same features, shapes, sizes and
 colours as the canvas) and measurement as vectors, plus title and scale bar;
 PNG rasterises it at 2×. Files are `TechnoMap_YYYY-MM-DD_HH-mm.png|svg`. No
 export is made while the base map is not loaded.
+
+## Selection and the selection table
+
+Two ways to select several holes:
+
+- **Ctrl+click** (Cmd+click on a Mac) a marker to add it to the selection; Ctrl+click
+  it again to take it out. A plain click still pins one popup, and a plain drag pans.
+- **Area select** (toolbar button right of the ruler): drag a rectangle and every
+  shown hole inside it is added. The tool stays on for further boxes; click the
+  button again or press Esc to leave it. It switches the ruler off, and the other
+  way round.
+
+Selected holes get a green ring. While anything is selected, a table opens under
+the map with one row per hole and one column per popup field that has data
+(`utils/tooltipFields.ts`). A row click pins that hole's popup; × removes it;
+*Clear selection* (or the close button) empties the selection and closes the table.
+The selection is kept by record ID, so it survives a data refresh; a hole hidden by
+the Legends filters keeps its row but loses its ring.
+
+Each column header opens a filter menu: *Sort A → Z / Z → A* on text columns,
+*Sort ascending / descending* on numbers and dates (empty cells always last), a
+search box, *Select all / Unselect all* (applied to the values the search shows) and
+a checkbox per distinct value with its count; empty cells are listed as *(Blank)*.
+Changes apply at once; *Clear filters* resets every column and the sort.
+
+## Help
+
+The round **?** button at the right end of the header (shared
+`components/HelpDialog`) opens a dialog listing every shortcut and every
+button on this page; pressing **?** anywhere on the page opens it too (not while
+typing). Esc, × or a click outside closes it. The wording lives in
+`config/helpContent.tsx`; button names there must match the controls'
+accessible names, which the page test checks, so a new toolbar button cannot ship undocumented. Icons come from
+`Controls/icons.tsx`, the same components the controls draw.
 
 ## Data loading in backend mode (global infrastructure)
 

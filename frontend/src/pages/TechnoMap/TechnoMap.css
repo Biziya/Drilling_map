@@ -72,7 +72,15 @@
   font-size: .76rem;
 }
 
+/* The selection table pops out over the bottom of the map rather than taking
+   height from it: the base map is fitted to the viewport, so a shorter
+   viewport would rescale the map and move the holes just selected. The
+   floating controls rise by --selection-offset to stay above it. */
+.techno-map-page .map-panel.has-selection { --selection-offset: min(42%, 300px); }
+
 .techno-map-page .map-panel {
+  --selection-offset: 0px;
+  position: relative;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
   min-width: 0;
@@ -169,6 +177,8 @@
 
 .techno-map-page .marker-highlight.is-hovered { --ring-color: var(--hover-color, #2563eb); }
 .techno-map-page .marker-highlight.is-pinned { --ring-color: var(--pinned-color, #16a34a); }
+/* Selected holes: the pinned green, under the pinned and hovered rings. */
+.techno-map-page .marker-highlight.is-selected { --ring-color: var(--pinned-color, #16a34a); z-index: 8; }
 
 /* The one tooltip: a zero-size anchor on the hovered or clicked marker, the
    details beside it (placement classes from MarkerTooltip.tsx). Above the
@@ -413,7 +423,7 @@
 /* Bottom-right, under the Legends panel. */
 .techno-map-page .map-toolbar {
   position: absolute;
-  bottom: var(--float-inset);
+  bottom: calc(var(--float-inset) + var(--selection-offset));
   right: var(--float-inset);
   z-index: 30;
   width: var(--float-width);
@@ -423,7 +433,7 @@
 /* Four equal icon columns around a wider Reset. */
 .techno-map-page .map-controls {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.5fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1.5fr 1fr 1fr 1fr;
   overflow: hidden;
   border: 1px solid var(--color-line);
   border-radius: var(--float-radius);
@@ -471,7 +481,7 @@
   flex-direction: column;
   width: var(--float-width);
   max-width: calc(100% - 2 * var(--float-inset));
-  max-height: calc(100% - 2 * var(--float-inset) - var(--toolbar-clearance));
+  max-height: calc(100% - 2 * var(--float-inset) - var(--toolbar-clearance) - var(--selection-offset));
   overflow: hidden;
   border: 1px solid var(--color-line);
   border-radius: var(--float-radius);
@@ -598,7 +608,7 @@
 
 .techno-map-page .map-scale-bar {
   position: absolute;
-  bottom: var(--float-inset);
+  bottom: calc(var(--float-inset) + var(--selection-offset));
   left: var(--float-inset);
   z-index: 5;
   display: grid;
@@ -706,7 +716,7 @@
   left: var(--float-inset);
   z-index: 25;
   max-width: calc(100% - var(--float-width) - 3 * var(--float-inset));
-  max-height: calc(100% - 2 * var(--float-inset) - var(--scale-bar-clearance));
+  max-height: calc(100% - 2 * var(--float-inset) - var(--scale-bar-clearance) - var(--selection-offset));
   overflow: hidden auto;
   padding: var(--legend-padding-block) var(--legend-padding-inline);
   border: 1px solid var(--color-line);
@@ -837,3 +847,196 @@
 .techno-map-page .map-controls .map-controls__icon[aria-pressed='true']:hover { background: var(--color-brand-dark); }
 .techno-map-page .map-controls button:disabled { background: var(--color-control-disabled); }
 .techno-map-page .drillhole-tooltip { scrollbar-color: var(--color-tooltip-muted) transparent; }
+
+/* Rectangle select tool (Map/BoxSelectOverlay): covers the map so a drag
+   draws a box; under the floating panels, so they stay usable. */
+.techno-map-page .box-select {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  cursor: crosshair;
+  touch-action: none;
+}
+.techno-map-page .box-select__rect {
+  position: absolute;
+  border: 1.5px dashed var(--pinned-color, #16a34a);
+  background: color-mix(in srgb, var(--pinned-color, #16a34a) 12%, transparent);
+  pointer-events: none;
+}
+.techno-map-page .box-select__hint {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  color: var(--color-ink);
+  background: var(--ui-floating-surface);
+  box-shadow: var(--ui-shadow);
+  font-size: .76rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Selection table (Table/SelectionTable): pops out over the bottom of the map. */
+.techno-map-page .selection-table {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: var(--selection-offset);
+  min-height: 0;
+  border-top: 1px solid var(--color-line);
+  background: var(--color-paper);
+  box-shadow: 0 -6px 18px color-mix(in srgb, var(--color-ink) 12%, transparent);
+  animation: techno-map-selection-in .16s ease-out;
+  font-size: .76rem;
+}
+.techno-map-page .selection-table__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px 6px 14px;
+  border-bottom: 1px solid var(--color-line);
+}
+.techno-map-page .selection-table__bar h2 { margin: 0; font-size: .8rem; font-weight: 700; }
+.techno-map-page .selection-table__bar h2 span { color: var(--color-muted); font-weight: 500; }
+.techno-map-page .selection-table__actions { display: flex; align-items: center; gap: 6px; }
+.techno-map-page .selection-table__actions button {
+  padding: 4px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  color: var(--color-ink);
+  background: var(--color-paper);
+  font-size: .72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.techno-map-page .selection-table__actions button:hover:not(:disabled) { background: var(--color-control-hover); }
+.techno-map-page .selection-table__actions button:disabled { color: var(--color-disabled); cursor: not-allowed; }
+.techno-map-page .selection-table__actions .selection-table__close { padding: 2px 8px; border-color: transparent; font-size: 1rem; line-height: 1; }
+.techno-map-page .selection-table__scroll { min-height: 0; overflow: auto; }
+.techno-map-page .selection-table table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; }
+.techno-map-page .selection-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-surface);
+  text-align: left;
+}
+.techno-map-page .selection-table__header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  color: var(--color-muted);
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.techno-map-page .selection-table__header:hover { color: var(--color-ink); background: var(--color-control-hover); }
+.techno-map-page .selection-table__header.is-active { color: var(--color-brand); }
+.techno-map-page .selection-table__header svg { flex: 0 0 auto; width: 12px; height: 12px; margin-left: auto; }
+.techno-map-page .selection-table__sort { font-size: .6rem; }
+.techno-map-page .selection-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--color-line);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.techno-map-page .selection-table td.is-number { text-align: right; }
+.techno-map-page .selection-table tbody tr { cursor: pointer; }
+.techno-map-page .selection-table tbody tr:hover td { background: var(--color-control-hover); }
+.techno-map-page .selection-table tbody tr.is-pinned td { background: color-mix(in srgb, var(--pinned-color, #16a34a) 14%, transparent); }
+.techno-map-page .selection-table .selection-table__remove-col { width: 28px; padding: 0 0 0 6px; }
+.techno-map-page .selection-table__remove-col button {
+  padding: 0 5px;
+  border: 0;
+  border-radius: 4px;
+  color: var(--color-muted);
+  background: transparent;
+  font-size: .95rem;
+  cursor: pointer;
+}
+.techno-map-page .selection-table__remove-col button:hover { color: var(--color-error); }
+.techno-map-page .selection-table__empty td { padding: 14px; color: var(--color-muted); text-align: center; cursor: default; }
+.techno-map-page .selection-table button:focus-visible,
+.techno-map-page .selection-table input:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -2px; }
+
+/* Column filter menu (Table/ColumnFilterMenu): fixed, so no scroll box clips it. */
+.techno-map-page .column-filter-menu {
+  position: fixed;
+  z-index: 70;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  color: var(--color-ink);
+  background: var(--color-paper);
+  box-shadow: var(--ui-modal-shadow);
+  font-size: .76rem;
+}
+.techno-map-page .column-filter-menu button {
+  padding: 5px 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  color: var(--color-ink);
+  background: var(--color-paper);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.techno-map-page .column-filter-menu button:hover:not(:disabled) { background: var(--color-control-hover); }
+.techno-map-page .column-filter-menu button:disabled { color: var(--color-disabled); cursor: not-allowed; }
+.techno-map-page .column-filter-menu button.is-active { border-color: var(--color-brand); color: var(--color-on-primary); background: var(--color-brand); }
+.techno-map-page .column-filter-menu__sort { display: grid; gap: 4px; }
+.techno-map-page .column-filter-menu__sort button { text-align: left; }
+.techno-map-page .column-filter-menu__bulk { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.techno-map-page .column-filter-menu__search {
+  padding: 5px 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  font: inherit;
+}
+.techno-map-page .column-filter-menu__values {
+  max-height: 200px;
+  margin: 0;
+  padding: 4px 0;
+  overflow: auto;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  list-style: none;
+}
+.techno-map-page .column-filter-menu__values label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.techno-map-page .column-filter-menu__values label:hover { background: var(--color-control-hover); }
+.techno-map-page .column-filter-menu__values input { accent-color: var(--color-brand); }
+.techno-map-page .column-filter-menu__value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.techno-map-page .column-filter-menu__count { color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.techno-map-page .column-filter-menu__empty { padding: 6px 8px; color: var(--color-muted); }
+.techno-map-page .column-filter-menu button:focus-visible,
+.techno-map-page .column-filter-menu input:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 1px; }
+
+@keyframes techno-map-selection-in {
+  from { transform: translateY(16px); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .techno-map-page .selection-table { animation: none; }
+}

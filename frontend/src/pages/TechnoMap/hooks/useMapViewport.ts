@@ -77,6 +77,10 @@ function restoreView(key: MapId, fallback: MapTransform, settings: MapZoomSettin
   return { ...stored, scale: Math.min(settings.maxZoom, Math.max(settings.minZoom, stored.scale)) };
 }
 
+export interface TapModifiers {
+  additive: boolean;
+}
+
 export interface MapViewportOptions {
   settings: MapZoomSettings & { fitPadding: number };
   /** Key the view is persisted under, unique per map. */
@@ -94,9 +98,10 @@ export interface MapViewportOptions {
   onMapClick?: ((ratio: Point) => void) | undefined;
   /**
    * Called with the viewport position of every click that did not drag, after
-   * `onMapClick`. Unlike it, leaves double-click zoom alone.
+   * `onMapClick`. Unlike it, leaves double-click zoom alone. `additive` is
+   * true when Ctrl (Cmd on a Mac) was held: a click that adds to a selection.
    */
-  onMapTap?: ((point: Point) => void) | undefined;
+  onMapTap?: ((point: Point, modifiers: TapModifiers) => void) | undefined;
 }
 
 export function useMapViewport({
@@ -230,7 +235,7 @@ export function useMapViewport({
       if (event.type !== 'pointerup' || drag.moved || !mapSize) return;
       const point = pointWithin(event.currentTarget, event);
       onMapClick?.(viewportToMapRatio(point, viewRef.current, mapOrigin, mapSize));
-      onMapTap?.(point);
+      onMapTap?.(point, { additive: event.ctrlKey || event.metaKey });
     },
     onDoubleClick(event: ReactMouseEvent<HTMLElement>) {
       if (onMapClick) return;
