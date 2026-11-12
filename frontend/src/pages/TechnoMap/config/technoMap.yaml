@@ -29,13 +29,24 @@ zoom:
 
 # Backgrounds offered by the header's base map switcher, in menu order, and
 # the one shown on a first visit. The choice is remembered for this page only.
-#   geological - the Redox Map: the surveyed base map image
-#                (VITE_MAP_IMAGE_PATH). The id is kept so saved choices apply.
-#   white-grid - a white sheet with an Easting/Northing grid over the same
-#                UTM bounds, so every feature stays exactly where it is.
+# An image map may name its own image (`src`, a public path) and the UTM
+# rectangle that image covers (`bounds`, metres, max above min). Without them
+# it uses VITE_MAP_IMAGE_PATH and the VITE_MAP_MIN_X/MAX_X/MIN_Y/MAX_Y bounds.
+# Same backgrounds as the Exploration Map (drillMap.yaml).
+#   geological - the surveyed base map image (VITE_MAP_IMAGE_PATH). Before the
+#                redox map was added this one was labelled "Redox Map".
+#   redox      - the redox map, public/base-map3.svg. Its corners come from
+#                the image's own Easting/Northing ticks.
+#   white-grid - a white sheet with an Easting/Northing grid, laid out on the
+#                (hidden) geological image and its bounds, so every feature
+#                sits exactly where it does on the Geological Map.
 baseMap:
   options:
-    - { id: geological, label: Redox Map }
+    - { id: geological, label: Geological Map }
+    - id: redox
+      label: Redox Map
+      src: /base-map3.svg
+      bounds: { minX: 412499.97, maxX: 423375.13, minY: 4890500, maxY: 4898190.29 }
     - { id: white-grid, label: White Grid Map }
   default: geological
   # White grid appearance; sizes in px, all above 0. Lines and labels keep

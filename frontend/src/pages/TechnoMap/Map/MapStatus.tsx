@@ -17,15 +17,17 @@ export interface MapStatusProps {
   imageFailed: boolean;
   /** Why loading failed; explains the 'unavailable' state. */
   failure?: MapDataFailure | null;
+  /** The base map image, named when it is missing. */
+  src?: string;
 }
 
 /** A small centred notice while the map has nothing to show. */
-function MapStatus({ status, imageFailed, failure = null }: MapStatusProps) {
+function MapStatus({ status, imageFailed, failure = null, src = BASE_MAP_SRC }: MapStatusProps) {
   if (imageFailed) {
     return (
       <div className="map-missing" role="status">
         <strong>Base map not found</strong>
-        <span>Add the image as <code>public{BASE_MAP_SRC}</code>.</span>
+        <span>Add the image as <code>public{src}</code>.</span>
       </div>
     );
   }

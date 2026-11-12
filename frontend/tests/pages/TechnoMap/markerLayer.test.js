@@ -169,3 +169,50 @@ describe("5,000 drillholes", () => {
     expect(hover).toBeLessThan(150);
   });
 });
+
+describe("selection rings", () => {
+  const records = buildPerfDataset(5000).map((record) => convertUtmToMapPosition(record));
+  const features = buildMarkerFeatures(records);
+  const viewport = { width: 1000, height: 700 };
+  const ringsDrawn = (canvas) => canvas.__calls
+    .filter(([name, image]) => name === "drawImage" && image.dataset.sprite.startsWith("ring:"));
+
+  it("rings every selected, shown marker under the markers, and nothing else", () => {
+    const canvas = document.createElement("canvas");
+    const selected = new Set([features[0].key, features[1].key, "id:not-shown"]);
+    const drawn = drawMarkerLayer(canvas.getContext("2d"), {
+      features, transform: FIT, viewport, deviationVisible: false, sprites: createSpriteSet(1, canvas), selected,
+    });
+
+    expect(drawn.rings).toBe(2);
+    expect(ringsDrawn(canvas)).toHaveLength(2);
+    // Rings come before the first marker, so markers sit on top of them.
+    const firstMarker = canvas.__calls.findIndex(([name, image]) => name === "drawImage" && !image.dataset.sprite.startsWith("ring:"));
+    const lastRing = canvas.__calls.findLastIndex(([name, image]) => name === "drawImage" && image.dataset.sprite.startsWith("ring:"));
+    expect(lastRing).toBeLessThan(firstMarker);
+  });
+
+  it("skips rings off screen, like markers", () => {
+    const canvas = document.createElement("canvas");
+    const zoomed = { x: -40000, y: -40000, width: 100000, height: 70000 };
+    const drawn = drawMarkerLayer(canvas.getContext("2d"), {
+      features, transform: zoomed, viewport, deviationVisible: false, sprites: createSpriteSet(1, canvas),
+      selected: new Set(features.map((feature) => feature.key)),
+    });
+
+    expect(drawn.rings).toBe(drawn.markers);
+    expect(drawn.rings).toBeLessThan(features.length);
+  });
+
+  it("draws a frame with all 5,000 selected quickly", () => {
+    const canvas = document.createElement("canvas");
+    const selected = new Set(features.map((feature) => feature.key));
+    const start = performance.now();
+    const drawn = drawMarkerLayer(canvas.getContext("2d"), {
+      features, transform: FIT, viewport, deviationVisible: true, sprites: createSpriteSet(1, canvas), selected,
+    });
+
+    expect(drawn.rings).toBe(features.length);
+    expect(performance.now() - start).toBeLessThan(200);
+  });
+});

@@ -8,7 +8,7 @@ import { fetchTechnoMap } from '../../../services/api/mapData';
 import { MAP_DATA_MESSAGES, loadMapData, useMapDataEntry } from '../../../state/mapDataStore';
 import type { MapDataFailure } from '../../../state/mapDataStore';
 import type { DrillholeApiRecord } from '../../../types/drillhole';
-import type { ProjectedDrillhole } from '../../../types/map';
+import type { MapBounds, ProjectedDrillhole } from '../../../types/map';
 
 /**
  * What the map can show:
@@ -39,16 +39,17 @@ const DEMO_RELOAD_MS = 500;
 const NO_CELLS: readonly TechnoCell[] = Object.freeze([]);
 
 /** Projects every record, dropping the ones that cannot be placed. */
-export function projectRecords(records: readonly DrillholeApiRecord[]): ProjectedDrillhole[] {
-  return records.map((record) => convertUtmToMapPosition(record)).filter((drillhole) => drillhole !== null);
+export function projectRecords(records: readonly DrillholeApiRecord[], bounds?: MapBounds): ProjectedDrillhole[] {
+  return records.map((record) => convertUtmToMapPosition(record, bounds)).filter((drillhole) => drillhole !== null);
 }
 
 /**
  * This page's drillholes. Backend mode: /api/techno-map, cache first, then the
  * backend, automatically. Mock mode: the fixed demo dataset, with no request
- * and nothing written to IndexedDB.
+ * and nothing written to IndexedDB. Holes are placed on the base map whose UTM
+ * corners are `bounds` (the shown background's).
  */
-export function useMapData(): MapData {
+export function useMapData(bounds?: MapBounds): MapData {
   const isDemo = MAP_CONFIG.dataSource === 'mock';
   const { records, isFetching, failure } = useMapDataEntry(MAP_ID);
   const [isReloadingDemo, setIsReloadingDemo] = useState(false);
@@ -58,7 +59,7 @@ export function useMapData(): MapData {
   }, [isDemo]);
 
   const activeRecords = isDemo ? MOCK_DRILLHOLES : records;
-  const drillholes = useMemo(() => projectRecords(activeRecords ?? []), [activeRecords]);
+  const drillholes = useMemo(() => projectRecords(activeRecords ?? [], bounds), [activeRecords, bounds]);
 
   if (isDemo) {
     return {

@@ -1,6 +1,6 @@
 import { MAP_CONFIG } from '../config/technoMapConfig';
 import { computeCoordinateGrid } from '../utils/coordinateGrid';
-import type { MapTransform, Point, Size } from '../../../types/map';
+import type { MapBounds, MapTransform, Point, Size } from '../../../types/map';
 
 export interface CoordinateGridProps {
   viewport: Size;
@@ -8,6 +8,8 @@ export interface CoordinateGridProps {
   mapOrigin: Point;
   /** Rendered map size, or null before the base map has been measured. */
   mapSize: Size | null;
+  /** UTM corners of the image the map is laid out on. */
+  bounds?: MapBounds;
 }
 
 /**
@@ -15,7 +17,7 @@ export interface CoordinateGridProps {
  * lines and labels stay crisp and the same size at any zoom. It never takes
  * the pointer: pan, zoom and measurement act on the viewport as before.
  */
-function CoordinateGrid({ viewport, view, mapOrigin, mapSize }: CoordinateGridProps) {
+function CoordinateGrid({ viewport, view, mapOrigin, mapSize, bounds }: CoordinateGridProps) {
   const style = MAP_CONFIG.baseMap.whiteGrid;
   const grid = mapSize && computeCoordinateGrid({
     viewport,
@@ -24,6 +26,7 @@ function CoordinateGrid({ viewport, view, mapOrigin, mapSize }: CoordinateGridPr
     mapSize,
     minLineSpacing: style.minLineSpacing,
     labelFontSize: style.labelFontSize,
+    bounds,
   });
   if (!grid) return null;
 

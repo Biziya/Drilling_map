@@ -1,15 +1,18 @@
 import { memo } from 'react';
 import { MAP_UTM_BOUNDS } from '../config/technoMapConfig';
 import { computeScaleBar } from '../utils/scaleBar';
+import type { MapBounds } from '../../../types/map';
 
 export interface MapScaleBarProps {
   /** Rendered width of the base map in CSS pixels, before zoom. */
   mapWidth: number;
   zoom: number;
+  /** UTM corners of the image the map is laid out on; the default base map's when left out. */
+  bounds?: MapBounds;
 }
 
-function MapScaleBar({ mapWidth, zoom }: MapScaleBarProps) {
-  const scaleBar = computeScaleBar({ mapWidth, zoom, bounds: MAP_UTM_BOUNDS });
+function MapScaleBar({ mapWidth, zoom, bounds = MAP_UTM_BOUNDS }: MapScaleBarProps) {
+  const scaleBar = computeScaleBar({ mapWidth, zoom, bounds });
   if (!scaleBar) return null;
 
   return (

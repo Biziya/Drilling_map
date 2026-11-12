@@ -178,8 +178,6 @@
 
 .techno-map-page .marker-highlight.is-hovered { --ring-color: var(--hover-color, #2563eb); }
 .techno-map-page .marker-highlight.is-pinned { --ring-color: var(--pinned-color, #16a34a); }
-/* Selected holes: the pinned green, under the pinned and hovered rings. */
-.techno-map-page .marker-highlight.is-selected { --ring-color: var(--pinned-color, #16a34a); z-index: 8; }
 
 /* The one tooltip: a zero-size anchor on the hovered or clicked marker, the
    details beside it (placement classes from MarkerTooltip.tsx). Above the
@@ -1037,7 +1035,9 @@
 
 /* Grid: a line between every column, brand-soft sticky header, zebra rows. */
 .techno-map-page .selection-table__scroll { min-height: 0; overflow: auto; }
-.techno-map-page .selection-table table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; }
+/* Fixed layout: widths come from the <colgroup> (worked out from every row),
+   so only the rows in view need rendering and nothing jumps while scrolling. */
+.techno-map-page .selection-table table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
 .techno-map-page .selection-table th {
   position: sticky;
   top: 0;
@@ -1048,14 +1048,21 @@
   background: var(--color-brand-soft);
   text-align: left;
 }
+/* Every body row is exactly 30px (TABLE_ROW_HEIGHT in SelectionTable.tsx). */
 .techno-map-page .selection-table td {
-  padding: 6px 10px;
+  box-sizing: border-box;
+  height: 30px;
+  padding: 0 10px;
+  overflow: hidden;
   border-right: 1px solid var(--color-line);
   border-bottom: 1px solid var(--color-line);
   color: var(--color-ink);
+  line-height: 29px;
   white-space: nowrap;
+  text-overflow: ellipsis;
   font-variant-numeric: tabular-nums;
 }
+.techno-map-page .selection-table tbody tr.selection-table__spacer { cursor: default; }
 .techno-map-page .selection-table tr > :last-child { border-right: 0; }
 .techno-map-page .selection-table__header {
   display: flex;
@@ -1083,7 +1090,7 @@
 .techno-map-page .selection-table__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-brand); }
 .techno-map-page .selection-table td.is-number { text-align: right; }
 .techno-map-page .selection-table tbody tr { cursor: pointer; }
-.techno-map-page .selection-table tbody tr:nth-child(even) td { background: var(--color-surface); }
+.techno-map-page .selection-table tbody tr.is-odd td { background: var(--color-surface); }
 .techno-map-page .selection-table tbody tr:hover td { background: var(--color-brand-soft); }
 .techno-map-page .selection-table tbody tr.is-pinned td { background: color-mix(in srgb, var(--pinned-color, #16a34a) 14%, var(--color-paper)); }
 .techno-map-page .selection-table tbody tr.is-pinned td:first-child { box-shadow: inset 3px 0 0 var(--pinned-color, #16a34a); }
@@ -1153,7 +1160,8 @@
   border-radius: 6px;
   list-style: none;
 }
-.techno-map-page .column-filter-menu__values label { display: flex; align-items: center; gap: 6px; padding: 4px 8px; cursor: pointer; }
+/* Every value row is exactly 26px (VALUE_ROW_HEIGHT in ColumnFilterMenu.tsx). */
+.techno-map-page .column-filter-menu__values label { box-sizing: border-box; display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; cursor: pointer; }
 .techno-map-page .column-filter-menu__values label:hover { background: var(--color-brand-soft); }
 .techno-map-page .column-filter-menu__values input { accent-color: var(--color-brand); }
 .techno-map-page .column-filter-menu__value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

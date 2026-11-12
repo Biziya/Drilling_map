@@ -39,14 +39,15 @@ TechnoMap/
 │  ├─ MapControls.tsx       zoom in/out, reset, measure, area select, export (camera), zoom readout
 │  ├─ LayerPanel.tsx        floating "Legends" panel: 12 filters, Show/Hide All
 │  ├─ RefreshButton.tsx     header button: reload the data
-│  ├─ BaseMapSwitcher.tsx   header menu right of Refresh: Redox Map / White Grid
+│  ├─ BaseMapSwitcher.tsx   header menu right of Refresh: Geological / Redox / White Grid
 │  └─ icons.tsx             control icons, shared with the help dialog
 ├─ Table/
 │  ├─ SelectionTable.tsx    the selected holes under the map, per-column filter/sort
 │  ├─ ColumnFilterMenu.tsx  Excel-style menu: sort, hide, search, Select/Unselect all, checkboxes
 │  ├─ ColumnsMenu.tsx       bar menu: show or hide columns, Show all
 │  ├─ ExportMenu.tsx        bar menu: download as Excel (.xlsx) or CSV
-│  └─ usePopover.ts         open/close for the bar menus (outside press, Esc)
+│  ├─ usePopover.ts         open/close for the bar menus (outside press, Esc)
+│  └─ useWindowedRows.ts    renders only the rows a scroll box shows (table, filter lists)
 ├─ Tooltips/
 │  ├─ MarkerTooltip.tsx     the one tooltip: highlight ring + details, on the marker
 │  └─ DrillholeTooltip      the hole's details
@@ -186,7 +187,9 @@ Two ways to select several holes:
   button again or press Esc to leave it. It switches the ruler off, and the other
   way round.
 
-Selected holes get a green ring. While anything is selected, a table opens under
+Selected holes get a green ring, drawn on the marker canvas in the same pass as
+the markers (a DOM element per ring made panning slow with thousands selected).
+While anything is selected, a table opens under
 the map with one row per hole and one column per popup field that has data
 (`utils/tooltipFields.ts`). A row click pins that hole's popup; × removes it;
 *Clear selection* (or the close button) empties the selection and closes the table.
@@ -211,6 +214,13 @@ filtered rows in the current order, visible columns only, as
 as real numbers (not the rounded screen text), dates as `YYYY-MM-DD[ HH:mm]`. The
 CSV is UTF-8 with a BOM and CRLF line ends so Excel opens it cleanly; the .xlsx has
 a bold, frozen header row and is written by `utils/xlsx.ts` without any library.
+
+**Thousands of holes.** The table is built to stay responsive with 5,000 selected:
+only the rows in view are in the DOM (`Table/useWindowedRows.ts`, fixed 30px rows,
+spacer rows above and below), column widths come from every row so nothing jumps
+while scrolling (`columnWidths`, fixed table layout), rows are cached per hole so
+adding one formats one row, and the page memoises the table so panning or hovering
+the map never re-renders it. Filter menus list their values the same way.
 
 ## Help
 
@@ -256,11 +266,25 @@ successfully*.
 
 `Controls/BaseMapSwitcher` (layers icon, right of Refresh) opens a menu of
 the backgrounds in `baseMap.options` (`config/technoMap.yaml`), the current one
-ticked: **Redox Map** (the surveyed image; id `geological`, kept so saved
-choices still apply) and **White Grid Map**. Switching changes only the
-background; view, features, filters and the measurement stay as they are. The
-choice persists under `techno-map:base-map` (localStorage) and falls back to
-`baseMap.default`.
+ticked, the same three as the Exploration Map:
+
+| id | Label | Image | UTM corners |
+|---|---|---|---|
+| `geological` (default) | **Geological Map** | `VITE_MAP_IMAGE_PATH` | `VITE_MAP_MIN_X/MAX_X/MIN_Y/MAX_Y` |
+| `redox` | **Redox Map** | `/base-map3.svg` | 412499.97–423375.13 E, 4890500–4898190.29 N |
+| `white-grid` | **White Grid Map** | (geological, hidden) | geological |
+
+The geological image used to be labelled "Redox Map"; it keeps its id, so a saved
+choice shows the same image under its right name. The redox corners come from the
+image's own Easting/Northing ticks (the same values as the Exploration Map).
+`config/technoMapConfig.ts baseMapLayout(id)` gives each background's image and
+corners; holes, cells, deviation lines, grid, scale bar, measurement and export are
+all placed with them. Switching between Geological and White Grid keeps the view and
+the measurement; switching to or from Redox (another image, another area) clears the
+measurement and re-fits the view once the image has loaded. The selection is kept
+by hole, so it survives every switch; holes outside the redox area are not drawn
+while Redox is shown, but keep their table rows. The choice persists under
+`techno-map:base-map` (localStorage) and falls back to `baseMap.default`.
 
 The image stays loaded and laid out while hidden: its size is what every
 feature is placed against, so nothing moves. `Map/CoordinateGrid` draws under

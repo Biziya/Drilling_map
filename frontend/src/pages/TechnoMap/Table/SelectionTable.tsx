@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import ColumnFilterMenu from './ColumnFilterMenu';
+import { useWindowedRows } from './useWindowedRows';
 import ColumnsMenu from './ColumnsMenu';
 import ExportMenu from './ExportMenu';
 import {
@@ -7,6 +9,7 @@ import {
   TABLE_COLUMNS,
   applyFilters,
   buildRows,
+  columnWidths,
   distinctValues,
   isColumnFiltered,
   parseHiddenColumns,
@@ -35,6 +38,13 @@ export interface SelectionTableProps {
 const NO_FILTERS: ColumnFilters = {};
 const NO_EXCLUSIONS: ReadonlySet<string> = new Set();
 
+/** Every body row's height in px; TechnoMap.css sets the same (.selection-table tbody td). */
+export const TABLE_ROW_HEIGHT = 30;
+/** Horizontal padding and border of a cell, in px, added to its width in characters. */
+const CELL_CHROME = 22;
+/** The remove (×) column, in px. */
+const REMOVE_COL_WIDTH = 30;
+
 /** A down arrow: the column's menu. */
 function ChevronIcon() {
   return (
@@ -50,8 +60,13 @@ function ChevronIcon() {
  * hides columns and exports what is shown. Filters and sort last until the
  * selection is cleared (the page unmounts the table then); hidden columns are
  * remembered per browser.
+ *
+ * Built for thousands of selected holes: only the rows in view are rendered
+ * (useWindowedRows), column widths come from every row so they do not jump
+ * while scrolling, and the page memoises it so panning the map never
+ * re-renders it.
  */
-export default function SelectionTable({ features, pinnedKey, onRowClick, onRemove, onClear }: SelectionTableProps) {
+function SelectionTable({ features, pinnedKey, onRowClick, onRemove, onClear }: SelectionTableProps) {
   const [filters, setFilters] = useState<ColumnFilters>(NO_FILTERS);
   const [sort, setSort] = useState<SortState | null>(null);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => parseHiddenColumns(readStored(HIDDEN_COLUMNS_STORAGE_KEY)));
@@ -66,6 +81,14 @@ export default function SelectionTable({ features, pinnedKey, onRowClick, onRemo
   const menuValues = useMemo(() => (menu ? distinctValues(rows, menu.column) : []), [rows, menu]);
   const hasFilters = Object.keys(filters).length > 0 || sort !== null;
   const closeMenu = useCallback(() => setMenu(null), []);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const rowWindow = useWindowedRows(scrollRef, shownRows.length, TABLE_ROW_HEIGHT);
+  const widths = useMemo(() => columnWidths(shownRows, columns), [shownRows, columns]);
+  const tableStyle = useMemo<CSSProperties>(() => {
+    const characters = columns.reduce((sum, column) => sum + (widths[column.label] ?? 0), 0);
+
+    return { minWidth: `calc(${characters}ch + ${columns.length * CELL_CHROME + REMOVE_COL_WIDTH}px)` };
+  }, [columns, widths]);
 
   const handleExport = (format: TableExportFormat) => {
     download(exportBlob(format, exportSheet(shownRows, columns)), tableExportFileName(format));
@@ -100,8 +123,14 @@ export default function SelectionTable({ features, pinnedKey, onRowClick, onRemo
         </div>
       </header>
 
-      <div className="selection-table__scroll">
-        <table>
+      <div className="selection-table__scroll" ref={scrollRef}>
+        <table style={tableStyle}>
+          <colgroup>
+            <col style={{ width: REMOVE_COL_WIDTH }} />
+            {columns.map((column) => (
+              <col key={column.label} style={{ width: `calc(${widths[column.label]}ch + ${CELL_CHROME}px)` }} />
+            ))}
+          </colgroup>
           <thead>
             <tr>
               <th className="selection-table__remove-col" aria-label="Remove" />
@@ -132,10 +161,11 @@ export default function SelectionTable({ features, pinnedKey, onRowClick, onRemo
             </tr>
           </thead>
           <tbody>
-            {shownRows.map((row) => (
+            {rowWindow.padTop > 0 && <tr className="selection-table__spacer" style={{ height: rowWindow.padTop }} aria-hidden="true" />}
+            {shownRows.slice(rowWindow.start, rowWindow.end).map((row, offset) => (
               <tr
                 key={row.key}
-                className={row.key === pinnedKey ? 'is-pinned' : undefined}
+                className={`${(rowWindow.start + offset) % 2 ? 'is-odd' : ''}${row.key === pinnedKey ? ' is-pinned' : ''}`.trim() || undefined}
                 data-key={row.key}
                 onClick={() => onRowClick(row.key)}
               >
@@ -150,12 +180,13 @@ export default function SelectionTable({ features, pinnedKey, onRowClick, onRemo
                   </button>
                 </td>
                 {columns.map((column) => (
-                  <td key={column.label} className={column.sort === 'number' ? 'is-number' : undefined}>
+                  <td key={column.label} className={column.sort === 'number' ? 'is-number' : undefined} title={row.cells[column.label] ?? undefined}>
                     {row.cells[column.label] ?? '—'}
                   </td>
                 ))}
               </tr>
             ))}
+            {rowWindow.padBottom > 0 && <tr className="selection-table__spacer" style={{ height: rowWindow.padBottom }} aria-hidden="true" />}
             {!shownRows.length && (
               <tr className="selection-table__empty">
                 <td colSpan={columns.length + 1}>No selected drillholes match the filters.</td>
@@ -181,3 +212,5 @@ export default function SelectionTable({ features, pinnedKey, onRowClick, onRemo
     </section>
   );
 }
+
+export default memo(SelectionTable);

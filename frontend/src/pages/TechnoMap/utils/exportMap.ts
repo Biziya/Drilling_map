@@ -10,7 +10,7 @@
 // the SVG at 2x.
 
 import type { CaptureRect } from '../../../components/MapScreenshot/MapScreenshot';
-import { BASE_MAP_SRC, DRILLHOLE_TYPE_CONFIG, MAP_CONFIG, MAP_UTM_BOUNDS } from '../config/technoMapConfig';
+import { DRILLHOLE_TYPE_CONFIG, MAP_CONFIG, baseMapLayout } from '../config/technoMapConfig';
 import type { BaseMapId } from '../config/technoMapConfig';
 import type { TechnoCell } from '../mock/mockData';
 import { computeCoordinateGrid } from './coordinateGrid';
@@ -38,13 +38,16 @@ export interface MapSnapshot {
   filters: MapFilters;
   measurement: readonly UtmCoordinates[];
   title: string;
-  /** Background shown on screen; the geological image when omitted. */
+  /** Background shown on screen; the default base map when omitted. */
   baseMap?: BaseMapId;
 }
 
+/** The image and UTM corners the snapshot's background is laid out on. */
+const layoutOf = (snapshot: MapSnapshot) => baseMapLayout(snapshot.baseMap ?? MAP_CONFIG.baseMap.default);
+
 /** Images embedded in the export, as data URLs. */
 export interface ExportAssets {
-  /** The geological image; null when the white grid is drawn instead. */
+  /** The background image; null when the white grid is drawn instead. */
   baseMap: string | null;
   rigIcon: string;
 }
@@ -87,8 +90,9 @@ function markerSvg({ kind }: MarkerFeature, at: Point, rigIcon: string): string 
     + `<polygon points="${svgPointsFor(shape, at.x, at.y, inner)}" fill="${color}"/>`;
 }
 
-function scaleBarSvg({ viewport, mapSize, view }: MapSnapshot): string {
-  const bar = computeScaleBar({ mapWidth: mapSize.width, zoom: view.scale, bounds: MAP_UTM_BOUNDS });
+function scaleBarSvg(snapshot: MapSnapshot): string {
+  const { viewport, mapSize, view } = snapshot;
+  const bar = computeScaleBar({ mapWidth: mapSize.width, zoom: view.scale, bounds: layoutOf(snapshot).bounds });
   if (!bar) return '';
 
   const boxWidth = Math.max(52, bar.width + 20);
@@ -111,7 +115,8 @@ function titleSvg(title: string): string {
 }
 
 /** The white grid base map, from the same lines and labels as the screen. */
-function coordinateGridSvg({ viewport, view, mapOrigin, mapSize }: MapSnapshot): string {
+function coordinateGridSvg(snapshot: MapSnapshot): string {
+  const { viewport, view, mapOrigin, mapSize } = snapshot;
   const style = MAP_CONFIG.baseMap.whiteGrid;
   const grid = computeCoordinateGrid({
     viewport,
@@ -120,6 +125,7 @@ function coordinateGridSvg({ viewport, view, mapOrigin, mapSize }: MapSnapshot):
     mapSize,
     minLineSpacing: style.minLineSpacing,
     labelFontSize: style.labelFontSize,
+    bounds: layoutOf(snapshot).bounds,
   });
   if (!grid) return '';
 
@@ -163,13 +169,14 @@ export function buildMapSvg(snapshot: MapSnapshot, assets: ExportAssets, pixelRa
   const { viewport, view, mapOrigin, mapSize, drillholes, cells, filters, measurement, title } = snapshot;
   const t = screenTransform(view, mapOrigin, mapSize);
   const toScreen = (ratio: Point): Point => ({ x: t.x + ratio.x * t.width, y: t.y + ratio.y * t.height });
-  const utmToScreen = (point: UtmCoordinates) => toScreen(utmToMapRatio(point));
+  const { bounds } = layoutOf(snapshot);
+  const utmToScreen = (point: UtmCoordinates) => toScreen(utmToMapRatio(point, bounds));
   const isNearView = ({ x, y }: Point) => x > -EDGE_MARGIN && y > -EDGE_MARGIN
     && x < viewport.width + EDGE_MARGIN && y < viewport.height + EDGE_MARGIN;
 
   const parts: string[] = [
     `<rect width="${viewport.width}" height="${viewport.height}" fill="${VIEWPORT_BACKGROUND}"/>`,
-    snapshot.baseMap === 'white-grid' || !assets.baseMap
+    layoutOf(snapshot).src === null || !assets.baseMap
       ? coordinateGridSvg(snapshot)
       : `<image href="${assets.baseMap}" x="${n(mapOrigin.x + view.translateX)}" y="${n(mapOrigin.y + view.translateY)}" `
         + `width="${n(mapSize.width * view.scale)}" height="${n(mapSize.height * view.scale)}" preserveAspectRatio="none"/>`,
@@ -192,7 +199,7 @@ export function buildMapSvg(snapshot: MapSnapshot, assets: ExportAssets, pixelRa
     });
   }
 
-  const features = selectShownFeatures(buildMarkerFeatures(drillholes), filters)
+  const features = selectShownFeatures(buildMarkerFeatures(drillholes, bounds), filters)
     .map((feature) => ({ feature, at: toScreen(feature) }));
   const visibleFeatures = features.filter(({ at }) => isNearView(at));
 
@@ -279,7 +286,7 @@ export function download(blob: Blob, fileName: string) {
 export async function exportMap(format: ExportFormat, snapshot: MapSnapshot): Promise<void> {
   // The white grid is drawn, not embedded, so the image is only fetched when shown.
   const [baseMap, rigIcon] = await Promise.all([
-    snapshot.baseMap === 'white-grid' ? null : loadDataUrl(BASE_MAP_SRC),
+    layoutOf(snapshot).src === null ? null : loadDataUrl(layoutOf(snapshot).imageSrc),
     loadDataUrl(MAP_CONFIG.rigIconSrc),
   ]);
   const assets = { baseMap, rigIcon };

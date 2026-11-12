@@ -6,10 +6,10 @@ export interface MarkerHighlightProps {
   feature: MarkerFeature;
   transform: ScreenTransform;
   /**
-   * Blue while hovered, green while pinned or part of the multi-selection
-   * (interaction colours in technoMap.yaml).
+   * Blue while hovered, green while pinned (interaction colours in
+   * technoMap.yaml). Selected holes are ringed on the marker canvas instead.
    */
-  state: 'hovered' | 'pinned' | 'selected';
+  state: 'hovered' | 'pinned';
 }
 
 /**

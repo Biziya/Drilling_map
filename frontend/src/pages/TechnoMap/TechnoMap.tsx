@@ -1,8 +1,8 @@
 import MapScreenshot from '../../components/MapScreenshot/MapScreenshot';
 import HelpButton from '../../components/HelpDialog/HelpDialog';
 import type { CaptureRect } from '../../components/MapScreenshot/MapScreenshot';
-import { useCallback, useMemo, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent, SyntheticEvent } from 'react';
 import BaseMapSwitcher from './Controls/BaseMapSwitcher';
 import LayerPanel from './Controls/LayerPanel';
 import MapControls from './Controls/MapControls';
@@ -19,7 +19,8 @@ import MarkerHighlight from './Map/MarkerHighlight';
 import BoxSelectOverlay from './Map/BoxSelectOverlay';
 import SelectionTable from './Table/SelectionTable';
 import MarkerTooltip from './Tooltips/MarkerTooltip';
-import { MAP_CONFIG, MAP_ID, MAP_SETTINGS } from './config/technoMapConfig';
+import { MAP_CONFIG, MAP_ID, MAP_SETTINGS, baseMapLayout } from './config/technoMapConfig';
+import type { BaseMapId } from './config/technoMapConfig';
 import { HELP_SECTIONS } from './config/helpContent';
 import { useBaseMap } from './hooks/useBaseMap';
 import { useMapData } from './hooks/useMapData';
@@ -65,9 +66,15 @@ const PAGE_STYLE: StyleWithCssVariables = {
 
 /** Techno Map: the demo dataset or /api/techno-map, with layer filters, measurement and export. */
 function TechnoMap() {
-  const { status, drillholes, cells, isFetching, failure, isDemo, refresh } = useMapData();
-  const { filters, setFilter, setAll } = useMapFilters();
   const { baseMap, setBaseMap } = useBaseMap();
+  // The background's image and the UTM rectangle it covers: holes, cells,
+  // grid, scale bar and measurement are all placed against these.
+  const layout = baseMapLayout(baseMap);
+  const { bounds } = layout;
+  const { status, drillholes, cells, isFetching, failure, isDemo, refresh } = useMapData(bounds);
+  const { filters, setFilter, setAll } = useMapFilters();
+  /** Set when another image was chosen: the view is reset once it has loaded. */
+  const resetOnLoadRef = useRef(false);
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [measurement, setMeasurement] = useState<UtmCoordinates[]>([]);
   // Screenshot mode (the name predates area selection).
@@ -87,7 +94,7 @@ function TechnoMap() {
   const fitBox = useMemo(() => drillholeExtent(drillholes), [drillholes]);
   // Worked out once per dataset; a filter change only re-filters, and a pan
   // or zoom only redraws.
-  const features = useMemo(() => buildMarkerFeatures(drillholes), [drillholes]);
+  const features = useMemo(() => buildMarkerFeatures(drillholes, bounds), [drillholes, bounds]);
   const shown = useMemo(() => selectShownFeatures(features, filters), [features, filters]);
   const hitIndex = useMemo(() => createHitIndex(shown), [shown]);
   const shownByKey = useMemo(() => new Map(shown.map((feature) => [feature.key, feature])), [shown]);
@@ -102,7 +109,9 @@ function TechnoMap() {
     () => [...selectedKeys].flatMap((key) => featuresByKey.get(key) ?? []),
     [selectedKeys, featuresByKey],
   );
-  const selectedRings = isSelecting || isMeasuring ? [] : selectedFeatures.filter((feature) => shownByKey.has(feature.key));
+  // Rings are drawn on the marker canvas (thousands of DOM rings made every
+  // pan frame slow); the canvas skips keys that are not shown.
+  const ringKeys = isSelecting || isMeasuring ? NO_SELECTION : selectedKeys;
 
   const { viewportRef, view, renderedMapSize, mapOrigin, viewportSize, isDragging, viewportHandlers, image, controls } = useMapViewport({
     settings: MAP_SETTINGS,
@@ -113,7 +122,7 @@ function TechnoMap() {
     // While measuring, a press on a marker is a press on the map: it places a
     // point where it lands and opens no tooltip.
     onMapClick: isMeasuring
-      ? (ratio) => setMeasurement((points) => addMeasurementPoint(points, mapRatioToUtm(ratio)))
+      ? (ratio) => setMeasurement((points) => addMeasurementPoint(points, mapRatioToUtm(ratio, bounds)))
       : undefined,
     // A click pins the hole's popup (one at a time); a click on the pinned
     // hole, or on empty map, unpins it. Ctrl+click adds the hole to the
@@ -161,8 +170,31 @@ function TechnoMap() {
       return next.size === current.size ? current : next;
     });
   }, [shown, transform]);
+  const togglePinned = useCallback((key: string) => setPinnedKey((current) => (current === key ? null : key)), []);
   const removeSelected = useCallback((key: string) => setSelectedKeys((current) => toggleKey(current, key)), []);
   const clearSelection = useCallback(() => setSelectedKeys(NO_SELECTION), []);
+
+  const handleImageLoad = (event: SyntheticEvent<HTMLImageElement>) => {
+    image.onLoad(event);
+    if (!resetOnLoadRef.current) return;
+    resetOnLoadRef.current = false;
+    controls.reset();
+  };
+
+  // Another image covers another rectangle at another size, so the old view
+  // and measurement no longer fit it. Geological and White Grid share one
+  // layout, so switching between them keeps both. The selection is by hole,
+  // so it survives the switch.
+  const handleBaseMapChange = (next: BaseMapId) => {
+    const nextLayout = baseMapLayout(next);
+    if (nextLayout.imageSrc !== layout.imageSrc || nextLayout.bounds !== bounds) {
+      setMeasurement([]);
+      // Same image, other corners: no load event follows, so reset now.
+      if (nextLayout.imageSrc === layout.imageSrc) controls.reset();
+      else resetOnLoadRef.current = true;
+    }
+    setBaseMap(next);
+  };
 
   // The popup shows the hovered hole, else the pinned one.
   const tooltipFeature = hovered ?? pinned;
@@ -206,7 +238,7 @@ function TechnoMap() {
         </div>
         <div className="mb-[3px] flex shrink-0 items-center gap-2">
           <RefreshButton isRefreshing={isFetching} onRefresh={refresh} />
-          <BaseMapSwitcher value={baseMap} onChange={setBaseMap} />
+          <BaseMapSwitcher value={baseMap} onChange={handleBaseMapChange} />
           <strong>{drillholes.length} drillholes</strong>
           <HelpButton title={MAP_CONFIG.title} sections={HELP_SECTIONS} />
         </div>
@@ -224,17 +256,18 @@ function TechnoMap() {
           onPointerLeave={() => setHoveredKey(null)}
         >
           {/* Only the background changes with the base map; the view and every feature stay put. */}
-          {baseMap === 'white-grid' && !image.hasFailed && (
-            <CoordinateGrid viewport={viewportSize} view={view} mapOrigin={mapOrigin} mapSize={mapSize} />
+          {layout.src === null && !image.hasFailed && (
+            <CoordinateGrid viewport={viewportSize} view={view} mapOrigin={mapOrigin} mapSize={mapSize} bounds={bounds} />
           )}
           <MapCanvas
             style={buildCanvasTransformStyle(view, renderedMapSize)}
-            onImageLoad={image.onLoad}
+            onImageLoad={handleImageLoad}
             onImageError={image.onError}
-            showImage={baseMap === 'geological'}
+            src={layout.imageSrc}
+            showImage={layout.src !== null}
           >
             {!image.hasFailed && filters['technological-cells'] && (
-              <TechnoCells cells={cells} mapWidth={mapWidth} mapHeight={mapHeight} />
+              <TechnoCells cells={cells} mapWidth={mapWidth} mapHeight={mapHeight} bounds={bounds} />
             )}
           </MapCanvas>
 
@@ -244,11 +277,10 @@ function TechnoMap() {
               transform={transform}
               viewport={viewportSize}
               deviationVisible={filters['deviation-line'] && view.scale >= MAP_SETTINGS.deviationMinZoom}
+              selected={ringKeys}
             />
           )}
-          {/* Rings: green on selected and pinned markers, blue on a different hovered one. */}
-          {transform && selectedRings.map((feature) => (feature === pinned || feature === hovered ? null
-            : <MarkerHighlight key={feature.key} feature={feature} transform={transform} state="selected" />))}
+          {/* Rings: green on the pinned marker, blue on a different hovered one (selected rings are on the canvas). */}
           {pinned && transform && <MarkerHighlight feature={pinned} transform={transform} state="pinned" />}
           {hovered && hovered !== pinned && transform && <MarkerHighlight feature={hovered} transform={transform} state="hovered" />}
           {tooltipFeature && transform && !isDragging && (
@@ -260,8 +292,8 @@ function TechnoMap() {
             />
           )}
 
-          <MeasurementOverlay points={measurement} view={view} mapOrigin={mapOrigin} mapSize={mapSize} />
-          <MapStatus status={status} imageFailed={image.hasFailed} failure={failure} />
+          <MeasurementOverlay points={measurement} view={view} mapOrigin={mapOrigin} mapSize={mapSize} bounds={bounds} />
+          <MapStatus status={status} imageFailed={image.hasFailed} failure={failure} src={layout.imageSrc} />
           {MAP_CONFIG.showLegends && <MapLegend filters={filters} />}
           <LayerPanel filters={filters} onChange={setFilter} onSetAll={setAll} />
           <MapControls
@@ -295,13 +327,13 @@ function TechnoMap() {
           {isSelecting && <MapScreenshot viewportRef={viewportRef}
             onCancel={() => setIsSelecting(false)}
             onCapture={(rect, format) => { setIsSelecting(false); void handleExport(format, rect); }} />}
-          <MapScaleBar mapWidth={mapWidth} zoom={view.scale} />
+          <MapScaleBar mapWidth={mapWidth} zoom={view.scale} bounds={bounds} />
         </div>
         {selectedFeatures.length > 0 && (
           <SelectionTable
             features={selectedFeatures}
             pinnedKey={pinnedKey}
-            onRowClick={(key) => setPinnedKey((current) => (current === key ? null : key))}
+            onRowClick={togglePinned}
             onRemove={removeSelected}
             onClear={clearSelection}
           />

@@ -14,7 +14,7 @@ import { MAP_DATA_MESSAGES, clearMapData, getMapData } from "../../../src/state/
 import { clearToasts } from "../../../src/components/Toast/toastStore.js";
 import { DATASET_IDS, clearCachedDataset, readCachedDataset } from "../../../src/services/cache/drillholeCache.js";
 import { MOCK_DRILLHOLES } from "../../../src/pages/TechnoMap/mock/mockData.js";
-import { clickAt, ctrlClickAt, dragBoxAround, drawnKinds, drawnMarkerCount, hoverAt, loadMapImages } from "./canvasMap.js";
+import { clickAt, ctrlClickAt, dragBoxAround, drawnKinds, drawnMarkerCount, hoverAt, loadMapImages, selectedRingCount } from "./canvasMap.js";
 
 vi.mock("../../../src/pages/TechnoMap/config/technoMapConfig.js", async (importOriginal) => {
   const actual = await importOriginal();
@@ -568,7 +568,6 @@ describe("layout", () => {
 describe("selection", () => {
   const table = (container) => container.querySelector(".selection-table");
   const tableKeys = (container) => [...container.querySelectorAll(".selection-table tbody tr[data-key]")].map((row) => row.dataset.key);
-  const selectedRings = (container) => [...container.querySelectorAll(".marker-highlight.is-selected")].map((ring) => ring.dataset.key);
   const OTHER = MOCK_DRILLHOLES.find((hole) => hole.holeStatus !== "INPROGRESS" && Math.abs(hole.x - HOLE.x) > 300);
 
   it("Ctrl+click adds a hole with a green ring and a table row; a second Ctrl+click takes it out", async () => {
@@ -577,7 +576,7 @@ describe("selection", () => {
 
     ctrlClickAt(container, HOLE);
     expect(tableKeys(container)).toEqual([`id:${HOLE.id}`]);
-    expect(selectedRings(container)).toEqual([`id:${HOLE.id}`]);
+    expect(selectedRingCount(container)).toBe(1);
     // A selection is not a pin.
     expect(container.querySelector(".marker-tooltip.is-pinned")).toBeNull();
 
@@ -619,8 +618,16 @@ describe("selection", () => {
     expect(readMapView("techno-map", null)).toEqual(before);
 
     // The tool stays on for another box, which adds to the selection.
+    const count = () => Number(container.querySelector(".selection-table__count").textContent);
+    const first = count();
     dragBoxAround(container, OTHER);
-    expect(tableKeys(container)).toEqual(expect.arrayContaining([`id:${HOLE.id}`, `id:${OTHER.id}`]));
+    expect(count()).toBeGreaterThan(first);
+    // Only the rows in view are rendered, so look the hole up in the Key filter.
+    fireEvent.click(within(table(container)).getByRole("button", { name: /^Key/ }));
+    const menu = screen.getByRole("dialog", { name: "Filter Key" });
+    fireEvent.change(within(menu).getByRole("searchbox"), { target: { value: OTHER.holeId } });
+    expect(within(menu).getByRole("checkbox", { name: new RegExp(`^${OTHER.holeId}`) })).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(container.querySelector(".box-select")).toBeNull();
@@ -640,7 +647,7 @@ describe("selection", () => {
 
     fireEvent.click(within(table(container)).getByRole("button", { name: "Clear selection" }));
     expect(table(container)).toBeNull();
-    expect(container.querySelector(".marker-highlight.is-selected")).toBeNull();
+    expect(selectedRingCount(container)).toBe(0);
   });
 
   it("filters and sorts rows from a column menu", async () => {

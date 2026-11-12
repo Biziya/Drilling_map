@@ -11,16 +11,18 @@ export interface DrillholeLayerProps {
   transform: ScreenTransform | null;
   viewport: Size;
   deviationVisible: boolean;
+  /** Keys of the selected holes, ringed in green under their markers. */
+  selected?: ReadonlySet<string>;
 }
 
 /**
  * Every shown marker and deviation line, drawn on one viewport-sized canvas
  * in the same commit as the view change, so it never lags the base map. It
  * takes no pointer events: hover and clicks are hit-tested by the page
- * (markerLayer.ts findMarkerAt). `data-drawn` / `data-lines` report what the
- * last frame drew.
+ * (markerLayer.ts findMarkerAt). `data-drawn` / `data-lines` / `data-selected`
+ * report what the last frame drew (markers, deviation lines, selection rings).
  */
-function DrillholeLayer({ features, transform, viewport, deviationVisible }: DrillholeLayerProps) {
+function DrillholeLayer({ features, transform, viewport, deviationVisible, selected }: DrillholeLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   // The rig sprite is made from the icon once it has loaded; until then rigs wait.
   const [rigIcon, setRigIcon] = useState<HTMLImageElement | null>(null);
@@ -37,13 +39,14 @@ function DrillholeLayer({ features, transform, viewport, deviationVisible }: Dri
     if (canvas.height !== height) canvas.height = height;
 
     const context = canvas.getContext('2d');
-    let drawn = { markers: 0, lines: 0 };
-    if (context && transform) drawn = drawMarkerLayer(context, { features, transform, viewport, deviationVisible, sprites });
+    let drawn = { markers: 0, lines: 0, rings: 0 };
+    if (context && transform) drawn = drawMarkerLayer(context, { features, transform, viewport, deviationVisible, sprites, selected });
     else context?.clearRect(0, 0, canvas.width, canvas.height);
 
     canvas.dataset.drawn = String(drawn.markers);
     canvas.dataset.lines = String(drawn.lines);
-  }, [features, transform, viewport, deviationVisible, sprites, pixelRatio]);
+    canvas.dataset.selected = String(drawn.rings);
+  }, [features, transform, viewport, deviationVisible, sprites, pixelRatio, selected]);
 
   return (
     <>

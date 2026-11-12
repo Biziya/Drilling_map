@@ -30,18 +30,60 @@ export interface SortState {
   direction: SortDirection;
 }
 
+function buildRow(feature: MarkerFeature, columns: readonly DrillholeColumn[]): TableRow {
+  const cells: Record<string, string | null> = {};
+  const sortValues: Record<string, number | string | null> = {};
+  for (const column of columns) {
+    const text = column.read(feature.drillhole);
+    cells[column.label] = text;
+    sortValues[column.label] = column.sort === 'number' && column.sortValue ? column.sortValue(feature.drillhole) : text;
+  }
+
+  return { key: feature.key, feature, cells, sortValues };
+}
+
+/**
+ * Rows for TABLE_COLUMNS, by feature. Features are rebuilt whenever the data
+ * changes, so a cached row is never stale; adding one hole to a selection of
+ * thousands formats one row, not all of them.
+ */
+const rowCache = new WeakMap<MarkerFeature, TableRow>();
+
 export function buildRows(features: readonly MarkerFeature[], columns = TABLE_COLUMNS): TableRow[] {
+  if (columns !== TABLE_COLUMNS) return features.map((feature) => buildRow(feature, columns));
+
   return features.map((feature) => {
-    const cells: Record<string, string | null> = {};
-    const sortValues: Record<string, number | string | null> = {};
-    for (const column of columns) {
-      const text = column.read(feature.drillhole);
-      cells[column.label] = text;
-      sortValues[column.label] = column.sort === 'number' && column.sortValue ? column.sortValue(feature.drillhole) : text;
+    let row = rowCache.get(feature);
+    if (!row) {
+      row = buildRow(feature, columns);
+      rowCache.set(feature, row);
     }
 
-    return { key: feature.key, feature, cells, sortValues };
+    return row;
   });
+}
+
+/** Column widths, in characters, kept between these so one long value cannot take over. */
+export const COLUMN_WIDTH_LIMITS = { min: 6, max: 40 } as const;
+
+/**
+ * Each column's width in characters: its longest cell over every row (not
+ * just the rendered ones, so widths stay put while scrolling) or its header,
+ * whichever is longer, within COLUMN_WIDTH_LIMITS.
+ */
+export function columnWidths(rows: readonly TableRow[], columns: readonly DrillholeColumn[]): Record<string, number> {
+  const widths: Record<string, number> = {};
+  for (const column of columns) {
+    // The header also holds the sort arrow, dot and chevron.
+    let longest = column.label.length + 4;
+    for (const row of rows) {
+      const text = row.cells[column.label];
+      if (text && text.length > longest) longest = text.length;
+    }
+    widths[column.label] = Math.min(COLUMN_WIDTH_LIMITS.max, Math.max(COLUMN_WIDTH_LIMITS.min, longest));
+  }
+
+  return widths;
 }
 
 /** The value a cell contributes to its column's filter list. */

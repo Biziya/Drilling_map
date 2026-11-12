@@ -34,10 +34,13 @@ export const markerCanvas = (container) => container.querySelector(".techno-map-
 export const drawnMarkerCount = (container) => Number(markerCanvas(container)?.dataset.drawn ?? 0);
 export const drawnLineCount = (container) => Number(markerCanvas(container)?.dataset.lines ?? 0);
 
-/** The kind of every marker the last frame stamped, in drawing order. */
+export const selectedRingCount = (container) => Number(markerCanvas(container)?.dataset.selected ?? 0);
+
+/** The kind of every marker the last frame stamped, in drawing order (selection rings left out). */
 export const drawnKinds = (container) => (markerCanvas(container)?.__calls ?? [])
   .filter(([name]) => name === "drawImage")
-  .map(([, image]) => image.dataset.sprite);
+  .map(([, image]) => image.dataset.sprite)
+  .filter((sprite) => !sprite.startsWith("ring:"));
 
 /** Where a UTM point is in the viewport under the page's current view. */
 export function screenPointOf(utm) {

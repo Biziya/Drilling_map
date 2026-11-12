@@ -12,17 +12,19 @@ export interface MapCanvasProps {
    * so switching back is instant and nothing moves.
    */
   showImage?: boolean;
+  /** The image the map is laid out on; the default base map's when left out. */
+  src?: string;
   children?: ReactNode;
 }
 
 /** The pannable, zoomable layer: the base map with the features on top. */
-function MapCanvas({ style, onImageLoad, onImageError, showImage = true, children }: MapCanvasProps) {
+function MapCanvas({ style, onImageLoad, onImageError, showImage = true, src = BASE_MAP_SRC, children }: MapCanvasProps) {
   return (
     <div className="map-canvas" style={style}>
       <img
         className={`base-map${showImage ? '' : ' is-hidden'}`}
-        src={BASE_MAP_SRC}
-        alt="Redox base map"
+        src={src}
+        alt="Base map"
         decoding="async"
         draggable="false"
         onLoad={onImageLoad}

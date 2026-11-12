@@ -21,7 +21,7 @@ import { resolveDrillholeType } from './markerKind';
 import { markerSizeFor, traceShape } from './markerShapes';
 import { dedupeDrillholes } from '../../../utils/dedupeDrillholes';
 import { isInProgressHole, readDrillholeText } from '../../../utils/drillholeFields';
-import type { MapTransform, Point, ProjectedDrillhole, Size } from '../../../types/map';
+import type { MapBounds, MapTransform, Point, ProjectedDrillhole, Size } from '../../../types/map';
 
 /** One drawable hole, everything the frame loop needs already worked out. */
 export interface MarkerFeature {
@@ -42,9 +42,10 @@ export interface MarkerFeature {
 /**
  * Every hole a filter could show, worked out once per dataset. Holes without a
  * category (an unmapped SQL Type) are left out: no filter shows them.
+ * `bounds` must be the corners the drillholes were projected with.
  */
-export function buildMarkerFeatures(drillholes: readonly ProjectedDrillhole[]): MarkerFeature[] {
-  return projectDrillholes(dedupeDrillholes(drillholes)).flatMap(({ drillhole, key, endpoint }) => {
+export function buildMarkerFeatures(drillholes: readonly ProjectedDrillhole[], bounds?: MapBounds): MarkerFeature[] {
+  return projectDrillholes(dedupeDrillholes(drillholes), bounds).flatMap(({ drillhole, key, endpoint }) => {
     const type = resolveDrillholeType(drillhole);
     if (!type) return [];
     const isInProgress = isInProgressHole(drillhole);
@@ -186,7 +187,7 @@ const SPRITE_PAD = 3;
 const SHADOW = { color: 'rgba(0, 0, 0, .45)', blur: 2, offsetY: 1 };
 
 function createSprite(
-  kind: MarkerKind,
+  name: string,
   markerSize: number,
   pixelRatio: number,
   paint: (context: CanvasRenderingContext2D) => void,
@@ -194,7 +195,7 @@ function createSprite(
   const size = markerSize + 2 * SPRITE_PAD;
   const canvas = document.createElement('canvas');
   // Names the sprite in devtools and tests; never read by the map.
-  canvas.dataset.sprite = kind;
+  canvas.dataset.sprite = name;
   canvas.width = Math.ceil(size * pixelRatio);
   canvas.height = canvas.width;
   const context = canvas.getContext('2d');
@@ -241,20 +242,64 @@ function createRigSprite(icon: CanvasImageSource, pixelRatio: number): Sprite | 
   });
 }
 
+/**
+ * The selection ring around a kind's marker, drawn like the DOM ring
+ * (.marker-highlight): a white band, then a coloured band, with a soft shadow.
+ * The marker's box plus 8px is the white band's outer edge.
+ */
+function createRingSprite(kind: MarkerKind, pixelRatio: number, color: string): Sprite | null {
+  const half = markerHalfSize(kind);
+  const white = { inner: half + 2, outer: half + 4 };
+  const ringOuter = white.outer + RING_WIDTH;
+
+  return createSprite(`ring:${kind}`, 2 * ringOuter + 4, pixelRatio, (context) => {
+    context.shadowColor = 'rgba(0, 0, 0, .3)';
+    context.shadowBlur = 4 * pixelRatio;
+    context.shadowOffsetY = pixelRatio;
+    context.lineWidth = RING_WIDTH;
+    context.strokeStyle = color;
+    context.beginPath();
+    context.arc(0, 0, white.outer + RING_WIDTH / 2, 0, 2 * Math.PI);
+    context.stroke();
+
+    context.shadowColor = 'transparent';
+    context.lineWidth = white.outer - white.inner;
+    context.strokeStyle = '#fff';
+    context.beginPath();
+    context.arc(0, 0, (white.inner + white.outer) / 2, 0, 2 * Math.PI);
+    context.stroke();
+  });
+}
+
+/** Width of the coloured band of a selection ring, in px (the DOM ring's 2.5px spread). */
+const RING_WIDTH = 2.5;
+
 export interface SpriteSet {
   pixelRatio: number;
   get: (kind: MarkerKind) => Sprite | null;
+  /** The green selection ring for a kind's marker size. */
+  ring: (kind: MarkerKind) => Sprite | null;
 }
 
 /**
  * Sprites by marker kind for one pixel ratio, built on first use. Without the
  * rig icon (still loading) rigs have no sprite and are skipped.
  */
-export function createSpriteSet(pixelRatio: number, rigIcon: CanvasImageSource | null): SpriteSet {
+export function createSpriteSet(
+  pixelRatio: number,
+  rigIcon: CanvasImageSource | null,
+  ringColor = MAP_CONFIG.interaction.pinnedColor,
+): SpriteSet {
   const sprites = new Map<MarkerKind, Sprite | null>();
+  const rings = new Map<MarkerKind, Sprite | null>();
 
   return {
     pixelRatio,
+    ring(kind) {
+      if (!rings.has(kind)) rings.set(kind, createRingSprite(kind, pixelRatio, ringColor));
+
+      return rings.get(kind) ?? null;
+    },
     get(kind) {
       if (!sprites.has(kind)) {
         let sprite: Sprite | null = null;
@@ -279,20 +324,27 @@ export interface DrawOptions {
   viewport: Size;
   deviationVisible: boolean;
   sprites: SpriteSet;
+  /**
+   * Keys of the selected holes: each shown one gets a green ring under its
+   * marker. Drawn here rather than as DOM elements, so thousands of selected
+   * holes cost one canvas pass per frame.
+   */
+  selected?: ReadonlySet<string>;
 }
 
 export interface DrawResult {
   markers: number;
   lines: number;
+  rings: number;
 }
 
 /**
- * Draws one frame: deviation lines, then markers, then rigs on top. Only what
+ * Draws one frame: deviation lines, selection rings, then markers, then rigs on top. Only what
  * falls within the viewport (plus CULL_MARGIN) is drawn; every feature stays
  * in `features` for the next frame.
  */
 export function drawMarkerLayer(context: CanvasRenderingContext2D, options: DrawOptions): DrawResult {
-  const { features, transform: t, viewport, deviationVisible, sprites } = options;
+  const { features, transform: t, viewport, deviationVisible, sprites, selected } = options;
   const ratio = sprites.pixelRatio;
   const [left, top] = [-CULL_MARGIN, -CULL_MARGIN];
   const [right, bottom] = [viewport.width + CULL_MARGIN, viewport.height + CULL_MARGIN];
@@ -319,6 +371,20 @@ export function drawMarkerLayer(context: CanvasRenderingContext2D, options: Draw
     context.stroke();
   }
 
+  let rings = 0;
+  if (selected?.size) {
+    for (const { key, x, y, kind } of features) {
+      if (!selected.has(key)) continue;
+      const sx = t.x + x * t.width;
+      const sy = t.y + y * t.height;
+      if (sx < left || sx > right || sy < top || sy > bottom) continue;
+      const sprite = sprites.ring(kind);
+      if (!sprite) continue;
+      context.drawImage(sprite.image, snap(sx - sprite.size / 2), snap(sy - sprite.size / 2), sprite.size, sprite.size);
+      rings += 1;
+    }
+  }
+
   let markers = 0;
   for (const rigs of [false, true]) {
     for (const { x, y, kind, isInProgress } of features) {
@@ -333,5 +399,5 @@ export function drawMarkerLayer(context: CanvasRenderingContext2D, options: Draw
     }
   }
 
-  return { markers, lines };
+  return { markers, lines, rings };
 }

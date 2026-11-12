@@ -5,7 +5,9 @@ import {
   MAP_ID,
   MAP_SETTINGS,
   MAP_UTM_BOUNDS,
+  baseMapLayout,
 } from "../../../src/pages/TechnoMap/config/technoMapConfig.js";
+import { utmToMapRatio } from "../../../src/pages/TechnoMap/utils/coordinates.js";
 import { MARKER_KINDS } from "../../../src/pages/TechnoMap/utils/markerKind.js";
 import {
   DRILLHOLE_TYPES,
@@ -92,11 +94,31 @@ describe("Techno Map config", () => {
     expect(MAP_CONFIG.legend).not.toHaveProperty("gt");
   });
 
-  it("calls the image base map the Redox Map, keeping its saved id", () => {
-    expect(MAP_CONFIG.baseMap.options).toEqual([
-      { id: "geological", label: "Redox Map" },
-      { id: "white-grid", label: "White Grid Map" },
+  it("offers the Exploration Map's backgrounds, Geological first and by default", () => {
+    expect(MAP_CONFIG.baseMap.options.map(({ id, label }) => [id, label])).toEqual([
+      ["geological", "Geological Map"],
+      ["redox", "Redox Map"],
+      ["white-grid", "White Grid Map"],
     ]);
+    expect(MAP_CONFIG.baseMap.default).toBe("geological");
+  });
+
+  it("lays the Redox Map out on base-map3.svg with its own corners", () => {
+    const redox = baseMapLayout("redox");
+    expect(redox).toEqual({
+      src: "/base-map3.svg",
+      imageSrc: "/base-map3.svg",
+      bounds: { minX: 412499.97, maxX: 423375.13, minY: 4890500, maxY: 4898190.29 },
+    });
+    // The white grid sits on the hidden geological image and its corners.
+    expect(baseMapLayout("white-grid")).toEqual({ src: null, imageSrc: BASE_MAP_SRC, bounds: MAP_UTM_BOUNDS });
+    expect(baseMapLayout("geological").src).toBe(BASE_MAP_SRC);
+  });
+
+  it("places a point where the redox image's grid ticks put it", () => {
+    const { x, y } = utmToMapRatio({ x: 418000, y: 4894000 }, baseMapLayout("redox").bounds);
+    expect(x).toBeCloseTo(0.5057, 3);
+    expect(y).toBeCloseTo(0.5449, 3);
   });
 
   it("carries the display settings", () => {

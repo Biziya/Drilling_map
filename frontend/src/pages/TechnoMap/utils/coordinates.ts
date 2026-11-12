@@ -137,14 +137,17 @@ export interface DrillholeFeature {
  * Pairs each already-projected drillhole with its projected deviation endpoint.
  * The key reads every spelling of holeId so React never reuses the wrong element.
  */
-export function projectDrillholes(drillholes: readonly ProjectedDrillhole[]): ProjectedDrillholeFeature[] {
+export function projectDrillholes(
+  drillholes: readonly ProjectedDrillhole[],
+  bounds: MapBounds = MAP_UTM_BOUNDS,
+): ProjectedDrillholeFeature[] {
   return drillholes.map((drillhole, index) => {
     const endpoint = calculateDeviationEndpoint(drillhole);
 
     return {
       drillhole,
       key: `${readDrillholeValue(drillhole, 'holeId') ?? 'drillhole'}-${index}`,
-      endpoint: endpoint ? convertUtmToMapPosition(endpoint) : null,
+      endpoint: endpoint ? convertUtmToMapPosition(endpoint, bounds) : null,
     };
   });
 }

@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useWindowedRows } from './useWindowedRows';
 import type { DrillholeColumn } from '../utils/tooltipFields';
 import type { DistinctValue, SortDirection, SortState } from '../utils/selectionTable';
 
@@ -17,6 +18,8 @@ export interface ColumnFilterMenuProps {
 }
 
 const MENU_WIDTH = 240;
+/** Each value row's height in px; TechnoMap.css sets the same (.column-filter-menu__values label). */
+const VALUE_ROW_HEIGHT = 26;
 
 /** Sort labels by column kind: words read A-Z, numbers and dates ascending. */
 function sortLabels(kind: DrillholeColumn['sort']): Record<SortDirection, string> {
@@ -27,13 +30,15 @@ function sortLabels(kind: DrillholeColumn['sort']): Record<SortDirection, string
 
 /**
  * Excel-style column menu: sort, a search box, Select all / Unselect all and a
- * checkbox per distinct value. Changes apply at once. Fixed-positioned, so the
+ * checkbox per distinct value (only those in view are rendered, so a column
+ * with thousands of values opens at once). Changes apply at once. Fixed-positioned, so the
  * table's scroll box cannot clip it; closes on Esc or a press outside.
  */
 export default function ColumnFilterMenu({
   column, anchor, values, excluded, sort, onExcludedChange, onSort, onHide, onClose,
 }: ColumnFilterMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLUListElement | null>(null);
   const [query, setQuery] = useState('');
   const [position, setPosition] = useState({ left: 0, top: 0 });
 
@@ -70,6 +75,7 @@ export default function ColumnFilterMenu({
     return needle ? values.filter(({ value }) => value.toLowerCase().includes(needle)) : values;
   }, [query, values]);
 
+  const rowWindow = useWindowedRows(listRef, visible.length, VALUE_ROW_HEIGHT);
   const labels = sortLabels(column.sort);
   const activeDirection = sort?.column === column.label ? sort.direction : null;
   const allVisibleChecked = visible.every(({ value }) => !excluded.has(value));
@@ -137,8 +143,9 @@ export default function ColumnFilterMenu({
         <button type="button" onClick={() => setVisible(false)} disabled={visible.every(({ value }) => excluded.has(value))}>Unselect all</button>
       </div>
 
-      <ul className="column-filter-menu__values">
-        {visible.map(({ value, count }) => (
+      <ul className="column-filter-menu__values" ref={listRef}>
+        {rowWindow.padTop > 0 && <li className="column-filter-menu__spacer" style={{ height: rowWindow.padTop }} aria-hidden="true" />}
+        {visible.slice(rowWindow.start, rowWindow.end).map(({ value, count }) => (
           <li key={value}>
             <label>
               <input type="checkbox" checked={!excluded.has(value)} onChange={() => toggle(value)} />
@@ -147,6 +154,7 @@ export default function ColumnFilterMenu({
             </label>
           </li>
         ))}
+        {rowWindow.padBottom > 0 && <li className="column-filter-menu__spacer" style={{ height: rowWindow.padBottom }} aria-hidden="true" />}
         {!visible.length && <li className="column-filter-menu__empty">No matching values</li>}
       </ul>
     </div>

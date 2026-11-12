@@ -4,6 +4,7 @@ import {
   TABLE_COLUMNS,
   applyFilters,
   buildRows,
+  columnWidths,
   distinctValues,
   isColumnFiltered,
   parseHiddenColumns,
@@ -125,5 +126,28 @@ describe("column visibility", () => {
     expect([...parseHiddenColumns(["License", "Nope", 3])]).toEqual(["License"]);
     expect(parseHiddenColumns(TABLE_COLUMNS.map((column) => column.label)).size).toBe(0);
     expect(parseHiddenColumns("x").size).toBe(0);
+  });
+});
+
+describe("thousands of rows", () => {
+  it("builds each hole's row once and reuses it", () => {
+    const hole = feature("x", { holeId: "H-9" });
+    const [first] = buildRows([hole]);
+    const [again] = buildRows([feature("y", { holeId: "H-8" }), hole]).slice(1);
+
+    expect(again).toBe(first);
+  });
+
+  it("sizes each column to its longest cell or header, within limits", () => {
+    const columns = TABLE_COLUMNS.filter((column) => ["Key", "License"].includes(column.label));
+    const rows = buildRows([
+      feature("p", { holeId: "H-1", license: "x".repeat(80) }),
+      feature("q", { holeId: "GTZO-123456789", license: null }),
+    ]);
+    const widths = columnWidths(rows, columns);
+
+    expect(widths.Key).toBe("GTZO-123456789".length);
+    expect(widths.License).toBe(40);
+    expect(columnWidths([], columns).Key).toBe("Key".length + 4 < 6 ? 6 : "Key".length + 4);
   });
 });
