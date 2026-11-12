@@ -6,12 +6,16 @@ import * as drillGeometry from '../../src/pages/DrillMap/utils/geometry';
 import * as technoGeometry from '../../src/pages/TechnoMap/utils/geometry';
 import * as drillExport from '../../src/pages/DrillMap/utils/exportMap';
 import * as technoExport from '../../src/pages/TechnoMap/utils/exportMap';
-import { MAP_SETTINGS as drillSettings } from '../../src/pages/DrillMap/config/drillMapConfig';
+import { MAP_SETTINGS as drillSettings, MAP_UTM_BOUNDS as drillBounds } from '../../src/pages/DrillMap/config/drillMapConfig';
 import { MAP_SETTINGS as technoSettings } from '../../src/pages/TechnoMap/config/technoMapConfig';
 import { ALL_VISIBLE } from '../../src/pages/TechnoMap/utils/mapFilters';
 import { computeScaleBar } from '../../src/pages/DrillMap/utils/scaleBar';
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+// The Exploration Map export takes the selected base map's image and corners;
+// the Techno Map ignores both.
+const LAYOUT = { src: '/base-map3.svg', bounds: drillBounds };
 
 describe.each([
   ['DrillMap', drillGeometry, drillExport, drillSettings],
@@ -44,7 +48,7 @@ describe.each([
     const snapshot = {
       viewport: { width: 1000, height: 700 }, view: { scale: 120, translateX: -100, translateY: -200 },
       mapOrigin: { x: 5, y: 0 }, mapSize: { width: 990, height: 700 },
-      drillholes: [], cells: [], filters: ALL_VISIBLE, measurement: [], title: 'Do not add a title',
+      drillholes: [], cells: [], filters: ALL_VISIBLE, measurement: [], title: 'Do not add a title', ...LAYOUT,
       capture: { x: 100, y: 150, width: 300, height: 200 },
     };
     const doc = new DOMParser().parseFromString(exporter.buildMapSvg(snapshot, { baseMap: 'data:image/png;base64,AAAA', rigIcon: '' }, 2), 'image/svg+xml');
@@ -73,7 +77,7 @@ describe.each([
     await exporter.exportMap('png', {
       viewport: { width: 1000, height: 700 }, view: { scale: 180, translateX: 0, translateY: 0 },
       mapOrigin: { x: 5, y: 0 }, mapSize: { width: 990, height: 700 },
-      drillholes: [], cells: [], filters: ALL_VISIBLE, measurement: [], title: page, baseMap: 'white-grid',
+      drillholes: [], cells: [], filters: ALL_VISIBLE, measurement: [], title: page, baseMap: 'white-grid', ...LAYOUT, src: null,
       capture: { x: 100, y: 150, width: 300, height: 200 },
     });
     expect(encoded).toEqual([{ width: 600, height: 400, type: 'image/png' }]);
@@ -93,7 +97,7 @@ describe.each([
     await exporter.exportMap('svg', {
       viewport: { width: 1000, height: 700 }, view: { scale: 120, translateX: -100, translateY: -200 },
       mapOrigin: { x: 5, y: 0 }, mapSize: { width: 990, height: 700 },
-      drillholes: [], cells: [], filters: ALL_VISIBLE, measurement: [], title: page,
+      drillholes: [], cells: [], filters: ALL_VISIBLE, measurement: [], title: page, ...LAYOUT,
       capture: { x: 100, y: 150, width: 300, height: 200 },
     });
     expect(downloads[0]).toMatch(new RegExp(`^${page}_.*\\.svg$`));

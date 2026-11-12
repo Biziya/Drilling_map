@@ -6,8 +6,11 @@ import {
   buildRows,
   distinctValues,
   isColumnFiltered,
+  parseHiddenColumns,
   setColumnFilter,
   sortRows,
+  toggleHidden,
+  visibleColumns,
 } from "../../../src/pages/TechnoMap/utils/selectionTable.js";
 
 /** Just enough of a MarkerFeature for the table: a key and a record. */
@@ -101,5 +104,26 @@ describe("sortRows", () => {
   it("sorts dates chronologically", () => {
     expect(keys(sortRows(ROWS, { column: "Start Date", direction: "asc" }))).toEqual(["b", "a", "d", "c"]);
     expect(keys(sortRows(ROWS, { column: "Start Date", direction: "desc" }))).toEqual(["d", "a", "b", "c"]);
+  });
+});
+
+describe("column visibility", () => {
+  const labels = (columns) => columns.map((column) => column.label);
+
+  it("hides and shows columns, keeping table order", () => {
+    const hidden = toggleHidden(new Set(), "License");
+    expect(labels(visibleColumns(TABLE_COLUMNS, hidden))).not.toContain("License");
+    expect(labels(visibleColumns(TABLE_COLUMNS, toggleHidden(hidden, "License")))).toEqual(labels(TABLE_COLUMNS));
+  });
+
+  it("never hides the last visible column", () => {
+    const allButKey = new Set(TABLE_COLUMNS.map((column) => column.label).filter((label) => label !== "Key"));
+    expect(toggleHidden(allButKey, "Key")).toBe(allButKey);
+  });
+
+  it("reads stored labels, dropping unknown ones and an everything-hidden list", () => {
+    expect([...parseHiddenColumns(["License", "Nope", 3])]).toEqual(["License"]);
+    expect(parseHiddenColumns(TABLE_COLUMNS.map((column) => column.label)).size).toBe(0);
+    expect(parseHiddenColumns("x").size).toBe(0);
   });
 });

@@ -31,7 +31,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
     title: 'Header buttons',
     buttons: [
       { icon: <RefreshIcon />, name: 'Refresh map data', description: 'Reload the drillholes. The map and your view stay as they are.' },
-      { icon: <LayersIcon />, name: 'Base map', description: 'Switch the background between the geological map and the white coordinate grid.' },
+      { icon: <LayersIcon />, name: 'Base map', description: 'Switch the background between the Redox Map (the default), the Geological Map and the white coordinate grid. Switching to another image recentres the map and clears the measurement.' },
       { icon: <HelpIcon />, name: 'Help', description: 'Show this list of shortcuts and buttons.' },
     ],
   },

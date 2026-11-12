@@ -76,11 +76,41 @@ export function HelpIcon() {
   );
 }
 
-/** A funnel, as on the selection table headers. */
-export function FunnelIcon() {
+/** A down arrow, as on the selection table headers. */
+export function ChevronDownIcon() {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true">
-      <path d="M2 3h12l-4.5 5.5V13l-3 1.5v-6z" />
+    <svg {...TOOLBAR_ICON}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+/** A tray with an arrow into it: download. */
+export function DownloadIcon() {
+  return (
+    <svg {...TOOLBAR_ICON}>
+      <path d="M12 3v12M7 10l5 5 5-5M4 17v4h16v-4" />
+    </svg>
+  );
+}
+
+/** Three columns: show or hide table columns. */
+export function ColumnsIcon() {
+  return (
+    <svg {...TOOLBAR_ICON}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16M15 4v16" />
+    </svg>
+  );
+}
+
+/** An eye with a slash: hide. */
+export function EyeOffIcon() {
+  return (
+    <svg {...TOOLBAR_ICON}>
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M3 21 21 3" />
     </svg>
   );
 }

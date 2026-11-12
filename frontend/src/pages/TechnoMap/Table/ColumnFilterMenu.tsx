@@ -11,6 +11,8 @@ export interface ColumnFilterMenuProps {
   sort: SortState | null;
   onExcludedChange: (excluded: ReadonlySet<string>) => void;
   onSort: (direction: SortDirection | null) => void;
+  /** Hides this column; absent when it is the last one shown. */
+  onHide?: () => void;
   onClose: () => void;
 }
 
@@ -29,7 +31,7 @@ function sortLabels(kind: DrillholeColumn['sort']): Record<SortDirection, string
  * table's scroll box cannot clip it; closes on Esc or a press outside.
  */
 export default function ColumnFilterMenu({
-  column, anchor, values, excluded, sort, onExcludedChange, onSort, onClose,
+  column, anchor, values, excluded, sort, onExcludedChange, onSort, onHide, onClose,
 }: ColumnFilterMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState('');
@@ -108,6 +110,18 @@ export default function ColumnFilterMenu({
           </button>
         ))}
       </div>
+
+      <button
+        type="button"
+        className="column-filter-menu__hide"
+        onClick={onHide}
+        disabled={!onHide}
+        title={onHide ? undefined : 'At least one column stays visible'}
+      >
+        {/* An eye with a slash: hide. */}
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z" /><circle cx="8" cy="8" r="2" /><path d="M2.5 13.5 13.5 2.5" /></svg>
+        Hide column
+      </button>
 
       <input
         className="column-filter-menu__search"

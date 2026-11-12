@@ -27,17 +27,17 @@ DrillMap/
 ├─ Controls/
 │  ├─ MapControls.tsx       zoom in/out, reset, measure, export menu, zoom readout
 │  ├─ RefreshButton.tsx     header button: fetch fresh data
-│  ├─ BaseMapSwitcher.tsx   header menu right of Refresh: Geological / White Grid
+│  ├─ BaseMapSwitcher.tsx   header menu right of Refresh: Redox / Geological / White Grid
 │  └─ icons.tsx             control icons, shared with the help dialog
 ├─ Tooltips/
 │  └─ DrillholeTooltip      the hole's details on hover, focus or click
 ├─ hooks/
 │  ├─ useBaseMap.ts         the selected base map, remembered in localStorage
-│  ├─ useMapData.ts         automatic loading → status, drillholes, refresh()
+│  ├─ useMapData.ts         automatic loading → status, placeable records, refresh()
 │  └─ useMapViewport.ts     sizing, drag-pan, zoom, map clicks, view persistence
 ├─ config/
 │  ├─ drillMap.yaml           title, zoom, GT bands, colours, labels, legend
-│  ├─ drillMapConfig.ts       validates the YAML; MAP_ID, getGtRange
+│  ├─ drillMapConfig.ts       validates the YAML; MAP_ID, getGtRange, baseMapLayout
 │  └─ helpContent.tsx         what the ? help dialog lists: shortcuts and buttons
 └─ utils/                   pure functions
    ├─ coordinateGrid.ts     white grid lines/labels for the view (screen + export)
@@ -112,13 +112,37 @@ refreshed successfully*.
 
 `Controls/BaseMapSwitcher` (layers icon, right of Refresh) opens a menu of
 the backgrounds in `baseMap.options` (`config/drillMap.yaml`), the current one
-ticked: **Geological Map** (the surveyed image) and **White Grid Map**.
-Switching changes only the background; view, features, filters and the
-measurement stay as they are. The choice persists under `exploration-map:base-map`
-(localStorage) and falls back to `baseMap.default` (geological).
+ticked: **Redox Map** (the default), **Geological Map** (the surveyed image)
+and **White Grid Map**. The choice persists under `exploration-map:base-map`
+(localStorage) and falls back to `baseMap.default` (redox) when the stored
+value is missing or no longer offered.
 
-The geological image stays loaded and laid out while hidden: its size is what
-every feature is placed against, so nothing moves. `Map/CoordinateGrid` draws
+Each base map covers its own UTM rectangle. `baseMapLayout(id)` in
+`config/drillMapConfig.ts` returns the image shown (`src`, null for the white
+grid), the image the canvas is laid out on (`imageSrc`) and its corners
+(`bounds`). `DrillMap.tsx` projects the drillholes with those bounds, and passes
+them to the measurement, scale bar, grid and export, so every position follows
+the selected map.
+
+| Base map | Image | minX | maxX | minY | maxY |
+| --- | --- | --- | --- | --- | --- |
+| Redox Map | `public/base-map3.svg` | 412499.97 | 423375.13 | 4890500 | 4898190.29 |
+| Geological Map | `VITE_MAP_IMAGE_PATH` (`/base-map.svg`) | `VITE_MAP_MIN_X` | `VITE_MAP_MAX_X` | `VITE_MAP_MIN_Y` | `VITE_MAP_MAX_Y` |
+| White Grid Map | geological image, hidden | as Geological | | | |
+
+The Redox Map corners are written in `drillMap.yaml` (`src`, `bounds`, validated
+as finite with max above min). They were read from the SVG's own
+Easting/Northing grid ticks and match the bounds this project first shipped
+with (commit `6d89823`, `config/env.ts`). The Geological corners default to
+`src/config/env.ts` (`MAP_UTM_BOUNDS`), shared with the Techno Map, which keeps
+using them unchanged.
+
+Switching to a base map with another image or other corners clears the
+measurement and resets the view to the initial view once the new image has
+loaded, since the old view no longer fits it. Geological and White Grid share
+one layout, so switching between them changes only the background: view,
+features and measurement stay put. The geological image stays loaded and laid
+out while hidden: its size is what every feature is placed against. `Map/CoordinateGrid` draws
 under the canvas, in viewport pixels, from `utils/coordinateGrid.ts`: a white
 sheet over exactly the UTM bounds, lines every 1/2/5 x 10^n metres (the
 smallest step at least `whiteGrid.minLineSpacing` px apart, so it refines on

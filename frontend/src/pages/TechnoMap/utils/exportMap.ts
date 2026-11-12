@@ -265,7 +265,8 @@ async function rasterise(svg: string, width: number, height: number): Promise<Bl
   }
 }
 
-function download(blob: Blob, fileName: string) {
+/** Saves a blob through a temporary link; shared with the selection table export. */
+export function download(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;

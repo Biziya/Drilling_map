@@ -33,6 +33,8 @@ const PAGES = [
   {
     name: "Exploration Map", Page: DrillMap, config: drillConfig, grid: drillGrid, coordinates: drillCoordinates,
     geometry: drillGeometry, exporter: drillExport, key: DRILL_KEY, otherKey: TECHNO_KEY, parse: parseDrill, mapId: "exploration-map",
+    // Redox is the default; Geological is the image sharing the white grid's layout.
+    labels: ["Redox Map", "Geological Map", "White Grid Map"], defaultId: "redox",
     imageLabel: "Geological Map",
     isEasting: ({ text }) => text.startsWith("E "),
     isNorthing: ({ text }) => text.startsWith("N "),
@@ -41,6 +43,7 @@ const PAGES = [
   {
     name: "Techno Map", Page: TechnoMap, config: technoConfig, grid: technoGrid, coordinates: technoCoordinates,
     geometry: technoGeometry, exporter: technoExport, key: TECHNO_KEY, otherKey: DRILL_KEY, parse: parseTechno, mapId: "techno-map",
+    labels: ["Redox Map", "White Grid Map"], defaultId: "geological",
     imageLabel: "Redox Map",
     isEasting: ({ text, vertical }) => !vertical && /^[\d,.]+$/.test(text) && Number(text.replace(/,/g, "")) < 1000,
     isNorthing: ({ text, vertical }) => !vertical && /^[\d,.]+$/.test(text) && Number(text.replace(/,/g, "")) > 1000,
@@ -86,17 +89,17 @@ const choose = (label) => {
 };
 
 describe.each(PAGES)("$name base map", ({
-  Page, config, grid, coordinates, geometry, exporter, key, otherKey, parse, mapId, imageLabel, isEasting, isNorthing, hasCompass,
+  Page, config, grid, coordinates, geometry, exporter, key, otherKey, parse, mapId, labels, defaultId, imageLabel, isEasting, isNorthing, hasCompass,
 }) => {
   describe("configuration", () => {
-    it("offers the image map then White Grid Map, defaulting to the image", () => {
-      expect(config.MAP_CONFIG.baseMap.options.map(({ label }) => label)).toEqual([imageLabel, "White Grid Map"]);
-      expect(config.MAP_CONFIG.baseMap.default).toBe("geological");
+    it("offers the image maps then White Grid Map, defaulting to the first", () => {
+      expect(config.MAP_CONFIG.baseMap.options.map(({ label }) => label)).toEqual(labels);
+      expect(config.MAP_CONFIG.baseMap.default).toBe(defaultId);
     });
 
     it("falls back to the default for a missing or unknown stored choice", () => {
-      expect(parse(null)).toBe("geological");
-      expect(parse("satellite")).toBe("geological");
+      expect(parse(null)).toBe(defaultId);
+      expect(parse("satellite")).toBe(defaultId);
       expect(parse("white-grid")).toBe("white-grid");
     });
 
@@ -181,16 +184,18 @@ describe.each(PAGES)("$name base map", ({
       expect(children[2].tagName).toBe("STRONG");
     });
 
-    it("opens a menu with both base maps, the image map ticked first time", async () => {
+    it("opens a menu with every base map, the default ticked first time", async () => {
       await renderPage(Page);
       openMenu();
       const items = within(screen.getByRole("menu", { name: "Base map" })).getAllByRole("menuitemradio");
 
-      expect(items.map((item) => item.textContent)).toEqual([imageLabel, "White Grid Map"]);
-      expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual(["true", "false"]);
+      expect(items.map((item) => item.textContent)).toEqual(labels);
+      expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual(labels.map((_, index) => String(index === 0)));
     });
 
     it("switches the background in place, closes the menu, and keeps the view and features", async () => {
+      // From the image map that shares the white grid's image and corners.
+      localStorage.setItem(key, JSON.stringify("geological"));
       writeMapView(mapId, { scale: 1.8, translateX: -120, translateY: -40 });
       const { container } = await renderPage(Page);
       const before = [...container.querySelectorAll(".drillhole-marker")].map((marker) => marker.parentElement.getAttribute("style"));
@@ -238,7 +243,7 @@ describe.each(PAGES)("$name base map", ({
   });
 
   describe("export", () => {
-    const snapshot = (baseMap) => ({
+    const snapshot = (baseMap, src) => ({
       viewport: VIEWPORT,
       view: { scale: 1, translateX: 0, translateY: 0 },
       mapOrigin: ORIGIN,
@@ -249,19 +254,21 @@ describe.each(PAGES)("$name base map", ({
       measurement: [{ x: 415000, y: 4893000 }, { x: 418000, y: 4895000 }],
       title: "Map",
       baseMap,
+      src,
+      bounds: config.MAP_UTM_BOUNDS,
     });
     const ASSETS = { baseMap: "data:image/png;base64,AAAA", rigIcon: "data:image/svg+xml;base64,BBBB" };
     const parse = (svg) => new DOMParser().parseFromString(svg, "image/svg+xml");
 
     it("embeds the geological image when it is selected", () => {
-      const doc = parse(exporter.buildMapSvg(snapshot("geological"), ASSETS));
+      const doc = parse(exporter.buildMapSvg(snapshot("geological", "/base-map.svg"), ASSETS));
 
       expect(doc.querySelector(`image[href='${ASSETS.baseMap}']`)).not.toBeNull();
       expect(doc.querySelector(`rect[fill='${config.MAP_CONFIG.baseMap.whiteGrid.background}']`)).toBeNull();
     });
 
     it("draws the white sheet, grid and coordinate labels instead when the white grid is selected", () => {
-      const doc = parse(exporter.buildMapSvg(snapshot("white-grid"), { ...ASSETS, baseMap: null }));
+      const doc = parse(exporter.buildMapSvg(snapshot("white-grid", null), { ...ASSETS, baseMap: null }));
       const texts = [...doc.querySelectorAll("text")];
       const labels = texts.map(({ textContent }) => textContent);
       const asLabels = texts.map((node) => ({ text: node.textContent, vertical: (node.getAttribute("transform") ?? "").startsWith("rotate") }));

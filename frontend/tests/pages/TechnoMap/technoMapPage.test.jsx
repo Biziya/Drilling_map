@@ -701,3 +701,68 @@ describe("help", () => {
     expect(help.textContent).toContain("Selection table");
   });
 });
+
+describe("selection table tools", () => {
+  const table = (container) => container.querySelector(".selection-table");
+  const headers = (container) => [...container.querySelectorAll(".selection-table thead th button")].map((button) => button.textContent);
+  const OTHER = MOCK_DRILLHOLES.find((hole) => hole.holeStatus !== "INPROGRESS" && Math.abs(hole.x - HOLE.x) > 300);
+
+  async function withSelection() {
+    const result = await renderPage();
+    ctrlClickAt(result.container, HOLE);
+    ctrlClickAt(result.container, OTHER);
+
+    return result;
+  }
+
+  it("hides a column from its menu and brings it back from Columns, remembered across remounts", async () => {
+    const { container, unmount } = await withSelection();
+    expect(headers(container).some((text) => text.startsWith("License"))).toBe(true);
+
+    fireEvent.click(within(table(container)).getByRole("button", { name: /^License/ }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Filter License" })).getByRole("button", { name: "Hide column" }));
+    expect(headers(container).some((text) => text.startsWith("License"))).toBe(false);
+    expect(within(table(container)).getByRole("button", { name: /Columns/ }).textContent).toContain("1 hidden");
+
+    unmount();
+    const again = await renderPage();
+    ctrlClickAt(again.container, HOLE);
+    expect(headers(again.container).some((text) => text.startsWith("License"))).toBe(false);
+
+    fireEvent.click(within(table(again.container)).getByRole("button", { name: /Columns/ }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Show or hide columns" })).getByRole("checkbox", { name: "License" }));
+    expect(headers(again.container).some((text) => text.startsWith("License"))).toBe(true);
+  });
+
+  it("exports as Excel or CSV with a timestamped name, and has nothing to export when filters hide every row", async () => {
+    const saved = [];
+    // jsdom has no object URLs; the download only needs a name and a click.
+    URL.createObjectURL = vi.fn(() => "blob:test");
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function () { saved.push(this.download); });
+    const { container } = await withSelection();
+
+    fireEvent.click(within(table(container)).getByRole("button", { name: /Export/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Excel/ }));
+    fireEvent.click(within(table(container)).getByRole("button", { name: /Export/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /CSV/ }));
+    expect(saved).toHaveLength(2);
+    expect(saved[0]).toMatch(/^TechnoMap_selection_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.xlsx$/);
+    expect(saved[1]).toMatch(/\.csv$/);
+
+    fireEvent.click(within(table(container)).getByRole("button", { name: /^Key/ }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Filter Key" })).getByRole("button", { name: "Unselect all" }));
+    expect(within(table(container)).getByRole("button", { name: /Export/ }).disabled).toBe(true);
+  });
+
+  it("uses a down arrow in each header and marks filtered columns with a dot", async () => {
+    const { container } = await withSelection();
+    const keyHeader = within(table(container)).getByRole("button", { name: /^Key/ });
+    expect(keyHeader.querySelector(".selection-table__chevron")).toBeTruthy();
+    expect(keyHeader.querySelector(".selection-table__dot")).toBeNull();
+
+    fireEvent.click(keyHeader);
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Filter Key" })).getByRole("checkbox", { name: new RegExp(`^${OTHER.holeId}`) }));
+    expect(keyHeader.querySelector(".selection-table__dot")).toBeTruthy();
+  });
+});

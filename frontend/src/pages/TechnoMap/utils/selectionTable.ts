@@ -122,3 +122,42 @@ export function setColumnFilter(filters: ColumnFilters, column: string, excluded
 
   return next;
 }
+
+// --- Column visibility ---------------------------------------------------------
+
+/** Where the hidden column labels are remembered, per browser. */
+export const HIDDEN_COLUMNS_STORAGE_KEY = 'techno-map:table-columns';
+
+/** The columns still shown, in table order. */
+export function visibleColumns(columns: readonly DrillholeColumn[], hidden: ReadonlySet<string>): DrillholeColumn[] {
+  return columns.filter((column) => !hidden.has(column.label));
+}
+
+/**
+ * `hidden` with `label` shown again, or hidden. The last visible column
+ * cannot be hidden, so the table never ends up with none.
+ */
+export function toggleHidden(
+  hidden: ReadonlySet<string>,
+  label: string,
+  columns: readonly DrillholeColumn[] = TABLE_COLUMNS,
+): ReadonlySet<string> {
+  const next = new Set(hidden);
+  if (next.has(label)) {
+    next.delete(label);
+    return next;
+  }
+  if (visibleColumns(columns, hidden).length <= 1) return hidden;
+  next.add(label);
+
+  return next;
+}
+
+/** Hidden labels from storage, keeping only columns that still exist and never all of them. */
+export function parseHiddenColumns(value: unknown, columns: readonly DrillholeColumn[] = TABLE_COLUMNS): ReadonlySet<string> {
+  if (!Array.isArray(value)) return new Set();
+  const labels = new Set(columns.map((column) => column.label));
+  const hidden = new Set(value.filter((label): label is string => typeof label === 'string' && labels.has(label)));
+
+  return hidden.size >= columns.length ? new Set() : hidden;
+}

@@ -5,9 +5,12 @@ import {
   MAP_ID,
   MAP_SETTINGS,
   MAP_UTM_BOUNDS,
+  baseMapLayout,
   getGtRange,
 } from "../../../src/pages/DrillMap/config/drillMapConfig.js";
+import { MAP_IMAGE_PATH, MAP_UTM_BOUNDS as ENV_UTM_BOUNDS } from "../../../src/config/env.js";
 import { MARKER_KINDS } from "../../../src/pages/DrillMap/utils/markerKind.js";
+import { convertUtmToMapPosition, mapRatioToUtm, utmToMapRatio } from "../../../src/pages/DrillMap/utils/coordinates.js";
 
 describe("getGtRange", () => {
   it("puts a mid-band value in the right band", () => {
@@ -131,9 +134,53 @@ describe("Exploration Map config", () => {
     expect(MAP_CONFIG).not.toHaveProperty("fallbackMarkerKind");
   });
 
-  it("exposes the base map and its UTM bounds", () => {
-    expect(BASE_MAP_SRC).toBe("/base-map.svg");
-    expect(MAP_UTM_BOUNDS.maxX).toBeGreaterThan(MAP_UTM_BOUNDS.minX);
-    expect(MAP_UTM_BOUNDS.maxY).toBeGreaterThan(MAP_UTM_BOUNDS.minY);
+  it("exposes the default base map and its UTM bounds", () => {
+    expect(BASE_MAP_SRC).toBe("/base-map3.svg");
+    expect(MAP_UTM_BOUNDS).toBe(baseMapLayout("redox").bounds);
+  });
+});
+
+describe("base maps", () => {
+  const REDOX_BOUNDS = { minX: 412499.97, maxX: 423375.13, minY: 4890500, maxY: 4898190.29 };
+
+  it("offers Redox, Geological and White Grid, defaulting to Redox", () => {
+    expect(MAP_CONFIG.baseMap.options.map(({ id, label }) => [id, label])).toEqual([
+      ["redox", "Redox Map"],
+      ["geological", "Geological Map"],
+      ["white-grid", "White Grid Map"],
+    ]);
+    expect(MAP_CONFIG.baseMap.default).toBe("redox");
+  });
+
+  it("validates the Redox Map's own image and corners", () => {
+    const redox = MAP_CONFIG.baseMap.options.find(({ id }) => id === "redox");
+
+    expect(redox.src).toBe("/base-map3.svg");
+    expect(redox.bounds).toEqual(REDOX_BOUNDS);
+    expect(baseMapLayout("redox")).toEqual({ src: "/base-map3.svg", imageSrc: "/base-map3.svg", bounds: REDOX_BOUNDS });
+  });
+
+  it("keeps the Geological Map on the environment's image and corners", () => {
+    expect(baseMapLayout("geological")).toEqual({ src: MAP_IMAGE_PATH, imageSrc: MAP_IMAGE_PATH, bounds: ENV_UTM_BOUNDS });
+  });
+
+  it("lays the White Grid out on the geological image and corners, showing no image", () => {
+    expect(baseMapLayout("white-grid")).toEqual({ src: null, imageSrc: MAP_IMAGE_PATH, bounds: ENV_UTM_BOUNDS });
+  });
+
+  it("places 418000 E / 4894000 N about half way across and 54.5% down the Redox Map", () => {
+    const { bounds } = baseMapLayout("redox");
+    const ratio = utmToMapRatio({ x: 418000, y: 4894000 }, bounds);
+    const hole = convertUtmToMapPosition({ x: 418000, y: 4894000 }, bounds);
+
+    expect(Math.abs(ratio.x - 0.506)).toBeLessThanOrEqual(0.001);
+    expect(Math.abs(ratio.y - 0.545)).toBeLessThanOrEqual(0.001);
+    expect(hole).toMatchObject({ xPercent: ratio.x * 100, yPercent: ratio.y * 100, isInsideMap: true });
+    expect(mapRatioToUtm(ratio, bounds).x).toBeCloseTo(418000, 6);
+    expect(mapRatioToUtm(ratio, bounds).y).toBeCloseTo(4894000, 6);
+  });
+
+  it("falls back to the default's layout for an id that is not offered", () => {
+    expect(baseMapLayout("satellite")).toBe(baseMapLayout("redox"));
   });
 });

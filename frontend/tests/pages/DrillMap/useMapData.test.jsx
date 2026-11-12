@@ -108,7 +108,7 @@ describe("useMapData", () => {
 
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(probe.latest().status).toBe("ready");
-    expect(probe.latest().drillholes).toHaveLength(2);
+    expect(probe.latest().records).toHaveLength(2);
     expect(probe.latest().isFetching).toBe(false);
     expect(probe.latest().failure).toBeNull();
   });
@@ -119,7 +119,7 @@ describe("useMapData", () => {
     await settle();
 
     expect(probe.latest().status).toBe("ready");
-    expect(probe.latest().drillholes.map(({ holeId }) => holeId)).toEqual(["P-1"]);
+    expect(probe.latest().records.map(({ holeId }) => holeId)).toEqual(["P-1"]);
   });
 
   it("reports 'empty' when the backend returned nothing", async () => {
@@ -137,7 +137,7 @@ describe("useMapData", () => {
     await settle();
 
     expect(probe.latest().status).toBe("unplaceable");
-    expect(probe.latest().drillholes).toEqual([]);
+    expect(probe.latest().records).toEqual([]);
   });
 
   it("reports 'unavailable' when there is no cache and the backend is unreachable", async () => {
@@ -164,7 +164,7 @@ describe("useMapData", () => {
     const probe = renderMapData();
 
     await waitFor(() => expect(probe.latest().status).toBe("ready"));
-    expect(probe.latest().drillholes[0].holeId).toBe("P-1");
+    expect(probe.latest().records[0].holeId).toBe("P-1");
     expect(probe.latest().isFetching).toBe(true);
   });
 
@@ -206,6 +206,6 @@ describe("useMapData", () => {
 
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(fetch.mock.calls[1][0]).toContain(ENDPOINT);
-    expect(probe.latest().drillholes).toHaveLength(2);
+    expect(probe.latest().records).toHaveLength(2);
   });
 });

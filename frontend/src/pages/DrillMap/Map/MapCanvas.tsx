@@ -1,9 +1,10 @@
 import type { CSSProperties, ReactEventHandler, ReactNode } from 'react';
-import { BASE_MAP_SRC } from '../config/drillMapConfig';
 
 export interface MapCanvasProps {
   /** Transform and size, from buildCanvasTransformStyle. */
   style: CSSProperties;
+  /** The selected base map's image (see baseMapLayout's imageSrc). */
+  src: string;
   onImageLoad: ReactEventHandler<HTMLImageElement>;
   onImageError: ReactEventHandler<HTMLImageElement>;
   /**
@@ -16,13 +17,13 @@ export interface MapCanvasProps {
 }
 
 /** The pannable, zoomable layer: the base map with the features on top. */
-function MapCanvas({ style, onImageLoad, onImageError, showImage = true, children }: MapCanvasProps) {
+function MapCanvas({ style, src, onImageLoad, onImageError, showImage = true, children }: MapCanvasProps) {
   return (
     <div className="map-canvas" style={style}>
       <img
         className={`base-map${showImage ? '' : ' is-hidden'}`}
-        src={BASE_MAP_SRC}
-        alt="Geological drillhole base map"
+        src={src}
+        alt="Drillhole base map"
         decoding="async"
         draggable="false"
         onLoad={onImageLoad}

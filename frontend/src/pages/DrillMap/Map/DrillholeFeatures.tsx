@@ -4,11 +4,13 @@ import { MAP_CONFIG } from '../config/drillMapConfig';
 import { attachDeviationOffsets, projectDrillholes } from '../utils/coordinates';
 import { resolveMarkerKind } from '../utils/markerKind';
 import { dedupeDrillholes } from '../../../utils/dedupeDrillholes';
-import type { ProjectedDrillhole } from '../../../types/map';
+import type { MapBounds, ProjectedDrillhole } from '../../../types/map';
 
 export interface DrillholeFeaturesProps {
   /** Drillholes already projected onto the map. */
   drillholes: readonly ProjectedDrillhole[];
+  /** UTM corners of the base map the drillholes were projected onto. */
+  bounds: MapBounds;
   /** Whether the current zoom is past the deviation threshold. */
   deviationVisible: boolean;
   mapWidth: number;
@@ -21,11 +23,12 @@ export interface DrillholeFeaturesProps {
  */
 function DrillholeFeatures({
   drillholes,
+  bounds,
   deviationVisible,
   mapWidth,
   mapHeight,
 }: DrillholeFeaturesProps) {
-  const projected = useMemo(() => projectDrillholes(dedupeDrillholes(drillholes)), [drillholes]);
+  const projected = useMemo(() => projectDrillholes(dedupeDrillholes(drillholes), bounds), [drillholes, bounds]);
   const features = useMemo(
     () => attachDeviationOffsets(projected, { mapWidth, mapHeight }),
     [projected, mapWidth, mapHeight],

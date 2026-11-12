@@ -1,4 +1,3 @@
-import { BASE_MAP_SRC } from '../config/drillMapConfig';
 import type { MapDataStatus } from '../hooks/useMapData';
 import { describeFailure } from '../../../state/mapDataStore';
 import type { MapDataFailure } from '../../../state/mapDataStore';
@@ -15,17 +14,19 @@ const NOTICES: Readonly<Record<Exclude<MapDataStatus, 'ready'>, { title: string;
 export interface MapStatusProps {
   status: MapDataStatus;
   imageFailed: boolean;
+  /** Public path of the selected base map image, named when it fails to load. */
+  src: string;
   /** Why loading failed; explains the 'unavailable' state. */
   failure?: MapDataFailure | null;
 }
 
 /** A small centred notice while the map has nothing to show. */
-function MapStatus({ status, imageFailed, failure = null }: MapStatusProps) {
+function MapStatus({ status, imageFailed, src, failure = null }: MapStatusProps) {
   if (imageFailed) {
     return (
       <div className="map-missing" role="status">
         <strong>Base map not found</strong>
-        <span>Add the image as <code>public{BASE_MAP_SRC}</code>.</span>
+        <span>Add the image as <code>public{src}</code>.</span>
       </div>
     );
   }

@@ -1,15 +1,15 @@
 import data from './drillMap.yaml';
-import { MAP_IMAGE_PATH, MAP_UTM_BOUNDS } from '../../../config/env';
+import { MAP_IMAGE_PATH, MAP_UTM_BOUNDS as ENV_UTM_BOUNDS } from '../../../config/env';
 import { ConfigError, boolean, dictionary, list, number, object, oneOf, parseConfig, text } from '../../../config/schema';
 import type { Parser } from '../../../config/schema';
 import { MARKER_KINDS } from '../utils/markerKind';
-import type { GtRange, MapId } from '../../../types/map';
+import type { GtRange, MapBounds, MapId } from '../../../types/map';
 
 /** Keys this page's data and view are stored under. */
 export const MAP_ID: MapId = 'exploration-map';
 
 /** Backgrounds the map can be drawn on. Labels, order and the default are in the YAML. */
-export const BASE_MAP_IDS = ['geological', 'white-grid'] as const;
+export const BASE_MAP_IDS = ['redox', 'geological', 'white-grid'] as const;
 export type BaseMapId = (typeof BASE_MAP_IDS)[number];
 
 /** A legend dimension in px: a finite number, never negative. */
@@ -24,6 +24,20 @@ const size: Parser<number> = (value, path) => {
 const positive: Parser<number> = (value, path) => {
   const parsed = number(value, path);
   if (parsed <= 0) throw new ConfigError(`${path}: expected more than 0, got ${parsed}`);
+
+  return parsed;
+};
+
+/** `parse`, or undefined when the setting is left out. */
+function optional<T>(parse: Parser<T>): Parser<T | undefined> {
+  return (value, path) => (value === undefined ? undefined : parse(value, path));
+}
+
+/** A UTM rectangle in metres: finite corners, each max above its min. */
+const bounds: Parser<MapBounds> = (value, path) => {
+  const parsed = object({ minX: number, maxX: number, minY: number, maxY: number })(value, path);
+  if (parsed.maxX <= parsed.minX) throw new ConfigError(`${path}.maxX: expected more than minX (${parsed.minX}), got ${parsed.maxX}`);
+  if (parsed.maxY <= parsed.minY) throw new ConfigError(`${path}.maxY: expected more than minY (${parsed.minY}), got ${parsed.maxY}`);
 
   return parsed;
 };
@@ -71,7 +85,7 @@ export const MAP_CONFIG = parseConfig(
       deviationMinZoom: number,
     }),
     baseMap: object({
-      options: list(object({ id: oneOf(...BASE_MAP_IDS), label: text })),
+      options: list(object({ id: oneOf(...BASE_MAP_IDS), label: text, src: optional(text), bounds: optional(bounds) })),
       default: oneOf(...BASE_MAP_IDS),
       whiteGrid: object({
         background: text,
@@ -109,9 +123,43 @@ if (MAP_CONFIG.zoom.maxWheelZoomStep < MAP_CONFIG.zoom.minWheelZoomStep) {
 
 export const MAP_SETTINGS = MAP_CONFIG.zoom;
 
-// Environment-specific, so these stay in VITE_* variables rather than YAML.
-export const BASE_MAP_SRC = MAP_IMAGE_PATH;
-export { MAP_UTM_BOUNDS };
+/** Where a base map is drawn from and what it covers. */
+export interface BaseMapLayout {
+  /** Image shown as the background, or null when the white grid is drawn instead. */
+  src: string | null;
+  /**
+   * Image the canvas is laid out on (loaded even while hidden): its size is
+   * what every feature is placed against.
+   */
+  imageSrc: string;
+  /** UTM rectangle the image covers. */
+  bounds: Readonly<MapBounds>;
+}
+
+const layouts = new Map<BaseMapId, BaseMapLayout>(
+  MAP_CONFIG.baseMap.options.map((option) => {
+    // Without its own image and corners, a base map uses the environment's
+    // (VITE_MAP_IMAGE_PATH and the VITE_MAP_* bounds): the Geological Map.
+    const imageSrc = option.src ?? MAP_IMAGE_PATH;
+    const layout: BaseMapLayout = Object.freeze({
+      src: option.id === 'white-grid' ? null : imageSrc,
+      imageSrc,
+      bounds: option.bounds ?? ENV_UTM_BOUNDS,
+    });
+
+    return [option.id, layout];
+  }),
+);
+
+/** The image and UTM corners of a base map; the default's for one not offered. */
+export function baseMapLayout(id: BaseMapId): BaseMapLayout {
+  // The default is checked above to be one of the options.
+  return (layouts.get(id) ?? layouts.get(MAP_CONFIG.baseMap.default)) as BaseMapLayout;
+}
+
+/** The default base map's image and UTM corners, used when no base map is named. */
+export const BASE_MAP_SRC = baseMapLayout(MAP_CONFIG.baseMap.default).imageSrc;
+export const MAP_UTM_BOUNDS = baseMapLayout(MAP_CONFIG.baseMap.default).bounds;
 
 /**
  * Classifies a GT reading into its colour band.

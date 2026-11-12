@@ -3,7 +3,7 @@
 // checks, so a new toolbar button cannot ship without a description here.
 
 import type { HelpSection } from '../../../components/HelpDialog/help';
-import { BoxSelectIcon, CameraIcon, FunnelIcon, HelpIcon, LayersIcon, RefreshIcon, RulerIcon } from '../Controls/icons';
+import { BoxSelectIcon, CameraIcon, ChevronDownIcon, ColumnsIcon, DownloadIcon, EyeOffIcon, HelpIcon, LayersIcon, RefreshIcon, RulerIcon } from '../Controls/icons';
 
 export const HELP_SECTIONS: readonly HelpSection[] = [
   {
@@ -69,9 +69,16 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
     title: 'Selection table',
     buttons: [
       {
-        icon: <FunnelIcon />,
+        icon: <ChevronDownIcon />,
         name: 'Column header',
-        description: 'Sort A → Z / Z → A (text) or ascending / descending (numbers, dates); search values; Select all / Unselect all; tick the values to show.',
+        description: 'Sort A → Z / Z → A (text) or ascending / descending (numbers, dates); search values; Select all / Unselect all; tick the values to show. A dot marks a filtered column.',
+      },
+      { icon: <EyeOffIcon />, name: 'Hide column', description: "In a column's menu: hide that column. At least one column stays visible." },
+      { icon: <ColumnsIcon />, name: 'Columns', description: 'Tick columns to show or hide them, or Show all. Remembered in this browser.' },
+      {
+        icon: <DownloadIcon />,
+        name: 'Export',
+        description: 'Download the table as Excel (.xlsx) or CSV: only the rows the filters show, in the current order, without hidden columns.',
       },
       { icon: '↵', name: 'Row', description: "Click a row to pin that hole's details on the map." },
       { icon: '×', name: 'Remove', description: 'Take that hole out of the selection.' },

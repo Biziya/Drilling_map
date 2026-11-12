@@ -5,7 +5,7 @@ import { fetchDrillholeMap } from '../../../services/api/mapData';
 import { loadMapData, useMapDataEntry } from '../../../state/mapDataStore';
 import type { MapDataFailure } from '../../../state/mapDataStore';
 import type { DrillholeApiRecord } from '../../../types/drillhole';
-import type { ProjectedDrillhole } from '../../../types/map';
+import type { MapBounds, ProjectedDrillhole } from '../../../types/map';
 
 /**
  * What the map can show:
@@ -19,7 +19,11 @@ export type MapDataStatus = 'loading' | 'ready' | 'empty' | 'unplaceable' | 'una
 
 export interface MapData {
   status: MapDataStatus;
-  drillholes: ProjectedDrillhole[];
+  /**
+   * Drillholes with usable UTM coordinates, not yet placed: where they land
+   * depends on the selected base map's corners (see projectRecords).
+   */
+  records: DrillholeApiRecord[];
   isFetching: boolean;
   /** Why the last request failed, or null. */
   failure: MapDataFailure | null;
@@ -27,10 +31,13 @@ export interface MapData {
   refresh: () => void;
 }
 
-/** Projects every record, dropping the ones that cannot be placed. */
-export function projectRecords(records: readonly DrillholeApiRecord[]): ProjectedDrillhole[] {
-  return records.map((record) => convertUtmToMapPosition(record)).filter((drillhole) => drillhole !== null);
+/** Projects every record onto a base map covering `bounds`, dropping the ones that cannot be placed. */
+export function projectRecords(records: readonly DrillholeApiRecord[], bounds?: MapBounds): ProjectedDrillhole[] {
+  return records.map((record) => convertUtmToMapPosition(record, bounds)).filter((drillhole) => drillhole !== null);
 }
+
+/** Whether a record has coordinates that can be placed at all, on any base map. */
+const isPlaceable = (record: DrillholeApiRecord) => convertUtmToMapPosition(record) !== null;
 
 /** This page's drillholes from /api/exploration-map: cache first, then the backend, automatically. */
 export function useMapData(): MapData {
@@ -40,16 +47,16 @@ export function useMapData(): MapData {
     void loadMapData(MAP_ID, fetchDrillholeMap);
   }, []);
 
-  const drillholes = useMemo(() => projectRecords(records ?? []), [records]);
+  const placeable = useMemo(() => (records ?? []).filter(isPlaceable), [records]);
 
   let status: MapDataStatus = 'ready';
   if (!records) status = failure && !isFetching ? 'unavailable' : 'loading';
   else if (records.length === 0) status = 'empty';
-  else if (drillholes.length === 0) status = 'unplaceable';
+  else if (placeable.length === 0) status = 'unplaceable';
 
   return {
     status,
-    drillholes,
+    records: placeable,
     isFetching,
     failure,
     refresh: () => void loadMapData(MAP_ID, fetchDrillholeMap, { manual: true }),

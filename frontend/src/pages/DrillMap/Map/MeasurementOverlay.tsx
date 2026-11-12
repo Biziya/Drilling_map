@@ -1,7 +1,7 @@
 import { utmToMapRatio } from '../utils/coordinates';
 import { mapRatioToViewport } from '../utils/geometry';
 import { endpointCrossPath, formatDistance, measureDistance } from '../utils/measurement';
-import type { MapTransform, Point, Size, UtmCoordinates } from '../../../types/map';
+import type { MapBounds, MapTransform, Point, Size, UtmCoordinates } from '../../../types/map';
 
 export interface MeasurementOverlayProps {
   /** Zero, one or two points, in UTM metres. */
@@ -10,6 +10,8 @@ export interface MeasurementOverlayProps {
   mapOrigin: Point;
   /** Rendered map size, or null before the base map has loaded. */
   mapSize: Size | null;
+  /** UTM corners of the selected base map. */
+  bounds: MapBounds;
 }
 
 /**
@@ -17,11 +19,11 @@ export interface MeasurementOverlayProps {
  * markers stay crisp at any zoom. Points are kept in map units and re-placed
  * on every pan, zoom and resize.
  */
-function MeasurementOverlay({ points, view, mapOrigin, mapSize }: MeasurementOverlayProps) {
+function MeasurementOverlay({ points, view, mapOrigin, mapSize, bounds }: MeasurementOverlayProps) {
   const [start, end] = points;
   if (!mapSize || !start) return null;
 
-  const toViewport = (point: UtmCoordinates) => mapRatioToViewport(utmToMapRatio(point), view, mapOrigin, mapSize);
+  const toViewport = (point: UtmCoordinates) => mapRatioToViewport(utmToMapRatio(point, bounds), view, mapOrigin, mapSize);
   const a = toViewport(start);
   const b = end && toViewport(end);
 

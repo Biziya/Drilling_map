@@ -1,15 +1,14 @@
 // PNG and SVG export of the visible viewport.
 //
 // Both formats come from one SVG document built from the same data and rules
-// as the screen: the selected base map (the geological image, embedded since
-// an export must stand alone, or the white coordinate grid), deviation lines,
+// as the screen: the selected base map (its image, embedded since an export
+// must stand alone, or the white coordinate grid), deviation lines,
 // markers, the measurement, then the title, north arrow and scale bar.
 // Floating UI (toolbar, tooltips) is simply never drawn. PNG rasterises that
 // SVG at 2x.
 
 import type { CaptureRect } from '../../../components/MapScreenshot/MapScreenshot';
-import { BASE_MAP_SRC, MAP_CONFIG, MAP_UTM_BOUNDS, getGtRange } from '../config/drillMapConfig';
-import type { BaseMapId } from '../config/drillMapConfig';
+import { MAP_CONFIG, getGtRange } from '../config/drillMapConfig';
 import { computeCoordinateGrid } from './coordinateGrid';
 import { projectDrillholes, utmToMapRatio } from './coordinates';
 import { mapRatioToViewport } from './geometry';
@@ -18,7 +17,7 @@ import { endpointCrossPath, formatDistance, measureDistance } from './measuremen
 import { computeScaleBar } from './scaleBar';
 import { dedupeDrillholes } from '../../../utils/dedupeDrillholes';
 import { readDrillholeValue } from '../../../utils/drillholeFields';
-import type { MapTransform, Point, ProjectedDrillhole, Size, UtmCoordinates } from '../../../types/map';
+import type { MapBounds, MapTransform, Point, ProjectedDrillhole, Size, UtmCoordinates } from '../../../types/map';
 
 export type ExportFormat = 'png' | 'svg';
 
@@ -32,13 +31,15 @@ export interface MapSnapshot {
   drillholes: readonly ProjectedDrillhole[];
   measurement: readonly UtmCoordinates[];
   title: string;
-  /** Background shown on screen; the geological image when omitted. */
-  baseMap?: BaseMapId;
+  /** Image shown as the background on screen, or null when the white grid is. */
+  src: string | null;
+  /** UTM corners of the selected base map; the drillholes are projected onto them. */
+  bounds: MapBounds;
 }
 
 /** Images embedded in the export, as data URLs. */
 export interface ExportAssets {
-  /** The geological image; null when the white grid is drawn instead. */
+  /** The base map image; null when the white grid is drawn instead. */
   baseMap: string | null;
   rigIcon: string;
 }
@@ -88,8 +89,8 @@ function northArrowSvg(width: number): string {
     + `<polygon points="${x},29 ${x + 7},53 ${x - 7},53" fill="#1b2d23" stroke="#fff" stroke-width="1"/>`;
 }
 
-function scaleBarSvg({ viewport, mapSize, view }: MapSnapshot): string {
-  const bar = computeScaleBar({ mapWidth: mapSize.width, zoom: view.scale, bounds: MAP_UTM_BOUNDS });
+function scaleBarSvg({ viewport, mapSize, view, bounds }: MapSnapshot): string {
+  const bar = computeScaleBar({ mapWidth: mapSize.width, zoom: view.scale, bounds });
   if (!bar) return '';
 
   // Bottom-left, as on screen.
@@ -112,13 +113,14 @@ function titleSvg(title: string): string {
 }
 
 /** The white grid base map, from the same lines and labels as the screen. */
-function coordinateGridSvg({ viewport, view, mapOrigin, mapSize }: MapSnapshot): string {
+function coordinateGridSvg({ viewport, view, mapOrigin, mapSize, bounds }: MapSnapshot): string {
   const style = MAP_CONFIG.baseMap.whiteGrid;
   const grid = computeCoordinateGrid({
     viewport,
     view,
     mapOrigin,
     mapSize,
+    bounds,
     minLineSpacing: style.minLineSpacing,
     labelFontSize: style.labelFontSize,
   });
@@ -160,20 +162,20 @@ function measurementSvg(points: readonly UtmCoordinates[], toScreen: (point: Utm
 
 /** The export as one standalone SVG document, `pixelRatio` times the viewport size. */
 export function buildMapSvg(snapshot: MapSnapshot, assets: ExportAssets, pixelRatio = 1): string {
-  const { viewport, view, mapOrigin, mapSize, drillholes, measurement, title } = snapshot;
+  const { viewport, view, mapOrigin, mapSize, drillholes, measurement, title, bounds } = snapshot;
   const toScreen = (ratio: Point) => mapRatioToViewport(ratio, view, mapOrigin, mapSize);
   const isNearView = ({ x, y }: Point) => x > -EDGE_MARGIN && y > -EDGE_MARGIN
     && x < viewport.width + EDGE_MARGIN && y < viewport.height + EDGE_MARGIN;
 
   const parts: string[] = [
     `<rect width="${viewport.width}" height="${viewport.height}" fill="${VIEWPORT_BACKGROUND}"/>`,
-    snapshot.baseMap === 'white-grid' || !assets.baseMap
+    snapshot.src === null || !assets.baseMap
       ? coordinateGridSvg(snapshot)
       : `<image href="${assets.baseMap}" x="${n(mapOrigin.x + view.translateX)}" y="${n(mapOrigin.y + view.translateY)}" `
         + `width="${n(mapSize.width * view.scale)}" height="${n(mapSize.height * view.scale)}" preserveAspectRatio="none"/>`,
   ];
 
-  const features = projectDrillholes(dedupeDrillholes(drillholes))
+  const features = projectDrillholes(dedupeDrillholes(drillholes), bounds)
     .map((feature) => ({ ...feature, at: toScreen({ x: feature.drillhole.xPercent / 100, y: feature.drillhole.yPercent / 100 }) }));
   const visibleFeatures = features.filter(({ at }) => isNearView(at));
 
@@ -187,7 +189,7 @@ export function buildMapSvg(snapshot: MapSnapshot, assets: ExportAssets, pixelRa
 
   visibleFeatures.forEach(({ drillhole, at }) => parts.push(markerSvg(drillhole, at, assets.rigIcon)));
   parts.push(
-    measurementSvg(measurement, (point) => toScreen(utmToMapRatio(point))),
+    measurementSvg(measurement, (point) => toScreen(utmToMapRatio(point, bounds))),
     ...(snapshot.capture ? [] : [titleSvg(title)]),
     northArrowSvg(viewport.width),
     scaleBarSvg(snapshot),
@@ -259,7 +261,7 @@ function download(blob: Blob, fileName: string) {
 export async function exportMap(format: ExportFormat, snapshot: MapSnapshot): Promise<void> {
   // The white grid is drawn, not embedded, so the image is only fetched when shown.
   const [baseMap, rigIcon] = await Promise.all([
-    snapshot.baseMap === 'white-grid' ? null : loadDataUrl(BASE_MAP_SRC),
+    snapshot.src === null ? null : loadDataUrl(snapshot.src),
     loadDataUrl(MAP_CONFIG.rigIconSrc),
   ]);
   const assets = { baseMap, rigIcon };

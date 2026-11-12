@@ -1,15 +1,25 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import ColumnFilterMenu from './ColumnFilterMenu';
+import ColumnsMenu from './ColumnsMenu';
+import ExportMenu from './ExportMenu';
 import {
+  HIDDEN_COLUMNS_STORAGE_KEY,
   TABLE_COLUMNS,
   applyFilters,
   buildRows,
   distinctValues,
   isColumnFiltered,
+  parseHiddenColumns,
   setColumnFilter,
   sortRows,
+  toggleHidden,
+  visibleColumns,
 } from '../utils/selectionTable';
 import type { ColumnFilters, SortState } from '../utils/selectionTable';
+import { download } from '../utils/exportMap';
+import { exportBlob, exportSheet, tableExportFileName } from '../utils/tableExport';
+import type { TableExportFormat } from '../utils/tableExport';
+import { readStored, writeStored } from '../utils/storage';
 import type { MarkerFeature } from '../utils/markerLayer';
 
 export interface SelectionTableProps {
@@ -25,42 +35,67 @@ export interface SelectionTableProps {
 const NO_FILTERS: ColumnFilters = {};
 const NO_EXCLUSIONS: ReadonlySet<string> = new Set();
 
-/** A funnel, filled while the column is filtered. */
-function FilterIcon({ active }: { active: boolean }) {
+/** A down arrow: the column's menu. */
+function ChevronIcon() {
   return (
-    <svg viewBox="0 0 16 16" aria-hidden="true" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
-      <path d="M2 3h12l-4.5 5.5V13l-3 1.5v-6z" />
+    <svg className="selection-table__chevron" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="m4 6 4 4 4-4" />
     </svg>
   );
 }
 
 /**
- * The selected holes as a table under the map, one column per popup field.
- * Each header opens a filter/sort menu. Filters and sort are kept until the
- * selection is cleared (the page unmounts the table then).
+ * The selected holes as a table over the bottom of the map, one column per
+ * popup field. Each header opens a filter/sort/hide menu; the bar shows or
+ * hides columns and exports what is shown. Filters and sort last until the
+ * selection is cleared (the page unmounts the table then); hidden columns are
+ * remembered per browser.
  */
 export default function SelectionTable({ features, pinnedKey, onRowClick, onRemove, onClear }: SelectionTableProps) {
   const [filters, setFilters] = useState<ColumnFilters>(NO_FILTERS);
   const [sort, setSort] = useState<SortState | null>(null);
+  const [hidden, setHidden] = useState<ReadonlySet<string>>(() => parseHiddenColumns(readStored(HIDDEN_COLUMNS_STORAGE_KEY)));
   const [menu, setMenu] = useState<{ column: string; anchor: HTMLElement } | null>(null);
 
+  useEffect(() => writeStored(HIDDEN_COLUMNS_STORAGE_KEY, [...hidden]), [hidden]);
+
+  const columns = useMemo(() => visibleColumns(TABLE_COLUMNS, hidden), [hidden]);
   const rows = useMemo(() => buildRows(features), [features]);
   const shownRows = useMemo(() => sortRows(applyFilters(rows, filters), sort), [rows, filters, sort]);
-  const menuColumn = menu ? TABLE_COLUMNS.find((column) => column.label === menu.column) : undefined;
+  const menuColumn = menu ? columns.find((column) => column.label === menu.column) : undefined;
   const menuValues = useMemo(() => (menu ? distinctValues(rows, menu.column) : []), [rows, menu]);
   const hasFilters = Object.keys(filters).length > 0 || sort !== null;
   const closeMenu = useCallback(() => setMenu(null), []);
+
+  const handleExport = (format: TableExportFormat) => {
+    download(exportBlob(format, exportSheet(shownRows, columns)), tableExportFileName(format));
+  };
 
   return (
     <section className="selection-table" aria-label="Selected drillholes">
       <header className="selection-table__bar">
         <h2>
-          {features.length} selected
-          {shownRows.length !== rows.length && <span> · {shownRows.length} shown</span>}
+          <span className="selection-table__count">{features.length}</span> selected
+          {shownRows.length !== rows.length && <span className="selection-table__shown"> · {shownRows.length} shown</span>}
         </h2>
         <div className="selection-table__actions">
-          <button type="button" onClick={() => { setFilters(NO_FILTERS); setSort(null); }} disabled={!hasFilters}>Clear filters</button>
-          <button type="button" onClick={onClear}>Clear selection</button>
+          <button
+            type="button"
+            className="selection-table__button"
+            onClick={() => { setFilters(NO_FILTERS); setSort(null); }}
+            disabled={!hasFilters}
+          >
+            Clear filters
+          </button>
+          <ColumnsMenu
+            columns={TABLE_COLUMNS}
+            hidden={hidden}
+            onToggle={(label) => setHidden((current) => toggleHidden(current, label))}
+            onShowAll={() => setHidden(new Set())}
+          />
+          <ExportMenu disabled={shownRows.length === 0} onExport={handleExport} />
+          <span className="selection-table__divider" aria-hidden="true" />
+          <button type="button" className="selection-table__button is-quiet" onClick={onClear}>Clear selection</button>
           <button type="button" className="selection-table__close" onClick={onClear} aria-label="Close table" title="Close and clear selection">×</button>
         </div>
       </header>
@@ -70,7 +105,7 @@ export default function SelectionTable({ features, pinnedKey, onRowClick, onRemo
           <thead>
             <tr>
               <th className="selection-table__remove-col" aria-label="Remove" />
-              {TABLE_COLUMNS.map((column) => {
+              {columns.map((column) => {
                 const filtered = isColumnFiltered(filters, column.label);
                 const sorted = sort?.column === column.label ? sort.direction : null;
 
@@ -88,7 +123,8 @@ export default function SelectionTable({ features, pinnedKey, onRowClick, onRemo
                     >
                       <span>{column.label}</span>
                       {sorted && <span className="selection-table__sort" aria-hidden="true">{sorted === 'asc' ? '▲' : '▼'}</span>}
-                      <FilterIcon active={filtered} />
+                      {filtered && <span className="selection-table__dot" aria-hidden="true" />}
+                      <ChevronIcon />
                     </button>
                   </th>
                 );
@@ -113,7 +149,7 @@ export default function SelectionTable({ features, pinnedKey, onRowClick, onRemo
                     ×
                   </button>
                 </td>
-                {TABLE_COLUMNS.map((column) => (
+                {columns.map((column) => (
                   <td key={column.label} className={column.sort === 'number' ? 'is-number' : undefined}>
                     {row.cells[column.label] ?? '—'}
                   </td>
@@ -122,7 +158,7 @@ export default function SelectionTable({ features, pinnedKey, onRowClick, onRemo
             ))}
             {!shownRows.length && (
               <tr className="selection-table__empty">
-                <td colSpan={TABLE_COLUMNS.length + 1}>No selected drillholes match the filters.</td>
+                <td colSpan={columns.length + 1}>No selected drillholes match the filters.</td>
               </tr>
             )}
           </tbody>
@@ -138,6 +174,7 @@ export default function SelectionTable({ features, pinnedKey, onRowClick, onRemo
           sort={sort}
           onExcludedChange={(excluded) => setFilters((current) => setColumnFilter(current, menu.column, excluded))}
           onSort={(direction) => setSort(direction ? { column: menu.column, direction } : null)}
+          onHide={columns.length > 1 ? () => { setHidden((current) => toggleHidden(current, menu.column)); setMenu(null); } : undefined}
           onClose={closeMenu}
         />
       )}

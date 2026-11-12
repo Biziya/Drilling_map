@@ -20,14 +20,24 @@ zoom:
 
 # Backgrounds offered by the header's base map switcher, in menu order, and
 # the one shown on a first visit. The choice is remembered for this page only.
+# An image map may name its own image (`src`, a public path) and the UTM
+# rectangle that image covers (`bounds`, metres, max above min). Without them
+# it uses VITE_MAP_IMAGE_PATH and the VITE_MAP_MIN_X/MAX_X/MIN_Y/MAX_Y bounds.
+#   redox      - the redox map, public/base-map3.svg. Its corners come from
+#                the image's own Easting/Northing ticks.
 #   geological - the surveyed base map image (VITE_MAP_IMAGE_PATH).
-#   white-grid - a white sheet with an Easting/Northing grid over the same
-#                UTM bounds, so every feature stays exactly where it is.
+#   white-grid - a white sheet with an Easting/Northing grid, laid out on the
+#                (hidden) geological image and its bounds, so every feature
+#                sits exactly where it does on the Geological Map.
 baseMap:
   options:
+    - id: redox
+      label: Redox Map
+      src: /base-map3.svg
+      bounds: { minX: 412499.97, maxX: 423375.13, minY: 4890500, maxY: 4898190.29 }
     - { id: geological, label: Geological Map }
     - { id: white-grid, label: White Grid Map }
-  default: geological
+  default: redox
   # White grid appearance; sizes in px, all above 0. Lines and labels keep
   # their size at every zoom.
   whiteGrid:

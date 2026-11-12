@@ -43,7 +43,10 @@ TechnoMap/
 │  └─ icons.tsx             control icons, shared with the help dialog
 ├─ Table/
 │  ├─ SelectionTable.tsx    the selected holes under the map, per-column filter/sort
-│  └─ ColumnFilterMenu.tsx  Excel-style menu: sort, search, Select/Unselect all, checkboxes
+│  ├─ ColumnFilterMenu.tsx  Excel-style menu: sort, hide, search, Select/Unselect all, checkboxes
+│  ├─ ColumnsMenu.tsx       bar menu: show or hide columns, Show all
+│  ├─ ExportMenu.tsx        bar menu: download as Excel (.xlsx) or CSV
+│  └─ usePopover.ts         open/close for the bar menus (outside press, Esc)
 ├─ Tooltips/
 │  ├─ MarkerTooltip.tsx     the one tooltip: highlight ring + details, on the marker
 │  └─ DrillholeTooltip      the hole's details
@@ -67,7 +70,9 @@ TechnoMap/
    ├─ markerShapes.ts       shape outlines and sizes: canvas, CSS clip-paths, export
    ├─ mapFilters.ts         which holes and layers the filters let through
    ├─ measurement.ts        distance, formatting, click cycle
-   ├─ selectionTable.ts     selection table rows, column filters and sorting
+   ├─ selectionTable.ts     selection table rows, column filters, sorting, hidden columns
+   ├─ tableExport.ts        the table as shown → CSV text or .xlsx blob, file names
+   ├─ xlsx.ts               minimal .xlsx writer (stored ZIP + sheet XML), no dependency
    ├─ tooltipFields.ts      popup rows = table columns: label, formatting, sort kind
    ├─ exportMap.ts          PNG/SVG export of the visible viewport
    ├─ scaleBar.ts           a round 1/2/5 distance for the scale bar
@@ -192,7 +197,20 @@ Each column header opens a filter menu: *Sort A → Z / Z → A* on text columns
 *Sort ascending / descending* on numbers and dates (empty cells always last), a
 search box, *Select all / Unselect all* (applied to the values the search shows) and
 a checkbox per distinct value with its count; empty cells are listed as *(Blank)*.
-Changes apply at once; *Clear filters* resets every column and the sort.
+Changes apply at once; *Clear filters* resets every column and the sort. Headers
+show a down arrow; a filtered column also shows a green dot.
+
+**Hiding columns.** *Hide column* in a header menu hides that column; the bar's
+*Columns* menu shows or hides any column and has *Show all*. One column always
+stays visible. Hidden columns are remembered in this browser
+(`techno-map:table-columns`); a filter on a hidden column keeps applying.
+
+**Export.** The bar's *Export* menu downloads exactly what the table shows: the
+filtered rows in the current order, visible columns only, as
+`TechnoMap_selection_YYYY-MM-DD_HH-mm-ss.xlsx` or `.csv`. Number columns are written
+as real numbers (not the rounded screen text), dates as `YYYY-MM-DD[ HH:mm]`. The
+CSV is UTF-8 with a BOM and CRLF line ends so Excel opens it cleanly; the .xlsx has
+a bold, frozen header row and is written by `utils/xlsx.ts` without any library.
 
 ## Help
 

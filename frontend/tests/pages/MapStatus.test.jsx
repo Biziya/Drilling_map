@@ -63,7 +63,7 @@ describe.each(PAGES)("%s MapStatus", (_page, MapStatus) => {
   });
 
   it("reports a missing base map ahead of the data state", () => {
-    render(<MapStatus status="ready" imageFailed />);
+    render(<MapStatus status="ready" imageFailed src="/base-map.svg" />);
 
     expect(screen.getByText("Base map not found")).toBeTruthy();
     expect(screen.getByText("public/base-map.svg")).toBeTruthy();

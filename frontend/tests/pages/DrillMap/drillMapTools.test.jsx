@@ -5,7 +5,7 @@ import "fake-indexeddb/auto";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import DrillMap from "../../../src/pages/DrillMap/DrillMap.jsx";
 import ToastContainer from "../../../src/components/Toast/ToastContainer.jsx";
-import { MAP_UTM_BOUNDS } from "../../../src/pages/DrillMap/config/drillMapConfig.js";
+import { MAP_UTM_BOUNDS, baseMapLayout } from "../../../src/pages/DrillMap/config/drillMapConfig.js";
 import { formatDistance } from "../../../src/pages/DrillMap/utils/measurement.js";
 import { buildMapSvg, exportFileName } from "../../../src/pages/DrillMap/utils/exportMap.js";
 import { convertUtmToMapPosition } from "../../../src/pages/DrillMap/utils/coordinates.js";
@@ -205,6 +205,8 @@ describe("Exploration Map export", () => {
     drillholes: RECORDS.map((record) => convertUtmToMapPosition(record)),
     measurement: [{ x: 418000, y: 4894000 }, { x: 418300, y: 4894400 }],
     title: "Exploration Map",
+    src: "/base-map3.svg",
+    bounds: MAP_UTM_BOUNDS,
   };
 
   it("names files after the page and the local time", () => {
@@ -219,6 +221,59 @@ describe("Exploration Map export", () => {
     expect(doc.documentElement.getAttribute("width")).toBe("2000");
     expect(doc.querySelectorAll(`image[href='${ASSETS.rigIcon}']`)).toHaveLength(1);
     expect(text).toEqual(expect.arrayContaining(["Exploration Map", "N", "500 m"]));
+  });
+});
+
+describe("Exploration Map base maps", () => {
+  // The choice is remembered in localStorage; every test starts on the default.
+  beforeEach(() => localStorage.clear());
+
+  const image = (container) => container.querySelector(".base-map");
+  const markerPositions = (container) => [...container.querySelectorAll(".drillhole-feature")].map((feature) => feature.getAttribute("style"));
+  const choose = (name) => {
+    fireEvent.click(screen.getByRole("button", { name: "Base map" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name }));
+  };
+
+  it("lists Redox Map first in the base map menu, selected by default", async () => {
+    const { container } = await renderLoaded();
+    fireEvent.click(screen.getByRole("button", { name: "Base map" }));
+    const items = within(screen.getByRole("menu", { name: "Base map" })).getAllByRole("menuitemradio");
+
+    expect(items.map((item) => item.textContent)).toEqual(["Redox Map", "Geological Map", "White Grid Map"]);
+    expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual(["true", "false", "false"]);
+    expect(image(container).getAttribute("src")).toBe("/base-map3.svg");
+  });
+
+  it("switching to Geological shows its image, re-places the drillholes on its corners, and clears the measurement", async () => {
+    const { container } = await renderLoaded();
+    const onRedox = markerPositions(container);
+    fireEvent.click(screen.getByRole("button", { name: "Measure distance" }));
+    press(viewport(container), viewport(container), 400, 300);
+    expect(ends(container)).toBe(1);
+
+    choose("Geological Map");
+
+    const geological = baseMapLayout("geological");
+    expect(image(container).getAttribute("src")).toBe(geological.imageSrc);
+    expect(image(container).getAttribute("src")).not.toBe("/base-map3.svg");
+    expect(ends(container)).toBe(0);
+    const expected = RECORDS.map((record) => convertUtmToMapPosition(record, geological.bounds));
+    expect(markerPositions(container)).toEqual(expected.map(({ xPercent, yPercent }) => `left: ${xPercent}%; top: ${yPercent}%;`));
+    expect(markerPositions(container)).not.toEqual(onRedox);
+  });
+
+  it("resets the view once the newly chosen image has loaded", async () => {
+    const { container } = await renderLoaded();
+    const canvas = () => container.querySelector(".map-canvas").style.transform;
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    await waitFor(() => expect(canvas()).not.toContain("scale(1)"));
+
+    choose("Geological Map");
+    expect(canvas()).not.toContain("scale(1)");
+    await act(async () => fireEvent.load(image(container)));
+
+    await waitFor(() => expect(canvas()).toBe("translate(0px, 0px) scale(1)"));
   });
 });
 
