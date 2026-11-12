@@ -1,21 +1,22 @@
 using Microsoft.Extensions.Options;
 using Backend.Models.Dashboard;
-using Backend.Repositories.Dashboard.Interfaces;
-using Backend.Services.Interfaces;
+using Backend.Repositories.Dashboard;
 
 namespace Backend.Services;
 
 /// <summary>
 /// The former DAX measures, re-expressed over an in-memory hole set.
 ///
-/// A campaign year is a few hundred rows — the 2026 target is 38,000 m at
-/// roughly 130–180 m per hole — so there is nothing to gain from pushing
-/// this into SQL, and keeping it here means it can be tested without a
-/// database, which the DAX never could.
+/// A campaign year is a few hundred rows, so there is nothing to gain from
+/// pushing this into SQL.
+///
+/// Categories and rigs are lists: empty means "no filter", like an unselected
+/// slicer. A week range narrows the page to a selection made on the bar chart;
+/// weekly data itself is never week filtered, since the selection is made from it.
 /// </summary>
 public sealed class DrillingService(
-    IHoleRepository repository,
-    IOptions<CampaignOptions> options) : IDrillingService
+    HoleRepository repository,
+    IOptions<CampaignOptions> options)
 {
     private readonly CampaignOptions _options = options.Value;
 

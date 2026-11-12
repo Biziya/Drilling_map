@@ -1,14 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
-using Backend.Services.Interfaces;
+using Backend.Services;
 using Backend.Models.Dashboard;
 
 namespace Backend.Controllers.Dashboard;
 
 [ApiController]
 [Route("api/[controller]/[action]")]
-[ResponseCache(Duration = 300, VaryByQueryKeys = ["year", "categories", "rigs", "fromWeek", "toWeek", "groupBy"])]
-
-public sealed class DashboardController(IDrillingService drilling) : ControllerBase
+public sealed class DashboardController(DrillingService drilling) : ControllerBase
 {
     /// <summary>
     /// Slicer contents. Each list is narrowed by the other selection,

@@ -3,7 +3,6 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Backend.Models.Dashboard;
-using Backend.Repositories.Dashboard.Interfaces;
 using Backend.Services;
 
 namespace Backend.Repositories.Dashboard;
@@ -23,7 +22,7 @@ public sealed class HoleRepository(
     IOptions<CampaignOptions> options,
     IOptions<SourceTableOptions> source,
     IMemoryCache cache,
-    ILogger<HoleRepository> logger) : IHoleRepository
+    ILogger<HoleRepository> logger)
 {
     private readonly CampaignOptions _options = options.Value;
 
@@ -77,28 +76,19 @@ public sealed class HoleRepository(
 
             var list = rows.ToList();
 
-            // Deliberately verbose. When the API and a hand-run query
-            // disagree about row counts, the cause is almost always
-            // something outside the SQL: a different database, a filter
-            // left set in configuration, or a cached result. Logging all
-            // three turns a guessing game into one line of output.
+            // When the API and a hand-run query disagree about row counts,
+            // the cause is usually the database or a configured filter.
             logger.LogInformation(
-                "Loaded {Count} holes for {Year} from [{Database}] on {Server}, "
-                + "{From:yyyy-MM-dd} to {To:yyyy-MM-dd} (exclusive). "
-                + "Status filter: {StatusFilter}. Project filter: {ProjectFilter}. "
-                + "Loaded by status: {ByStatus}. Loaded by purpose: {ByPurpose}.",
+                "Loaded {Count} holes for {Year} from [{Database}] on {Server}. "
+                + "Status filter: {StatusFilter}. Project filter: {ProjectFilter}.",
                 list.Count,
                 year,
                 connection.Database,
                 connection.DataSource,
-                from,
-                to,
                 _options.IncludeStatuses.Count == 0
                     ? "(none)" : string.Join('/', _options.IncludeStatuses),
                 _options.IncludeProjects.Count == 0
-                    ? "(none)" : string.Join('/', _options.IncludeProjects),
-                Breakdown(list, h => h.HoleStatus),
-                Breakdown(list, h => h.HolePurpose));
+                    ? "(none)" : string.Join('/', _options.IncludeProjects));
 
             return (IReadOnlyList<Hole>)list;
         });
@@ -106,35 +96,19 @@ public sealed class HoleRepository(
         return cached ?? [];
     }
 
-    /// <summary>"VALIDATED=120, REALIZED=20" — for the diagnostic log line.</summary>
-    private static string Breakdown(
-        IReadOnlyList<Hole> holes, Func<Hole, string?> by)
-        => holes.Count == 0
-            ? "(none)"
-            : string.Join(", ", holes
-                .GroupBy(h => by(h) ?? "(null)")
-                .OrderByDescending(g => g.Count())
-                .Select(g => $"{g.Key}={g.Count()}"));
-
     // Column aliases match the Hole property names so Dapper maps them
-    // without configuration. Kept inline rather than read from Sql/ so the
-    // parameters stay beside the statement; the same text is in
-    // Sql/HolesByYear.sql for anyone who wants to run it by hand.
+    // without configuration.
     private static string BuildQuery(string qualifiedTable) => $"""
         SELECT HOLEID              AS HoleId,
                RigNumber,
                DrillPurpose,
                HOLEPURPOSE         AS HolePurpose,
                HoleStatus,
-               PROJECTCODE         AS ProjectCode,
                CoreLength_m        AS CoreLengthM,
                DestructiveLength_m AS DestructiveLengthM,
                TotalRecovery_per   AS TotalRecoveryPct,
                DeviationMax_per    AS DeviationMaxPct,
-               PlannedDepth,
-               FinalDepth_m        AS FinalDepthM,
-               StartingDate,
-               EndDate
+               StartingDate
         FROM   {qualifiedTable}
         WHERE  StartingDate >= @from
           AND  StartingDate <  @to

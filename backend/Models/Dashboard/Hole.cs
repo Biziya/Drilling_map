@@ -9,7 +9,6 @@ public sealed class Hole
     public string? DrillPurpose { get; set; }
     public string? HolePurpose { get; set; }
     public string? HoleStatus { get; set; }
-    public string? ProjectCode { get; set; }
 
     /// <summary>
     /// NULL on destructive-only holes, which is most of them. The source
@@ -25,11 +24,8 @@ public sealed class Hole
     public decimal? TotalRecoveryPct { get; set; }
 
     public decimal? DeviationMaxPct { get; set; }
-    public decimal? PlannedDepth { get; set; }
-    public decimal? FinalDepthM { get; set; }
 
     public DateTime StartingDate { get; set; }
-    public DateTime? EndDate { get; set; }
 
     // --- Derived -----------------------------------------------------
 
