@@ -14,7 +14,6 @@ import MapCanvas from './Map/MapCanvas';
 import MapScaleBar from './Map/MapScaleBar';
 import MapStatus from './Map/MapStatus';
 import MeasurementOverlay from './Map/MeasurementOverlay';
-import TechnoCells from './Map/TechnoCells';
 import MarkerHighlight from './Map/MarkerHighlight';
 import BoxSelectOverlay from './Map/BoxSelectOverlay';
 import SelectionTable from './Table/SelectionTable';
@@ -60,18 +59,15 @@ const PAGE_STYLE: StyleWithCssVariables = {
   '--measure-color': MAP_CONFIG.measurement.color,
   '--hover-color': MAP_CONFIG.interaction.hoverColor,
   '--pinned-color': MAP_CONFIG.interaction.pinnedColor,
-  '--cell-stroke': MAP_CONFIG.technologicalCells.stroke,
-  '--cell-fill': MAP_CONFIG.technologicalCells.fill,
 };
 
-/** Techno Map: the demo dataset or /api/techno-map, with layer filters, measurement and export. */
+/** Techno Map: /api/techno-map with layer filters, measurement, selection and export. */
 function TechnoMap() {
   const { baseMap, setBaseMap } = useBaseMap();
-  // The background's image and the UTM rectangle it covers: holes, cells,
-  // grid, scale bar and measurement are all placed against these.
+  // The background's image and the UTM rectangle it covers: holes, grid, scale bar and measurement are all placed against these.
   const layout = baseMapLayout(baseMap);
   const { bounds } = layout;
-  const { status, drillholes, cells, isFetching, failure, isDemo, refresh } = useMapData(bounds);
+  const { status, drillholes, isFetching, failure, refresh } = useMapData(bounds);
   const { filters, setFilter, setAll } = useMapFilters();
   /** Set when another image was chosen: the view is reset once it has loaded. */
   const resetOnLoadRef = useRef(false);
@@ -139,7 +135,6 @@ function TechnoMap() {
   });
 
   const mapWidth = toPixels(renderedMapSize.width);
-  const mapHeight = toPixels(renderedMapSize.height);
   const mapSize = useMemo(() => measuredMapSize(renderedMapSize), [renderedMapSize]);
   const transform = useMemo(() => (mapSize ? screenTransform(view, mapOrigin, mapSize) : null), [view, mapOrigin, mapSize]);
   const viewportState = `${isDragging ? ' is-dragging' : ''}${isViewZoomed(view, MAP_SETTINGS.minZoom) ? ' is-zoomed' : ''}`
@@ -215,10 +210,9 @@ function TechnoMap() {
         mapOrigin,
         mapSize,
         drillholes,
-        cells,
         filters,
         measurement,
-        title: isDemo ? `${MAP_CONFIG.title} (Demo data)` : MAP_CONFIG.title,
+        title: MAP_CONFIG.title,
         baseMap,
       });
       showToast('success', 'Map exported successfully');
@@ -234,7 +228,6 @@ function TechnoMap() {
       <header className="map-header">
         <div className="map-header__title">
           <h1>{MAP_CONFIG.title}</h1>
-          {isDemo && <span className="map-demo-badge" title="Showing the fixed demo dataset, not backend data">Demo</span>}
         </div>
         <div className="mb-[3px] flex shrink-0 items-center gap-2">
           <RefreshButton isRefreshing={isFetching} onRefresh={refresh} />
@@ -265,11 +258,7 @@ function TechnoMap() {
             onImageError={image.onError}
             src={layout.imageSrc}
             showImage={layout.src !== null}
-          >
-            {!image.hasFailed && filters['technological-cells'] && (
-              <TechnoCells cells={cells} mapWidth={mapWidth} mapHeight={mapHeight} bounds={bounds} />
-            )}
-          </MapCanvas>
+          />
 
           {!image.hasFailed && (
             <DrillholeLayer

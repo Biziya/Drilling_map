@@ -4,7 +4,7 @@ using Microsoft.Data.SqlClient;
 
 namespace Backend.Repositories.ExplorationMap;
 
-public sealed class ExplorationMapRepository : IExplorationMapRepository
+public sealed class ExplorationMapRepository
 {
     private const string Query = """
         /*==========================================================

@@ -250,7 +250,6 @@ describe.each(PAGES)("$name base map", ({
       mapOrigin: ORIGIN,
       mapSize: MAP_SIZE,
       drillholes: [],
-      cells: [],
       filters: ALL_VISIBLE,
       measurement: [{ x: 415000, y: 4893000 }, { x: 418000, y: 4895000 }],
       title: "Map",

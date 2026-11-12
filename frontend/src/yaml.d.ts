@@ -1,5 +1,4 @@
-// YAML files are parsed at build time; their contents stay untrusted until a
-// parser from config/schema.ts has validated them.
+// YAML files are parsed at build time; each config module casts its file to a typed shape.
 declare module '*.yaml' {
   const data: unknown;
   export default data;

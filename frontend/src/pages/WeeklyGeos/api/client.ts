@@ -1,14 +1,11 @@
 import type {
   CampaignAverages, Filters, Summary, TypeSplit, WeeklyByRig, WeeklyPoint,
 } from '../types/drilling';
-import { WEEKLY_API_BASE_URL, WEEKLY_USE_MOCK } from '../../../config/env';
-import * as mock from './mockData';
+import { apiUrl } from '../../../services/api/http';
 
-// Routes follow the backend's api/[controller]/[action] convention, so every
-// path below is <base>/Dashboard/<Action>. The base and the mock switch are
-// read from config/env.ts with the application's other environment values,
-// rather than from import.meta.env here.
-const BASE = WEEKLY_API_BASE_URL;
+// The backend routes these as api/[controller]/[action], so every path below
+// is /api/Dashboard/<Action> on the same server as the map endpoints.
+const BASE = apiUrl('/api');
 
 class ApiError extends Error {
   override name = 'ApiError';
@@ -60,41 +57,26 @@ async function get<T>(path: string, params: Record<string, QueryValue>): Promise
 }
 
 /** A contiguous week selection, or nothing. */
-export interface WeekRange { fromWeek?: number; toWeek?: number }
+interface WeekRange { fromWeek?: number; toWeek?: number }
 
 export const api = {
   filters: (year: number, categories: string[], rigs: string[]) =>
-    WEEKLY_USE_MOCK
-      ? mock.filters()
-      : get<Filters>('/Dashboard/Filters', { year, categories, rigs }),
+    get<Filters>('/Dashboard/Filters', { year, categories, rigs }),
 
   summary: (year: number, categories: string[], rigs: string[], w: WeekRange) =>
-    WEEKLY_USE_MOCK
-      ? mock.summary(year, categories, rigs)
-      : get<Summary>('/Dashboard/Summary', { year, categories, rigs, ...w }),
+    get<Summary>('/Dashboard/Summary', { year, categories, rigs, ...w }),
 
   weekly: (year: number, categories: string[], rigs: string[]) =>
-    WEEKLY_USE_MOCK
-      ? mock.weekly(year, categories, rigs)
-      : get<WeeklyPoint[]>('/Dashboard/Weekly', { year, categories, rigs }),
+    get<WeeklyPoint[]>('/Dashboard/Weekly', { year, categories, rigs }),
 
   weeklyByRig: (year: number, categories: string[], rigs: string[]) =>
-    WEEKLY_USE_MOCK
-      ? mock.weeklyByRig(year, categories)
-      : get<WeeklyByRig[]>('/Dashboard/Weekly',
-          { year, categories, rigs, groupBy: 'rig' }),
+    get<WeeklyByRig[]>('/Dashboard/Weekly', { year, categories, rigs, groupBy: 'rig' }),
 
-  campaignAverages: (
-    year: number, categories: string[], rigs: string[], w: WeekRange) =>
-    WEEKLY_USE_MOCK
-      ? mock.campaignAverages(year, categories, rigs)
-      : get<CampaignAverages>('/Dashboard/CampaignAverages',
-          { year, categories, rigs, ...w }),
+  campaignAverages: (year: number, categories: string[], rigs: string[], w: WeekRange) =>
+    get<CampaignAverages>('/Dashboard/CampaignAverages', { year, categories, rigs, ...w }),
 
   typeSplit: (year: number, categories: string[], rigs: string[], w: WeekRange) =>
-    WEEKLY_USE_MOCK
-      ? mock.typeSplit(year, rigs)
-      : get<TypeSplit[]>('/Dashboard/TypeSplit', { year, categories, rigs, ...w }),
+    get<TypeSplit[]>('/Dashboard/TypeSplit', { year, categories, rigs, ...w }),
 };
 
 export { ApiError };

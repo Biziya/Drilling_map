@@ -7,15 +7,8 @@ namespace Backend.Controllers.TechnoMap;
 [ApiController]
 [Route("api/techno-map")]
 [Tags("TechnoMap")]
-public sealed class TechnoMapController : ControllerBase
+public sealed class TechnoMapController(TechnoMapRepository repository) : ControllerBase
 {
-    private readonly ITechnoMapRepository _repository;
-
-    public TechnoMapController(ITechnoMapRepository repository)
-    {
-        _repository = repository;
-    }
-
     [HttpGet]
     [ProducesResponseType(
         typeof(IReadOnlyList<TechnoMapDto>),
@@ -23,7 +16,7 @@ public sealed class TechnoMapController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<TechnoMapDto>>> GetAll(
         CancellationToken cancellationToken)
     {
-        var drillholes = await _repository.GetAllAsync(cancellationToken);
+        var drillholes = await repository.GetAllAsync(cancellationToken);
 
         return Ok(drillholes);
     }

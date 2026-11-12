@@ -1,6 +1,5 @@
-// The Techno Map page on its demo dataset (dataSource: mock): filters,
-// measurement, export menu. Backend mode, which technoMap.yaml ships with, is
-// covered in tests/pages/mapPages.test.jsx.
+// The Techno Map page on a fixed 130-hole dataset: filters, measurement,
+// selection, export menu. Loading and errors are covered in mapPages.test.jsx.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -10,16 +9,18 @@ import { MAP_CONFIG, MAP_UTM_BOUNDS } from "../../../src/pages/TechnoMap/config/
 import { formatDistance } from "../../../src/pages/TechnoMap/utils/measurement.js";
 import { FILTERS_STORAGE_KEY } from "../../../src/pages/TechnoMap/hooks/useMapFilters.js";
 import { clearAllMapViews, readMapView, writeMapView } from "../../../src/state/mapViewStore.js";
-import { MAP_DATA_MESSAGES, clearMapData, getMapData } from "../../../src/state/mapDataStore.js";
+import { clearMapData, getMapData } from "../../../src/state/mapDataStore.js";
 import { clearToasts } from "../../../src/components/Toast/toastStore.js";
-import { DATASET_IDS, clearCachedDataset, readCachedDataset } from "../../../src/services/cache/drillholeCache.js";
-import { MOCK_DRILLHOLES } from "../../../src/pages/TechnoMap/mock/mockData.js";
+import { DATASET_IDS, clearCachedDataset } from "../../../src/services/cache/drillholeCache.js";
+import { DEMO_DRILLHOLES } from "./demoDataset.js";
 import { clickAt, ctrlClickAt, dragBoxAround, drawnKinds, drawnMarkerCount, hoverAt, loadMapImages, selectedRingCount } from "./canvasMap.js";
 
-vi.mock("../../../src/pages/TechnoMap/config/technoMapConfig.js", async (importOriginal) => {
+// The page loads this fixed dataset through its normal backend path.
+vi.mock("../../../src/services/api/mapData.js", async (importOriginal) => {
   const actual = await importOriginal();
+  const { DEMO_DRILLHOLES } = await import("./demoDataset.js");
 
-  return { ...actual, MAP_CONFIG: { ...actual.MAP_CONFIG, dataSource: "mock" } };
+  return { ...actual, fetchTechnoMap: vi.fn(() => Promise.resolve(DEMO_DRILLHOLES.map((hole) => ({ ...hole })))) };
 });
 
 const VIEWPORT = { width: 1000, height: 700 };
@@ -61,7 +62,7 @@ afterEach(() => {
 /** The page with its base map and rig icon loaded, so the canvas draws every marker. */
 async function renderPage({ loadImages = true } = {}) {
   const result = render(<><TechnoMap /><ToastContainer /></>);
-  await act(async () => {});
+  await waitFor(() => expect(getMapData("techno-map").records).not.toBeNull());
   if (loadImages) await loadMapImages(result.container);
 
   return result;
@@ -70,67 +71,28 @@ async function renderPage({ loadImages = true } = {}) {
 const rigCount = (container) => drawnKinds(container).filter((kind) => kind === "rig").length;
 const checkbox = (name) => within(screen.getByRole("complementary", { name: "Legends" })).getByRole("checkbox", { name });
 // A demo hole that is not being drilled, to point at.
-const HOLE = MOCK_DRILLHOLES.find((hole) => hole.holeStatus !== "INPROGRESS");
+const HOLE = DEMO_DRILLHOLES.find((hole) => hole.holeStatus !== "INPROGRESS");
 
-describe("demo dataset", () => {
-  it("shows 130 drillholes and a Demo badge by the title", async () => {
+describe("data", () => {
+  it("shows the 130 drillholes, 10 of them as rigs", async () => {
     const { container } = await renderPage();
 
     expect(container.querySelector(".map-header strong").textContent).toBe("130 drillholes");
     expect(drawnMarkerCount(container)).toBe(130);
     expect(rigCount(container)).toBe(10);
-    expect(screen.getByRole("heading", { name: "Techno Map" }).nextElementSibling.textContent).toBe("Demo");
-  });
-
-  it("never asks the backend or touches IndexedDB", async () => {
-    await renderPage();
-    await act(async () => {});
-
-    expect(fetch).not.toHaveBeenCalled();
-    expect(getMapData("techno-map").records).toBeNull();
-    expect(await readCachedDataset(DATASET_IDS.technoMap)).toBeNull();
-  });
-
-  it("refreshes without a request, spinning the icon and keeping the map and view", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout"] });
-    try {
-      writeMapView("techno-map", { scale: 4, translateX: -120, translateY: 60 });
-      const { container } = render(<><TechnoMap /><ToastContainer /></>);
-      await loadMapImages(container);
-      const drawn = drawnMarkerCount(container);
-      const button = screen.getByRole("button", { name: "Refresh map data" });
-
-      fireEvent.click(button);
-      fireEvent.click(button);
-
-      expect(drawn).toBeGreaterThan(0);
-      expect(button.disabled).toBe(true);
-      expect(button.querySelector("svg").getAttribute("class")).toContain("motion-safe:animate-spin");
-      expect(drawnMarkerCount(container)).toBe(drawn);
-
-      await act(async () => vi.advanceTimersByTime(600));
-
-      expect(screen.getByText(MAP_DATA_MESSAGES.refreshed)).toBeTruthy();
-      expect(button.disabled).toBe(false);
-      expect(drawnMarkerCount(container)).toBe(drawn);
-      expect(container.querySelector(".map-canvas").style.transform).toBe("translate(-120px, 60px) scale(4)");
-      expect(fetch).not.toHaveBeenCalled();
-    } finally {
-      vi.useRealTimers();
-    }
   });
 });
 
 describe("Legends panel", () => {
-  it("lists 12 checked filters in two groups, expanded", async () => {
+  it("lists 11 checked filters in two groups, expanded", async () => {
     await renderPage();
     const panel = screen.getByRole("complementary", { name: "Legends" });
 
-    expect(within(panel).getAllByRole("checkbox")).toHaveLength(12);
+    expect(within(panel).getAllByRole("checkbox")).toHaveLength(11);
     expect(within(panel).getAllByRole("checkbox").every((box) => box.checked)).toBe(true);
     expect(within(panel).getByRole("group", { name: "Drillhole Types" })).toBeTruthy();
     expect(within(panel).getByRole("group", { name: "Map Features" })).toBeTruthy();
-    expect(within(panel).getByText("12/12")).toBeTruthy();
+    expect(within(panel).getByText("11/11")).toBeTruthy();
     expect(within(panel).getByRole("button", { name: /^Legends/ })).toBeTruthy();
   });
 
@@ -145,7 +107,6 @@ describe("Legends panel", () => {
     };
 
     MAP_CONFIG.drillholeTypes.forEach(({ label, color }) => expect(labelColour(label)).toBe(hex(color)));
-    expect(labelColour("Technological cells")).toBe(hex(MAP_CONFIG.technologicalCells.stroke));
     expect(labelColour("Deviation line")).toBe(hex(MAP_CONFIG.deviationLine.color));
     expect(labelColour("Drilling in progress")).toBe("");
   });
@@ -179,20 +140,6 @@ describe("Legends panel", () => {
     expect(rigCount(container)).toBe(before - 3);
   });
 
-  it("toggles the technological cells on their own", async () => {
-    const { container } = await renderPage();
-
-    fireEvent.click(screen.getByRole("button", { name: "Hide All" }));
-    fireEvent.click(checkbox("Technological cells"));
-
-    expect(drawnMarkerCount(container)).toBe(0);
-    expect(container.querySelectorAll(".tech-cell-layer polygon")).toHaveLength(5);
-    expect(container.querySelectorAll(".tech-cell-label")).toHaveLength(5);
-
-    fireEvent.click(checkbox("Technological cells"));
-    expect(container.querySelector(".tech-cell-layer")).toBeNull();
-  });
-
   it("Hide All hides every layer but keeps the base map, chrome and view; Show All restores them", async () => {
     writeMapView("techno-map", { scale: 3, translateX: -50, translateY: 20 });
     const { container } = await renderPage();
@@ -206,7 +153,7 @@ describe("Legends panel", () => {
     expect(container.querySelector(".map-legend")).toBeTruthy();
     expect(container.querySelector(".map-scale-bar")).toBeTruthy();
     expect(container.querySelector(".map-canvas").style.transform).toBe("translate(-50px, 20px) scale(3)");
-    expect(screen.getByText("0/12")).toBeTruthy();
+    expect(screen.getByText("0/11")).toBeTruthy();
     expect(container.querySelectorAll(".map-legend li")).toHaveLength(11);
 
     fireEvent.click(screen.getByRole("button", { name: "Show All" }));
@@ -513,7 +460,7 @@ describe("tooltip", () => {
 
   it("keeps one pin: clicking another hole moves it, while hovering a third rings that one blue", async () => {
     const { container } = await renderPage();
-    const others = MOCK_DRILLHOLES.filter((hole) => hole.holeStatus !== "INPROGRESS" && Math.abs(hole.x - HOLE.x) > 300);
+    const others = DEMO_DRILLHOLES.filter((hole) => hole.holeStatus !== "INPROGRESS" && Math.abs(hole.x - HOLE.x) > 300);
     const ringFor = (state) => container.querySelector(`.marker-highlight.is-${state}`)?.dataset.key;
 
     clickAt(container, HOLE);
@@ -568,7 +515,7 @@ describe("layout", () => {
 describe("selection", () => {
   const table = (container) => container.querySelector(".selection-table");
   const tableKeys = (container) => [...container.querySelectorAll(".selection-table tbody tr[data-key]")].map((row) => row.dataset.key);
-  const OTHER = MOCK_DRILLHOLES.find((hole) => hole.holeStatus !== "INPROGRESS" && Math.abs(hole.x - HOLE.x) > 300);
+  const OTHER = DEMO_DRILLHOLES.find((hole) => hole.holeStatus !== "INPROGRESS" && Math.abs(hole.x - HOLE.x) > 300);
 
   it("Ctrl+click adds a hole with a green ring and a table row; a second Ctrl+click takes it out", async () => {
     const { container } = await renderPage();
@@ -712,7 +659,7 @@ describe("help", () => {
 describe("selection table tools", () => {
   const table = (container) => container.querySelector(".selection-table");
   const headers = (container) => [...container.querySelectorAll(".selection-table thead th button")].map((button) => button.textContent);
-  const OTHER = MOCK_DRILLHOLES.find((hole) => hole.holeStatus !== "INPROGRESS" && Math.abs(hole.x - HOLE.x) > 300);
+  const OTHER = DEMO_DRILLHOLES.find((hole) => hole.holeStatus !== "INPROGRESS" && Math.abs(hole.x - HOLE.x) > 300);
 
   async function withSelection() {
     const result = await renderPage();

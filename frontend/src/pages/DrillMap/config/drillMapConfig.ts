@@ -1,130 +1,69 @@
 import data from './drillMap.yaml';
 import { MAP_IMAGE_PATH, MAP_UTM_BOUNDS as ENV_UTM_BOUNDS } from '../../../config/env';
-import { ConfigError, boolean, dictionary, list, number, object, oneOf, parseConfig, text } from '../../../config/schema';
-import type { Parser } from '../../../config/schema';
-import { MARKER_KINDS } from '../utils/markerKind';
+import type { MarkerKind } from '../utils/markerKind';
 import type { GtRange, MapBounds, MapId } from '../../../types/map';
 
 /** Keys this page's data and view are stored under. */
 export const MAP_ID: MapId = 'exploration-map';
 
 /** Backgrounds the map can be drawn on. Labels, order and the default are in the YAML. */
-export const BASE_MAP_IDS = ['redox', 'geological', 'white-grid'] as const;
-export type BaseMapId = (typeof BASE_MAP_IDS)[number];
+export type BaseMapId = 'redox' | 'geological' | 'white-grid';
 
-/** A legend dimension in px: a finite number, never negative. */
-const size: Parser<number> = (value, path) => {
-  const parsed = number(value, path);
-  if (parsed < 0) throw new ConfigError(`${path}: expected 0 or more, got ${parsed}`);
-
-  return parsed;
-};
-
-/** A grid dimension in px: a finite number above 0. */
-const positive: Parser<number> = (value, path) => {
-  const parsed = number(value, path);
-  if (parsed <= 0) throw new ConfigError(`${path}: expected more than 0, got ${parsed}`);
-
-  return parsed;
-};
-
-/** `parse`, or undefined when the setting is left out. */
-function optional<T>(parse: Parser<T>): Parser<T | undefined> {
-  return (value, path) => (value === undefined ? undefined : parse(value, path));
+interface DrillMapConfig {
+  title: string;
+  zoom: {
+    minZoom: number;
+    maxZoom: number;
+    zoomStep: number;
+    adaptiveZoomEnabled: boolean;
+    minWheelZoomStep: number;
+    maxWheelZoomStep: number;
+    deviationMinZoom: number;
+  };
+  baseMap: {
+    options: { id: BaseMapId; label: string; src?: string; bounds?: MapBounds }[];
+    default: BaseMapId;
+    whiteGrid: {
+      background: string;
+      lineColor: string;
+      lineWidth: number;
+      labelColor: string;
+      labelFontSize: number;
+      minLineSpacing: number;
+    };
+  };
+  showLegends: boolean;
+  deviationExaggeration: number;
+  rigIconSrc: string;
+  uniformMarkerColor: string;
+  legendSymbolColor: string;
+  gtRanges: GtRange[];
+  redox: Record<string, string>;
+  markerLabels: Record<MarkerKind, string>;
+  legendSymbols: { kind: MarkerKind; label: string }[];
+  measurement: { color: string };
+  legend: {
+    paddingBlock: number;
+    paddingInline: number;
+    columnGap: number;
+    rowGap: number;
+    titleGap: number;
+    titleFontSize: number;
+    labelFontSize: number;
+    labelGap: number;
+    symbolSize: number;
+    gt: { columns: number; rowGap: number; columnGap: number };
+    redox: { rowGap: number };
+    symbols: { rigIconScale: number; rowGap: number };
+  };
 }
 
-/** A UTM rectangle in metres: finite corners, each max above its min. */
-const bounds: Parser<MapBounds> = (value, path) => {
-  const parsed = object({ minX: number, maxX: number, minY: number, maxY: number })(value, path);
-  if (parsed.maxX <= parsed.minX) throw new ConfigError(`${path}.maxX: expected more than minX (${parsed.minX}), got ${parsed.maxX}`);
-  if (parsed.maxY <= parsed.minY) throw new ConfigError(`${path}.maxY: expected more than minY (${parsed.minY}), got ${parsed.maxY}`);
-
-  return parsed;
-};
-
-/** A whole number of 1 or more. */
-const count: Parser<number> = (value, path) => {
-  const parsed = number(value, path);
-  if (!Number.isInteger(parsed) || parsed < 1) throw new ConfigError(`${path}: expected a whole number of 1 or more, got ${parsed}`);
-
-  return parsed;
-};
-
-const legendLayout = {
-  paddingBlock: size,
-  paddingInline: size,
-  columnGap: size,
-  rowGap: size,
-  titleGap: size,
-  titleFontSize: size,
-  labelFontSize: size,
-  labelGap: size,
-  symbolSize: size,
-  gt: object({ columns: count, rowGap: size, columnGap: size }),
-  redox: object({ rowGap: size }),
-};
-
-/** Rejects an empty or repeating option list, or a default that is not one of the options. */
-function checkBaseMapOptions({ options, default: fallback }: { options: readonly { id: string }[]; default: string }, path: string) {
-  if (options.length === 0) throw new ConfigError(`${path}.options: expected at least one base map`);
-  const repeated = options.find(({ id }, index) => options.findIndex((entry) => entry.id === id) !== index);
-  if (repeated) throw new ConfigError(`${path}.options: '${repeated.id}' must appear only once`);
-  if (!options.some(({ id }) => id === fallback)) throw new ConfigError(`${path}.default: '${fallback}' is not one of the options`);
-}
-
-export const MAP_CONFIG = parseConfig(
-  object({
-    title: text,
-    zoom: object({
-      minZoom: number,
-      maxZoom: number,
-      zoomStep: number,
-      adaptiveZoomEnabled: boolean,
-      minWheelZoomStep: positive,
-      maxWheelZoomStep: positive,
-      deviationMinZoom: number,
-    }),
-    baseMap: object({
-      options: list(object({ id: oneOf(...BASE_MAP_IDS), label: text, src: optional(text), bounds: optional(bounds) })),
-      default: oneOf(...BASE_MAP_IDS),
-      whiteGrid: object({
-        background: text,
-        lineColor: text,
-        lineWidth: positive,
-        labelColor: text,
-        labelFontSize: positive,
-        minLineSpacing: positive,
-      }),
-    }),
-    showLegends: boolean,
-    deviationExaggeration: number,
-    rigIconSrc: text,
-    uniformMarkerColor: text,
-    legendSymbolColor: text,
-    gtRanges: list(object({ min: number, max: number, label: text, color: text })),
-    redox: dictionary(text),
-    markerLabels: object({ rig: text, producer: text, injector: text, drillhole: text }),
-    legendSymbols: list(object({ kind: oneOf(...MARKER_KINDS), label: text })),
-    measurement: object({ color: text }),
-    legend: object({
-      ...legendLayout,
-      symbols: object({ rigIconScale: size, rowGap: size }),
-    }),
-  }),
-  data,
-  'drillMap.yaml',
-);
-
-checkBaseMapOptions(MAP_CONFIG.baseMap, 'drillMap.yaml.baseMap');
-
-if (MAP_CONFIG.zoom.maxWheelZoomStep < MAP_CONFIG.zoom.minWheelZoomStep) {
-  throw new ConfigError('drillMap.yaml.zoom.maxWheelZoomStep: expected at least minWheelZoomStep');
-}
+export const MAP_CONFIG = data as DrillMapConfig;
 
 export const MAP_SETTINGS = MAP_CONFIG.zoom;
 
 /** Where a base map is drawn from and what it covers. */
-export interface BaseMapLayout {
+interface BaseMapLayout {
   /** Image shown as the background, or null when the white grid is drawn instead. */
   src: string | null;
   /**
@@ -139,7 +78,7 @@ export interface BaseMapLayout {
 const layouts = new Map<BaseMapId, BaseMapLayout>(
   MAP_CONFIG.baseMap.options.map((option) => {
     // Without its own image and corners, a base map uses the environment's
-    // (VITE_MAP_IMAGE_PATH and the VITE_MAP_* bounds): the Geological Map.
+    // VITE_MAP_IMAGE_PATH and VITE_MAP_* bounds: the Geological Map.
     const imageSrc = option.src ?? MAP_IMAGE_PATH;
     const layout: BaseMapLayout = Object.freeze({
       src: option.id === 'white-grid' ? null : imageSrc,
@@ -153,7 +92,6 @@ const layouts = new Map<BaseMapId, BaseMapLayout>(
 
 /** The image and UTM corners of a base map; the default's for one not offered. */
 export function baseMapLayout(id: BaseMapId): BaseMapLayout {
-  // The default is checked above to be one of the options.
   return (layouts.get(id) ?? layouts.get(MAP_CONFIG.baseMap.default)) as BaseMapLayout;
 }
 

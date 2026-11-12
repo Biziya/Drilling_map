@@ -42,19 +42,6 @@
   min-width: 0;
 }
 
-.techno-map-page .map-demo-badge {
-  flex: 0 0 auto;
-  padding: 3px 8px;
-  border: 1px solid var(--color-warning-border);
-  border-radius: 999px;
-  color: var(--color-warning-ink);
-  background: var(--color-warning-surface);
-  font-size: .68rem;
-  font-weight: 700;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-
 .techno-map-page .map-header h1 {
   margin: 0;
   font-weight: 700;
@@ -264,36 +251,6 @@
 }
 
 .techno-map-page .marker-symbol--polygon.marker-symbol--small::before { inset: 1.5px; }
-
-/* Technological cells: outlines and labels that keep their screen size at any zoom. */
-.techno-map-page .tech-cell-layer {
-  position: absolute;
-  top: 0;
-  left: 0;
-  overflow: visible;
-  pointer-events: none;
-}
-
-.techno-map-page .tech-cell-layer polygon {
-  fill: var(--cell-fill);
-  stroke: var(--cell-stroke);
-  stroke-width: calc(1.5 * var(--inverse-map-scale, 1));
-  stroke-linejoin: round;
-}
-
-.techno-map-page .tech-cell-label {
-  position: absolute;
-  z-index: 1;
-  color: var(--cell-stroke);
-  font-size: .68rem;
-  font-weight: 700;
-  line-height: 1;
-  white-space: nowrap;
-  text-shadow: 0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff;
-  transform: scale(var(--inverse-map-scale, 1)) translate(-50%, -50%);
-  transform-origin: 0 0;
-  pointer-events: none;
-}
 
 /* Distance measurement, drawn in viewport pixels above the map. */
 .techno-map-page .map-viewport.is-measuring { cursor: crosshair; }
@@ -796,14 +753,6 @@
   width: auto;
   height: 20px;
   max-width: 30px;
-}
-
-.techno-map-page .layer-swatch-cell {
-  width: 22px;
-  height: 14px;
-  border: 1.5px solid var(--cell-stroke);
-  border-radius: 2px;
-  background: var(--cell-fill);
 }
 
 .techno-map-page .layer-swatch-line {

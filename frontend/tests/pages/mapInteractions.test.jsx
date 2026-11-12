@@ -48,7 +48,7 @@ describe.each([
     const snapshot = {
       viewport: { width: 1000, height: 700 }, view: { scale: 120, translateX: -100, translateY: -200 },
       mapOrigin: { x: 5, y: 0 }, mapSize: { width: 990, height: 700 },
-      drillholes: [], cells: [], filters: ALL_VISIBLE, measurement: [], title: 'Do not add a title', ...LAYOUT,
+      drillholes: [], filters: ALL_VISIBLE, measurement: [], title: 'Do not add a title', ...LAYOUT,
       capture: { x: 100, y: 150, width: 300, height: 200 },
     };
     const doc = new DOMParser().parseFromString(exporter.buildMapSvg(snapshot, { baseMap: 'data:image/png;base64,AAAA', rigIcon: '' }, 2), 'image/svg+xml');
@@ -77,7 +77,7 @@ describe.each([
     await exporter.exportMap('png', {
       viewport: { width: 1000, height: 700 }, view: { scale: 180, translateX: 0, translateY: 0 },
       mapOrigin: { x: 5, y: 0 }, mapSize: { width: 990, height: 700 },
-      drillholes: [], cells: [], filters: ALL_VISIBLE, measurement: [], title: page, baseMap: 'white-grid', ...LAYOUT, src: null,
+      drillholes: [], filters: ALL_VISIBLE, measurement: [], title: page, baseMap: 'white-grid', ...LAYOUT, src: null,
       capture: { x: 100, y: 150, width: 300, height: 200 },
     });
     expect(encoded).toEqual([{ width: 600, height: 400, type: 'image/png' }]);
@@ -97,7 +97,7 @@ describe.each([
     await exporter.exportMap('svg', {
       viewport: { width: 1000, height: 700 }, view: { scale: 120, translateX: -100, translateY: -200 },
       mapOrigin: { x: 5, y: 0 }, mapSize: { width: 990, height: 700 },
-      drillholes: [], cells: [], filters: ALL_VISIBLE, measurement: [], title: page, ...LAYOUT,
+      drillholes: [], filters: ALL_VISIBLE, measurement: [], title: page, ...LAYOUT,
       capture: { x: 100, y: 150, width: 300, height: 200 },
     });
     expect(downloads[0]).toMatch(new RegExp(`^${page}_.*\\.svg$`));

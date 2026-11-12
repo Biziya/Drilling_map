@@ -38,13 +38,6 @@ describe("TechnoMap MapLegend", () => {
     });
   });
 
-  it("leaves Technological cells to the Legends panel", () => {
-    render(<MapLegend />);
-
-    expect(itemFor("Technological cells")).toBeUndefined();
-    expect(legend().querySelector(".layer-swatch-cell")).toBeNull();
-  });
-
   it("has no Redox Status, GT or Symbol section", () => {
     const { container } = render(<MapLegend />);
 

@@ -22,11 +22,6 @@ describe.each(PAGES)("%s MarkerSymbol", (_page, MarkerSymbol) => {
     expect(container.firstChild.style.getPropertyValue("--status-color")).toBe("#15803d");
   });
 
-  it("does not set the retired Techno-prefixed variable", () => {
-    const { container } = render(<MarkerSymbol {...props} />);
-
-    expect(container.firstChild.style.getPropertyValue("--techno-status-color")).toBe("");
-  });
 
   it("applies the base and shape classes", () => {
     const { container } = render(<MarkerSymbol {...props} />);

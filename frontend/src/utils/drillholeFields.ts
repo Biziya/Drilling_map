@@ -132,7 +132,7 @@ export function readDrillholeText(
 }
 
 /** HoleStatus marking a hole as actively being drilled. */
-export const IN_PROGRESS_HOLE_STATUS = 'INPROGRESS';
+const IN_PROGRESS_HOLE_STATUS = 'INPROGRESS';
 
 /**
  * Whether a hole is actively being drilled, and therefore drawn as a rig.

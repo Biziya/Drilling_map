@@ -7,15 +7,8 @@ namespace Backend.Controllers.ExplorationMap;
 [ApiController]
 [Route("api/exploration-map")]
 [Tags("ExplorationMap")]
-public sealed class ExplorationMapController : ControllerBase
+public sealed class ExplorationMapController(ExplorationMapRepository repository) : ControllerBase
 {
-    private readonly IExplorationMapRepository _repository;
-
-    public ExplorationMapController(IExplorationMapRepository repository)
-    {
-        _repository = repository;
-    }
-
     [HttpGet]
     [ProducesResponseType(
         typeof(IReadOnlyList<ExplorationMapDto>),
@@ -23,7 +16,7 @@ public sealed class ExplorationMapController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<ExplorationMapDto>>> GetAll(
         CancellationToken cancellationToken)
     {
-        var drillholes = await _repository.GetAllAsync(cancellationToken);
+        var drillholes = await repository.GetAllAsync(cancellationToken);
 
         return Ok(drillholes);
     }

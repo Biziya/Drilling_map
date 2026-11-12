@@ -17,13 +17,6 @@ import {
   writeCachedDataset,
 } from "../../src/services/cache/drillholeCache.js";
 
-// These tests cover backend mode; technoMap.yaml ships with the demo dataset.
-vi.mock("../../src/pages/TechnoMap/config/technoMapConfig.js", async (importOriginal) => {
-  const actual = await importOriginal();
-
-  return { ...actual, MAP_CONFIG: { ...actual.MAP_CONFIG, dataSource: "backend" } };
-});
-
 // One payload for both endpoints. The Exploration Map reads holePurpose and
 // azimuth/finalDeviation; the Techno Map reads the category and deviation
 // endpoint its API adds (asBackendRecord mirrors the backend).

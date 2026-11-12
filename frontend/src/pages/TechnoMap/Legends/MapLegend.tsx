@@ -20,12 +20,8 @@ const LEGEND_STYLE: StyleWithCssVariables = {
   '--legend-line-thickness': px(legend.symbols.lineThickness),
 };
 
-/**
- * What the map draws, in filter order: the nine drillhole types, the rig and
- * the deviation line. Technological cells have no source yet and stay only in
- * the Legends panel.
- */
-const LEGEND_ENTRIES = FILTER_ENTRIES.filter(({ id }) => id !== 'technological-cells');
+/** What the map draws, in filter order: the nine drillhole types, the rig and the deviation line. */
+const LEGEND_ENTRIES = FILTER_ENTRIES;
 
 export interface MapLegendProps {
   /** Hidden categories stay listed, faded. */

@@ -1,6 +1,6 @@
 import { apiUrl } from './http';
 
-export const HEALTH_PATH = '/api/health';
+const HEALTH_PATH = '/api/health';
 
 /**
  * Asks the backend whether it is up.

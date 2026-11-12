@@ -4,7 +4,7 @@ using Microsoft.Data.SqlClient;
 
 namespace Backend.Repositories.TechnoMap;
 
-public sealed class TechnoMapRepository : ITechnoMapRepository
+public sealed class TechnoMapRepository
 {
     private const string Query = """
         /*==========================================================

@@ -29,15 +29,8 @@ export class ApiError extends Error {
 }
 
 /** True for the error `fetch` raises when a request is aborted. */
-export function isAbortError(error: unknown): boolean {
+function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError';
-}
-
-/** Turns an unknown thrown value into an `Error`. */
-export function toError(value: unknown): Error {
-  if (value instanceof Error) return value;
-
-  return new Error(typeof value === 'string' ? value : 'Unexpected error.');
 }
 
 function readString(body: object, key: string): string | null {
@@ -57,7 +50,7 @@ export function getErrorMessage(body: unknown, fallback: string): string {
   return readString(body, 'detail') ?? readString(body, 'message') ?? readString(body, 'title') ?? fallback;
 }
 
-export interface RequestJsonOptions {
+interface RequestJsonOptions {
   signal?: AbortSignal | undefined;
   connectionErrorMessage: string;
   /** Gives up when the server has not answered within this time. */

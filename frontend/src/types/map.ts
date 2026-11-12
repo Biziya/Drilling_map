@@ -38,9 +38,6 @@ export interface MapCoordinates {
 /** A drillhole that has been placed on the map. */
 export type ProjectedDrillhole = DrillholeApiRecord & MapCoordinates;
 
-/** Projects a record onto the map, or rejects it as unplaceable. */
-export type DrillholeProjection = (record: DrillholeApiRecord) => ProjectedDrillhole | null;
-
 /** Anything carrying UTM coordinates the projection can read. */
 export interface UtmProjectable {
   x?: number | string | null;

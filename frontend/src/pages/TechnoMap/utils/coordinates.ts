@@ -70,14 +70,6 @@ export function mapRatioToUtm({ x, y }: Point, bounds: MapBounds = MAP_UTM_BOUND
   };
 }
 
-/** Average of an outline's vertices: where a polygon's label sits. */
-export function outlineCentre(vertices: readonly UtmCoordinates[]): UtmCoordinates {
-  return {
-    x: vertices.reduce((sum, { x }) => sum + x, 0) / vertices.length,
-    y: vertices.reduce((sum, { y }) => sum + y, 0) / vertices.length,
-  };
-}
-
 /** Smallest box (as map ratios) holding every drillhole, or null for none. */
 export function drillholeExtent(drillholes: readonly MapCoordinates[]): MapBounds | null {
   if (drillholes.length === 0) return null;
