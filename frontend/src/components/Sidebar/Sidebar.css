@@ -210,11 +210,26 @@
   padding-inline: 0;
 }
 
+/* The website version, small and grey under the status, lined up with its label. */
+.sidebar__version {
+  margin: 4px 0 0;
+  padding: 0 11px 0 29px;
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.sidebar.is-collapsed .sidebar__version { display: none; }
+
 @media (max-width: 720px) {
   .sidebar__status {
     justify-content: center;
     padding-inline: 0;
   }
+
+  .sidebar__version { display: none; }
 }
 
 .sidebar__link.is-active:hover { background: var(--color-brand-dark); }

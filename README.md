@@ -12,7 +12,13 @@ TODO: Guide users through getting your code up and running on their own system. 
 TODO: Describe and show how to build your code and run the tests. 
 
 # Contribute
-TODO: Explain how other users and developers can contribute to make your code better. 
+TODO: Explain how other users and developers can contribute to make your code better.
+
+## Versioning
+The website version is in [VERSION](VERSION) (`MAJOR.MINOR.PATCH.BUILD`, e.g. `1.1.1.1`)
+and is shown in the sidebar. Every merge to `main` that changes the website bumps it
+and adds an entry to [CHANGELOG.md](CHANGELOG.md). How and when to bump each part:
+[VERSIONING.md](VERSIONING.md).
 
 If you want to learn more about creating good readme files then refer the following [guidelines](https://docs.microsoft.com/en-us/azure/devops/repos/git/create-a-readme?view=azure-devops). You can also seek inspiration from the below readme files:
 - [ASP.NET Core](https://github.com/aspnet/Home)

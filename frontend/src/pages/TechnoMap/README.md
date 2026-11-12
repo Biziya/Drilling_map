@@ -39,7 +39,7 @@ TechnoMap/
 │  ├─ MapControls.tsx       zoom in/out, reset, measure, area select, export (camera), zoom readout
 │  ├─ LayerPanel.tsx        floating "Legends" panel: 12 filters, Show/Hide All
 │  ├─ RefreshButton.tsx     header button: reload the data
-│  ├─ BaseMapSwitcher.tsx   header menu right of Refresh: Geological / Redox / White Grid
+│  ├─ BaseMapSwitcher.tsx   header menu right of Refresh: Geological Map / White Grid
 │  └─ icons.tsx             control icons, shared with the help dialog
 ├─ Table/
 │  ├─ SelectionTable.tsx    the selected holes under the map, per-column filter/sort
@@ -266,25 +266,23 @@ successfully*.
 
 `Controls/BaseMapSwitcher` (layers icon, right of Refresh) opens a menu of
 the backgrounds in `baseMap.options` (`config/technoMap.yaml`), the current one
-ticked, the same three as the Exploration Map:
+ticked:
 
 | id | Label | Image | UTM corners |
 |---|---|---|---|
 | `geological` (default) | **Geological Map** | `VITE_MAP_IMAGE_PATH` | `VITE_MAP_MIN_X/MAX_X/MIN_Y/MAX_Y` |
-| `redox` | **Redox Map** | `/base-map3.svg` | 412499.97–423375.13 E, 4890500–4898190.29 N |
 | `white-grid` | **White Grid Map** | (geological, hidden) | geological |
 
-The geological image used to be labelled "Redox Map"; it keeps its id, so a saved
-choice shows the same image under its right name. The redox corners come from the
-image's own Easting/Northing ticks (the same values as the Exploration Map).
+There is no Redox Map here: the redox map (`/base-map3.svg`) covers the exploration
+area and is offered on the Exploration Map only. The geological image used to be
+labelled "Redox Map"; it keeps its id, so a saved choice shows the same image under
+its right name, and a saved `redox` choice falls back to the default.
 `config/technoMapConfig.ts baseMapLayout(id)` gives each background's image and
-corners; holes, cells, deviation lines, grid, scale bar, measurement and export are
-all placed with them. Switching between Geological and White Grid keeps the view and
-the measurement; switching to or from Redox (another image, another area) clears the
-measurement and re-fits the view once the image has loaded. The selection is kept
-by hole, so it survives every switch; holes outside the redox area are not drawn
-while Redox is shown, but keep their table rows. The choice persists under
-`techno-map:base-map` (localStorage) and falls back to `baseMap.default`.
+corners (an option may name its own `src` and `bounds`, as on the Exploration
+Map); holes, cells, deviation lines, grid, scale bar, measurement and export are all
+placed with them. Switching between the two keeps the view, the measurement and the
+selection. The choice persists under `techno-map:base-map` (localStorage) and falls
+back to `baseMap.default`.
 
 The image stays loaded and laid out while hidden: its size is what every
 feature is placed against, so nothing moves. `Map/CoordinateGrid` draws under

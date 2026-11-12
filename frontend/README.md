@@ -282,6 +282,21 @@ New tests can be written in TypeScript; `vite.config.ts` already includes
 
 ---
 
+## Versioning
+
+The website version (`MAJOR.MINOR.PATCH.BUILD`, e.g. `1.1.1.1`) is in
+`../VERSION` and shows in grey under the backend status in the sidebar.
+`vite.config.ts` reads the file into `__APP_VERSION__`, and
+`src/config/version.ts` validates it (anything malformed shows `dev`).
+Restart the dev server after a bump to see the new number.
+
+Every merge to `main` that changes the website runs
+`npm run version:bump -- major|minor|patch|build` and fills in the new
+`CHANGELOG.md` section; `tests/config/version.test.js` fails if the two
+disagree. The rules are in [VERSIONING.md](../VERSIONING.md).
+
+---
+
 ## Adding things
 
 **A drillhole field.** Add it to `DrillholeMapItem` and `DrillholeApiRecord`

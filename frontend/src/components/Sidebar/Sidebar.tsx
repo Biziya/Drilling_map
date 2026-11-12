@@ -1,5 +1,6 @@
 import { APP_CONFIG } from '../../config/app';
 import type { AppPageId } from '../../config/app';
+import { APP_VERSION } from '../../config/version';
 import { useBackendStatus } from '../../state/backendStatus';
 import type { BackendStatus } from '../../state/backendStatus';
 import './Sidebar.css';
@@ -57,11 +58,13 @@ function Sidebar({ activePage, isCollapsed, onNavigate, onToggle }: SidebarProps
       <p
         className={`sidebar__status is-${backendStatus}`}
         role="status"
-        title={`Backend: ${statusLabel}`}
+        title={`Backend: ${statusLabel} · Version ${APP_VERSION}`}
       >
         <span className="sidebar__status-dot" aria-hidden="true" />
         <span className="sidebar__label">{statusLabel}</span>
       </p>
+      {/* The website version (VERSION at the repository root); hidden when collapsed, where the status tooltip carries it. */}
+      <p className="sidebar__version">v{APP_VERSION}</p>
     </aside>
   );
 }

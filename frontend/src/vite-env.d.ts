@@ -31,6 +31,9 @@ interface ImportMetaEnv {
   readonly VITE_WEEKLY_PROXY_TARGET?: string;
 }
 
+/** The VERSION file's text, inlined by vite.config.ts (define). Read it through src/config/version.ts. */
+declare const __APP_VERSION__: string;
+
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }

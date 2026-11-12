@@ -53,4 +53,11 @@ export default tseslint.config(
       'react/jsx-uses-react': 'error',
     },
   },
+
+  // Node scripts run by npm (version bump).
+  {
+    files: ['scripts/**/*.mjs'],
+    extends: [js.configs.recommended],
+    languageOptions: { ecmaVersion: 2022, globals: globals.node },
+  },
 );

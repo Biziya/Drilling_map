@@ -1,7 +1,7 @@
 // The Techno Map with 5,000 drillholes, all selected: the selection must stay
 // cheap. Rings are drawn on the marker canvas, the table renders only the rows
 // in view, and panning or hovering the map never re-renders the table.
-// Also covers switching to the Redox Map, which moves every hole.
+// Also covers switching base maps with a big selection.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
@@ -172,7 +172,7 @@ describe("5,000 selected drillholes", () => {
 });
 
 describe("base maps", () => {
-  it("offers Geological (selected), Redox and White Grid, and Redox loads base-map3.svg and keeps the selection", async () => {
+  it("offers Geological (selected) and White Grid only, and switching keeps the selection", async () => {
     const { container } = await selectEverything();
     const selected = selectedCount(container);
 
@@ -180,14 +180,13 @@ describe("base maps", () => {
     const items = within(screen.getByRole("menu", { name: "Base map" })).getAllByRole("menuitemradio");
     expect(items.map((item) => [item.textContent, item.getAttribute("aria-checked")])).toEqual([
       ["Geological Map", "true"],
-      ["Redox Map", "false"],
       ["White Grid Map", "false"],
     ]);
 
     fireEvent.click(items[1]);
-    const image = container.querySelector(".base-map");
-    expect(image.getAttribute("src")).toBe("/base-map3.svg");
-    expect(image.classList.contains("is-hidden")).toBe(false);
+    expect(container.querySelector(".base-map").classList.contains("is-hidden")).toBe(true);
+    expect(container.querySelector(".coordinate-grid")).not.toBeNull();
     expect(selectedCount(container)).toBe(selected);
+    expect(selectedRingCount(container)).toBe(selected);
   });
 });

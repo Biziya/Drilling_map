@@ -43,8 +43,8 @@ const PAGES = [
   {
     name: "Techno Map", Page: TechnoMap, config: technoConfig, grid: technoGrid, coordinates: technoCoordinates,
     geometry: technoGeometry, exporter: technoExport, key: TECHNO_KEY, otherKey: DRILL_KEY, parse: parseTechno, mapId: "techno-map",
-    // Geological is the default and shares the white grid's layout; Redox has its own image.
-    labels: ["Geological Map", "Redox Map", "White Grid Map"], defaultId: "geological",
+    // No Redox Map on the Techno Map; Geological is the default.
+    labels: ["Geological Map", "White Grid Map"], defaultId: "geological",
     imageLabel: "Geological Map",
     isEasting: ({ text, vertical }) => !vertical && /^[\d,.]+$/.test(text) && Number(text.replace(/,/g, "")) < 1000,
     isNorthing: ({ text, vertical }) => !vertical && /^[\d,.]+$/.test(text) && Number(text.replace(/,/g, "")) > 1000,

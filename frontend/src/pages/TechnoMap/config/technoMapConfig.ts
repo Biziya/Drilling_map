@@ -46,7 +46,7 @@ export const MARKER_SHAPES = [
 export type MarkerShape = (typeof MARKER_SHAPES)[number];
 
 /** Backgrounds the map can be drawn on. Labels, order and the default are in the YAML. */
-export const BASE_MAP_IDS = ['geological', 'redox', 'white-grid'] as const;
+export const BASE_MAP_IDS = ['geological', 'white-grid'] as const;
 export type BaseMapId = (typeof BASE_MAP_IDS)[number];
 
 const markerLabels = object(
