@@ -27,5 +27,6 @@ dist-ssr
 WebExample.png
 .env
 
-# Build output
-# publish/
+# Build output and published packages
+publish/
+publish.zip
