@@ -12,10 +12,10 @@ Four whole numbers, for example `1.1.1.1`.
 
 | Part | Bump it when you ship... | Example |
 |---|---|---|
-| **MAJOR** | a big redesign, or a change that breaks how people use the site or how it gets data | a new data source, a page removed |
-| **MINOR** | a new feature or page | the selection table, table export |
-| **PATCH** | a bug fix, or a small change users notice | a wrong label, a slow table made fast |
-| **BUILD** | anything else that is deployed | tests, docs, refactors, dependency updates |
+| MAJOR | a big redesign, or a change that breaks how people use the site or how it gets data | a new data source, a page removed |
+| MINOR | a new feature or page | the selection table, table export |
+| PATCH | a bug fix, or a small change users notice | a wrong label, a slow table made fast |
+| BUILD | anything else that is deployed | tests, docs, refactors, dependency updates |
 
 Bumping a part sets every part to its right back to 0:
 
@@ -60,5 +60,5 @@ on top of `main`, so every version number is used once.
 - `VERSION` is not four whole numbers, or
 - the newest section of `CHANGELOG.md` is not for the version in `VERSION`.
 
-So a version bump without a changelog entry, or a changelog entry without a
-bump, cannot reach `main` unnoticed (`frontend/tests/config/version.test.js`).
+Both checks live in `frontend/tests/config/version.test.js`, so a bump
+without a changelog entry, or the reverse, fails the tests.

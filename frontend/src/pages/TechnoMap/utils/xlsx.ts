@@ -1,7 +1,7 @@
 // A minimal .xlsx writer: one sheet, a bold frozen header row, text and number
 // cells. An .xlsx file is a ZIP of a few XML parts; entries are stored without
 // compression, which every spreadsheet program reads. Kept in-house so the
-// table export adds no dependency (see DEPENDENCY_AUDIT.md).
+// table export adds no dependency.
 
 export type SheetCell = string | number | null;
 

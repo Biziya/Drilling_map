@@ -1,128 +1,75 @@
+# Drilling Map backend
 
-# Backend Maps API
+ASP.NET Core Web API (.NET 10) that reads drilling data from SQL Server with Dapper and serves it to the frontend. It has three areas:
 
-The backend exposes two independent endpoints with the same initial query and
-response structure:
+- the Exploration Map: `GET /api/exploration-map`
+- the Techno Map: `GET /api/techno-map`
+- the Drilling Details and Drilling by Rig dashboards: `GET /api/Dashboard/<Action>`
 
-- `GET /api/exploration-map`
-- `GET /api/techno-map`
+`GET /api/health` returns 200 without touching the database. The frontend polls it for the Online/Offline indicator in the sidebar.
 
-The former `/api/drillhole-map` route has been removed.
-
-## Build command
-```bash
-dotnet publish -c Release -o publish
-```
-
-
-## Server Useful commands
-
-```bash
-iisreset   # reset ISS server 
-```
-
-```bash 
-cd C:\inetpub\wwwroot\Drilling-Maps\backend  # Go to project folder 
-Get-Content .\appsettings.Production.json    # Get varible information 
-``` 
-
-
-```bash 
-cd C:\inetpub\wwwroot\Drilling-Maps\backend  # Go to project folder 
-dotnet backend.dll                           # Manual run dotnet project
-```
-
-
-## Windows excluded/reserved
-```bash
-netsh interface ipv4 show excludedportrange protocol=tcp
-```
-
-
-```bash
-Invoke-WebRequest http://localhost:5236/api/exploration-map # local checking
-Invoke-WebRequest http://localhost:5236/api/techno-map      # local checking
-
-Invoke-WebRequest http://10.10.20.50:5236/api/exploration-map
-Invoke-WebRequest http://10.10.20.50:5236/api/techno-map
-```
-
-# Drilling Maps Backend API
-
-ASP.NET Core Web API that provides exploration and techno map drillhole data from SQL Server using Dapper.
-
-## Project Folder Structure
+## Folder structure
 
 ```text
 backend/
 ├── Controllers/
-│   ├── ExplorationMap/
-│   │   └── ExplorationMapController.cs
-│   └── TechnoMap/
-│       └── TechnoMapController.cs
+│   ├── Dashboard/DashboardController.cs
+│   ├── ExplorationMap/ExplorationMapController.cs
+│   └── TechnoMap/TechnoMapController.cs
 ├── Models/
-│   ├── ExplorationMap/
-│   │   └── ExplorationMapDto.cs
-│   └── TechnoMap/
-│       └── TechnoMapDto.cs
+│   ├── Dashboard/          CampaignOptions.cs, DashboardDtos.cs, Hole.cs
+│   ├── ExplorationMap/     ExplorationMapDto.cs
+│   └── TechnoMap/          TechnoMapCategory.cs, TechnoMapDto.cs
 ├── Repositories/
-│   ├── ExplorationMap/
-│   │   ├── IExplorationMapRepository.cs
-│   │   └── ExplorationMapRepository.cs
-│   └── TechnoMap/
-│       ├── ITechnoMapRepository.cs
-│       └── TechnoMapRepository.cs
-├── Properties/
-│   └── launchSettings.json
+│   ├── Dashboard/HoleRepository.cs
+│   ├── ExplorationMap/ExplorationMapRepository.cs
+│   └── TechnoMap/TechnoMapRepository.cs
+├── Services/               CampaignWeek.cs, DrillingService.cs
+├── Sql/Reconcile.sql       hand-run checks against the old Power BI numbers
+├── Properties/launchSettings.json
 ├── appsettings.json
-├── appsettings.Development.json
 ├── backend.csproj
-├── backend.http
-├── Program.cs
-└── README.md
+└── Program.cs
 ```
 
-## API Endpoints
+A request goes controller → repository (one SQL query through Dapper) → DTO → JSON. The dashboard adds one step: `HoleRepository` loads a campaign year's holes once (cached for 5 minutes) and `DrillingService` computes every chart from that list in memory.
 
-### Exploration Map
+## Run locally
 
-```http
-GET /api/exploration-map
+```bash
+dotnet restore
+dotnet run
 ```
 
-Returns the exploration map drillholes.
+The `http` profile listens on `http://localhost:5236`. Swagger UI is at `/swagger` when `ASPNETCORE_ENVIRONMENT` is `Development`. Use `dotnet watch run` to restart on changes.
 
-Local example:
-
-```text
-http://localhost:5236/api/exploration-map
+```powershell
+Invoke-WebRequest http://localhost:5236/api/health
+Invoke-WebRequest http://localhost:5236/api/exploration-map
+Invoke-WebRequest http://localhost:5236/api/techno-map
+Invoke-WebRequest "http://localhost:5236/api/Dashboard/Filters?year=2026"
 ```
 
-### Techno Map
+## Build and publish
 
-```http
-GET /api/techno-map
+```bash
+dotnet build
+dotnet publish -c Release -o publish
 ```
 
-Returns the TechnoMap drillholes.
+## Configuration
 
-Local example:
+`appsettings.json` holds three sections:
 
-```text
-http://localhost:5236/api/techno-map
-```
+- `ConnectionStrings:DefaultConnection`: the SQL Server connection used by every repository.
+- `SourceTable`: schema and name of the table the dashboard reads (`dbo.DRILLING_PROGRESS`).
+- `Campaigns`: the dashboard's yearly targets (`Targets`), optional status and project filters, the category rules copied from the Power BI model, and which donuts to show. The `"//..."` keys next to each setting explain the current values.
 
-The two endpoints have separate controllers, repositories, interfaces, and DTOs. The Techno Map reads `[ACQMN01].[dbo].[pyISR_AllData_V2]`; see [Techno Map Response](#techno-map-response). The sections below up to it describe the Exploration Map.
+Do not commit real database credentials to source control.
 
-The old endpoint below has been removed:
+## Exploration Map: `GET /api/exploration-map`
 
-```http
-GET /api/drillhole-map
-```
-
-## API Response Format
-
-Both endpoints return an array of drillhole objects in JSON format.
+Returns an array of drillholes:
 
 ```json
 [
@@ -144,48 +91,30 @@ Both endpoints return an array of drillhole objects in JSON format.
 ]
 ```
 
-## Response Fields
-
 | Field | Type | Description |
 | --- | --- | --- |
-| `holeId` | string | Unique drillhole identifier. |
-| `coordinateType` | string | Coordinate source selected by priority: surveyed, pegged, then planned. |
-| `x` | number | UTM Zone 49N easting coordinate. |
-| `y` | number | UTM Zone 49N northing coordinate. |
-| `z` | number | Elevation coordinate. |
-| `year` | integer | Drillhole year. The current query returns 2026. |
+| `holeId` | string | Drillhole identifier. |
+| `coordinateType` | string | Which coordinate record was used (see below). |
+| `x`, `y` | number | UTM zone 49N easting and northing. |
+| `z` | number | Elevation. |
+| `year` | integer | Drillhole year. The query currently returns 2026 only. |
 | `campaign` | string | Prospect or campaign name. |
-| `gt` | number | Calculated GT value. |
-| `maxDepth` | number | Final or planned drillhole depth. |
+| `gt` | number | GT calculated from `GEODETAILS`. |
+| `maxDepth` | number | Final depth, or the planned depth when there is no final one. |
 | `azimuth` | number | Azimuth from the deepest approved geophysical measurement. |
-| `finalDeviation` | number | Final horizontal deviation calculated from balanced easting and northing. |
-| `holePurpose` | string | Hole purpose, such as `DEVELOP` or `SEDIMENT`. |
-| `holeStatus` | string | Current hole status. `INPROGRESS` identifies an active rig. |
+| `finalDeviation` | number | Horizontal deviation from the balanced easting and northing. |
+| `holePurpose` | string | `DEVELOP` or `SEDIMENT`. |
+| `holeStatus` | string | Status as stored. `INPROGRESS` marks an active rig. |
 
-## Coordinate Selection Priority
+Each hole gets one coordinate record, chosen in this order: `UTM_Z49N_Surveyed`, then `UTM_Z49N_Pegged`, then `UTM_Z49N_Planned`.
 
-The API returns one coordinate record per drillhole using this priority:
+The query takes holes started in 2026 whose `HOLEDETAILS` rows agree on one purpose, `DEVELOP` or `SEDIMENT`. Status is never filtered. Holes without GT or deviation data are still returned, with those fields null.
 
-1. `UTM_Z49N_Surveyed`
-2. `UTM_Z49N_Pegged`
-3. `UTM_Z49N_Planned`
+## Techno Map: `GET /api/techno-map`
 
-## Data Filtering
+Returns one object per row of `[ACQMN01].[dbo].[pyISR_AllData_V2]`, unfiltered.
 
-The current SQL query:
-
-- Selects drillholes with a start date in 2026.
-- Includes hole purposes `DEVELOP` and `SEDIMENT`.
-- Retrieves hole status from `HOLEDETAILS`.
-- Calculates GT from `GEODETAILS`.
-- Uses approved geophysical records for azimuth and final deviation.
-- Keeps drillholes even when optional GT or deviation information is unavailable.
-
-## Techno Map Response
-
-`GET /api/techno-map` returns one object per row of `[ACQMN01].[dbo].[pyISR_AllData_V2]`, unfiltered. Names the frontend already used are kept (`holeId`, `holePurpose`, `holeStatus`, `x`/`y`/`z`, `azimuth`, `finalDeviation`).
-
-| Field | View column / source |
+| Field | View column or source |
 | --- | --- |
 | `id` | `[ID]` |
 | `holeId` | `[Key]`, trimmed |
@@ -197,18 +126,18 @@ The current SQL query:
 | `drillingCompany`, `drillingRig` | `[Drilling company]`, `[Drilling Rig]` |
 | `startDate`, `endDate`, `billingDate` | `[STARTDATE]`, `[ENDDATE]`, `[BillingDate]` as `yyyy-MM-dd`, or null |
 | `generalComment` | `[GeneralComment]` |
-| `raGradeSampling`, `sedimentSampling` | `[Ra_Grade_Sampling]`, `[Sediment_Sampling]`: 1 → true, 0 → false, NULL → null |
+| `raGradeSampling`, `sedimentSampling` | `[Ra_Grade_Sampling]`, `[Sediment_Sampling]`: 1 is true, 0 is false, NULL is null |
 | `azimuth`, `finalDeviation` | the deviation calculation below |
 | `deviationEndX`, `deviationEndY` | `x + finalDeviation·sin(azimuth)`, `y + finalDeviation·cos(azimuth)`; null without a usable survey |
 | `category` | the Techno Map filter, below |
 
 ### Category
 
-Resolved in `Models/TechnoMap/TechnoMapCategory.cs`, one per row:
+`Models/TechnoMap/TechnoMapCategory.cs` picks one category per row:
 
-1. `raGradeSampling = true` → `ra-grade-sampling`
-2. `sedimentSampling = true` → `sediment-sampling`
-3. otherwise `[Type]` (trimmed, case-insensitive):
+1. `raGradeSampling = true` gives `ra-grade-sampling`.
+2. `sedimentSampling = true` gives `sediment-sampling`.
+3. Otherwise `[Type]` decides (trimmed, case-insensitive):
 
 | Type | Category |
 | --- | --- |
@@ -223,65 +152,42 @@ Resolved in `Models/TechnoMap/TechnoMapCategory.cs`, one per row:
 
 ### Deviation
 
-Unchanged from the previous Techno Map query: approved geophysical headers (`GeophysApproved = 1`), the deepest station (depth rounded to 2 dp), `AzimuthAdj` there, and `FinalDeviation = √(E² + N²)` of `EastingBalanced`/`NorthingBalanced` each rounded to 3 dp first. Surveys are matched on `HOLEID = [Key]`; the view has no `PROJECTCODE`, so a `HOLEID` surveyed in more than one project gets no deviation rather than another hole's.
+The query uses approved geophysical headers (`GeophysApproved = 1`) and the deepest station (depth rounded to 2 dp). `azimuth` is `AzimuthAdj` at that station, and `finalDeviation = √(E² + N²)` of `EastingBalanced` and `NorthingBalanced`, each rounded to 3 dp first. Surveys are matched on `HOLEID = [Key]`. The view has no `PROJECTCODE`, so a `HOLEID` surveyed in more than one project gets no deviation instead of another hole's.
 
-## Backend Flow
+## Dashboard: `GET /api/Dashboard/<Action>`
 
-```text
-Frontend request
-    ↓
-API controller
-    ↓
-Repository interface
-    ↓
-Dapper repository
-    ↓
-SQL Server query
-    ↓
-DTO mapping
-    ↓
-JSON response
-```
+All actions take `year`, and optionally repeated `categories` and `rigs` query parameters (empty means no filter). `Summary`, `CampaignAverages` and `TypeSplit` also take `fromWeek` and `toWeek` for a week range picked on the bar chart.
 
-## Configuration
+| Action | Returns |
+| --- | --- |
+| `Filters` | campaign years with their targets, the category and rig lists (each narrowed by the other selection), and the donuts to draw |
+| `Summary` | hole count, campaign start and end week, and the annual target |
+| `Weekly` | one row per week: metres, cumulative metres against the target ramp, % cored, average deviation and recovery; `groupBy=rig` returns metres per rig per week instead |
+| `CampaignAverages` | campaign averages for deviation, recovery and % cored (the flat reference lines) |
+| `TypeSplit` | per category: cored metres, destructive metres and hole count, for the donuts |
 
-The SQL Server connection is read from `DefaultConnection` in `appsettings.json` or the active environment-specific settings file.
+Weeks are counted by the week a hole started, as the Power BI model did (`Services/CampaignWeek.cs`).
 
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "your-sql-server-connection-string"
-  }
-}
-```
+## Server notes
 
-Do not commit real database credentials to source control.
-
-## Run Locally
-
-```bash
-dotnet restore
-dotnet run
-```
-
-For automatic restart during development:
-
-```bash
-dotnet watch run
-```
-
-## Build and Publish
-
-```bash
-dotnet build
-dotnet publish -c Release -o publish
-```
-
-## Test the Endpoints
+The production site runs under IIS from `C:\inetpub\wwwroot\Drilling-Maps\backend`.
 
 ```powershell
-Invoke-WebRequest http://localhost:5236/api/exploration-map
-Invoke-WebRequest http://localhost:5236/api/techno-map
+iisreset                                         # restart IIS
+cd C:\inetpub\wwwroot\Drilling-Maps\backend
+Get-Content .\appsettings.Production.json        # show production settings
+dotnet backend.dll                               # run the API by hand
 ```
 
+If the port will not bind, check whether Windows has reserved it:
 
+```powershell
+netsh interface ipv4 show excludedportrange protocol=tcp
+```
+
+Checking the server from another machine:
+
+```powershell
+Invoke-WebRequest http://10.10.20.50:5236/api/exploration-map
+Invoke-WebRequest http://10.10.20.50:5236/api/techno-map
+```

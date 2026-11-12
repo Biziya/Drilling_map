@@ -1,26 +1,41 @@
-# Introduction 
-TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project. 
+# Drilling Map
 
-# Getting Started
-TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
-1.	Installation process
-2.	Software dependencies
-3.	Latest releases
-4.	API references
+An internal website for following the drilling programme. It has four pages:
 
-# Build and Test
-TODO: Describe and show how to build your code and run the tests. 
+- Exploration Map: 2026 exploration drillholes coloured by GT band, on the redox, geological or white grid base map.
+- Techno Map: technological wells by type, with layer filters, a selection table and Excel/CSV export.
+- Drilling Details and Drilling by Rig: weekly metres, targets, coring, deviation and recovery charts (the former Power BI report).
 
-# Contribute
-TODO: Explain how other users and developers can contribute to make your code better.
+Both maps can measure distances and export a dragged area as PNG or SVG.
+
+The repository has two parts:
+
+- [`backend/`](backend/README.md): ASP.NET Core API (.NET 10, Dapper, SQL Server).
+- [`frontend/`](frontend/README.md): React + TypeScript site built with Vite.
+
+## Running it locally
+
+Start the API (listens on `http://localhost:5236`):
+
+```bash
+cd backend
+dotnet run
+```
+
+Then the website, in a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+`frontend/.env` points the site at `http://localhost:5236`. The API needs network access to the SQL Server named in `backend/appsettings.json`; without it the pages load but show the backend as offline.
+
+## Checks
+
+From `frontend/`: `npm run lint`, `npm run typecheck`, `npm test` and `npm run build`. From `backend/`: `dotnet build`. The backend has no automated tests.
 
 ## Versioning
-The website version is in [VERSION](VERSION) (`MAJOR.MINOR.PATCH.BUILD`, e.g. `1.1.1.1`)
-and is shown in the sidebar. Every merge to `main` that changes the website bumps it
-and adds an entry to [CHANGELOG.md](CHANGELOG.md). How and when to bump each part:
-[VERSIONING.md](VERSIONING.md).
 
-If you want to learn more about creating good readme files then refer the following [guidelines](https://docs.microsoft.com/en-us/azure/devops/repos/git/create-a-readme?view=azure-devops). You can also seek inspiration from the below readme files:
-- [ASP.NET Core](https://github.com/aspnet/Home)
-- [Visual Studio Code](https://github.com/Microsoft/vscode)
-- [Chakra Core](https://github.com/Microsoft/ChakraCore)
+The website version is in [VERSION](VERSION) (`MAJOR.MINOR.PATCH.BUILD`, for example `1.1.1.1`) and is shown in the sidebar. Every merge to `main` that changes the website bumps it and adds an entry to [CHANGELOG.md](CHANGELOG.md). [VERSIONING.md](VERSIONING.md) explains which part to bump and how.
