@@ -210,6 +210,11 @@
   padding-inline: 0;
 }
 
+/* The New Year greeting button sits just above the status, which then no
+   longer needs to push itself to the bottom. */
+.sidebar__greeting { margin-top: auto; }
+.sidebar__greeting + .sidebar__status { margin-top: 8px; }
+
 /* The website version, small and grey under the status, lined up with its label. */
 .sidebar__version {
   margin: 4px 0 0;
