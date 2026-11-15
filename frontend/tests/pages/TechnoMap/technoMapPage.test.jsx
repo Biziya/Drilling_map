@@ -84,15 +84,15 @@ describe("data", () => {
 });
 
 describe("Legends panel", () => {
-  it("lists 11 checked filters in two groups, expanded", async () => {
+  it("lists 12 checked filters in two groups, expanded", async () => {
     await renderPage();
     const panel = screen.getByRole("complementary", { name: "Legends" });
 
-    expect(within(panel).getAllByRole("checkbox")).toHaveLength(11);
+    expect(within(panel).getAllByRole("checkbox")).toHaveLength(12);
     expect(within(panel).getAllByRole("checkbox").every((box) => box.checked)).toBe(true);
     expect(within(panel).getByRole("group", { name: "Drillhole Types" })).toBeTruthy();
     expect(within(panel).getByRole("group", { name: "Map Features" })).toBeTruthy();
-    expect(within(panel).getByText("11/11")).toBeTruthy();
+    expect(within(panel).getByText("12/12")).toBeTruthy();
     expect(within(panel).getByRole("button", { name: /^Legends/ })).toBeTruthy();
   });
 
@@ -108,6 +108,7 @@ describe("Legends panel", () => {
 
     MAP_CONFIG.drillholeTypes.forEach(({ label, color }) => expect(labelColour(label)).toBe(hex(color)));
     expect(labelColour("Deviation line")).toBe(hex(MAP_CONFIG.deviationLine.color));
+    expect(labelColour("Hexagons")).toBe(hex(MAP_CONFIG.hexagon.color));
     expect(labelColour("Drilling in progress")).toBe("");
   });
 
@@ -153,8 +154,8 @@ describe("Legends panel", () => {
     expect(container.querySelector(".map-legend")).toBeTruthy();
     expect(container.querySelector(".map-scale-bar")).toBeTruthy();
     expect(container.querySelector(".map-canvas").style.transform).toBe("translate(-50px, 20px) scale(3)");
-    expect(screen.getByText("0/11")).toBeTruthy();
-    expect(container.querySelectorAll(".map-legend li")).toHaveLength(11);
+    expect(screen.getByText("0/12")).toBeTruthy();
+    expect(container.querySelectorAll(".map-legend li")).toHaveLength(12);
 
     fireEvent.click(screen.getByRole("button", { name: "Show All" }));
 
@@ -200,14 +201,15 @@ describe("Legends panel", () => {
 });
 
 describe("toolbar", () => {
-  it("has zoom, reset, measure, area select and a single export button", async () => {
+  it("has zoom, upload, reset, measure, area select and a single export button, in that order", async () => {
     await renderPage();
 
-    ["Zoom in", "Zoom out", "Reset", "Measure distance", "Select drillholes by area", "Screenshot map"].forEach((name) => {
+    const ORDER = ["Zoom in", "Zoom out", "Upload hexagons from Excel", "Reset", "Measure distance", "Select drillholes by area", "Screenshot map"];
+    ORDER.forEach((name) => {
       expect(screen.getByRole("button", { name })).toBeTruthy();
     });
     expect(screen.queryByRole("button", { name: "Export as SVG" })).toBeNull();
-    expect(document.querySelectorAll('.map-controls button')).toHaveLength(6);
+    expect([...document.querySelectorAll(".map-controls button")].map((button) => button.getAttribute("aria-label") ?? button.textContent)).toEqual(ORDER);
     expect(screen.queryByRole("menu")).toBeNull();
   });
 

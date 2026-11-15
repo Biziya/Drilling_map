@@ -45,6 +45,15 @@ export function RulerIcon() {
   );
 }
 
+/** A tray with an arrow out of it: upload a file. */
+export function UploadIcon() {
+  return (
+    <svg {...TOOLBAR_ICON} data-icon="upload">
+      <path d="M12 16V4M7 9l5-5 5 5M4 17v4h16v-4" />
+    </svg>
+  );
+}
+
 /** A dashed selection box with a pointer in its corner. */
 export function BoxSelectIcon() {
   return (

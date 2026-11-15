@@ -19,7 +19,7 @@ export const DRILLHOLE_TYPES = [
 ] as const;
 export type DrillholeType = (typeof DRILLHOLE_TYPES)[number];
 
-export const MAP_FEATURES = ['drilling-in-progress', 'deviation-line'] as const;
+export const MAP_FEATURES = ['drilling-in-progress', 'deviation-line', 'hexagon'] as const;
 type MapFeature = (typeof MAP_FEATURES)[number];
 
 /** The map filters: one per drillhole type, one per feature layer. */
@@ -77,6 +77,7 @@ interface TechnoMapConfig {
   mapFeatures: { id: MapFeature; label: string }[];
   markerLabels: Record<MarkerKind, string>;
   deviationLine: { color: string };
+  hexagon: { color: string; lineWidth: number };
   measurement: { color: string };
   interaction: { hoverColor: string; pinnedColor: string };
   legend: {

@@ -10,6 +10,7 @@ import RefreshButton from './Controls/RefreshButton';
 import MapLegend from './Legends/MapLegend';
 import CoordinateGrid from './Map/CoordinateGrid';
 import DrillholeLayer from './Map/DrillholeLayer';
+import HexagonOverlay from './Map/HexagonOverlay';
 import MapCanvas from './Map/MapCanvas';
 import MapScaleBar from './Map/MapScaleBar';
 import MapStatus from './Map/MapStatus';
@@ -23,12 +24,14 @@ import type { BaseMapId } from './config/technoMapConfig';
 import { HELP_SECTIONS } from './config/helpContent';
 import { useBaseMap } from './hooks/useBaseMap';
 import { useMapData } from './hooks/useMapData';
+import { useHexagonUpload } from './hooks/useHexagonUpload';
 import { useMapFilters } from './hooks/useMapFilters';
 import { useMapViewport } from './hooks/useMapViewport';
 import { drillholeExtent, mapRatioToUtm } from './utils/coordinates';
 import { exportMap } from './utils/exportMap';
 import type { ExportFormat } from './utils/exportMap';
 import { buildCanvasTransformStyle, isViewZoomed, measuredMapSize, toPixels } from './utils/geometry';
+import type { HexCell } from './utils/hexagons';
 import { selectShownFeatures } from './utils/mapFilters';
 import { buildMarkerFeatures, createHitIndex, findMarkerAt, findMarkersInRect, screenTransform } from './utils/markerLayer';
 import type { MarkerFeature } from './utils/markerLayer';
@@ -44,6 +47,7 @@ import './TechnoMap.css';
 const OVERLAY_SELECTOR = '.map-toolbar, .map-layers, .map-legend, .marker-tooltip.is-pinned';
 
 const NO_SELECTION: ReadonlySet<string> = new Set();
+const NO_CELLS: readonly HexCell[] = [];
 
 /** A copy of `keys` with `key` added, or removed when already there. */
 function toggleKey(keys: ReadonlySet<string>, key: string): ReadonlySet<string> {
@@ -59,6 +63,8 @@ const PAGE_STYLE: StyleWithCssVariables = {
   '--measure-color': MAP_CONFIG.measurement.color,
   '--hover-color': MAP_CONFIG.interaction.hoverColor,
   '--pinned-color': MAP_CONFIG.interaction.pinnedColor,
+  '--hexagon-color': MAP_CONFIG.hexagon.color,
+  '--hexagon-width': `${MAP_CONFIG.hexagon.lineWidth}px`,
 };
 
 /** Techno Map: /api/techno-map with layer filters, measurement, selection and export. */
@@ -69,6 +75,11 @@ function TechnoMap() {
   const { bounds } = layout;
   const { status, drillholes, isFetching, failure, refresh } = useMapData(bounds);
   const { filters, setFilter, setAll } = useMapFilters();
+  // A new upload turns the Hexagons layer on, so the user sees what they loaded.
+  const showHexagons = useCallback(() => setFilter('hexagon', true), [setFilter]);
+  const { upload: hexagons, isUploading, load: uploadHexagons, clear: clearHexagons } = useHexagonUpload(showHexagons);
+  const hexagonCells = hexagons?.cells ?? NO_CELLS;
+  const hexagonSource = useMemo(() => (hexagons ? { fileName: hexagons.fileName, count: hexagons.cells.length } : null), [hexagons]);
   /** Set when another image was chosen: the view is reset once it has loaded. */
   const resetOnLoadRef = useRef(false);
   const [isMeasuring, setIsMeasuring] = useState(false);
@@ -212,6 +223,7 @@ function TechnoMap() {
         drillholes,
         filters,
         measurement,
+        hexagons: hexagonCells,
         title: MAP_CONFIG.title,
         baseMap,
       });
@@ -260,6 +272,9 @@ function TechnoMap() {
             showImage={layout.src !== null}
           />
 
+          {!image.hasFailed && filters.hexagon && (
+            <HexagonOverlay cells={hexagonCells} view={view} mapOrigin={mapOrigin} mapSize={mapSize} bounds={bounds} />
+          )}
           {!image.hasFailed && (
             <DrillholeLayer
               features={shown}
@@ -284,12 +299,14 @@ function TechnoMap() {
           <MeasurementOverlay points={measurement} view={view} mapOrigin={mapOrigin} mapSize={mapSize} bounds={bounds} />
           <MapStatus status={status} imageFailed={image.hasFailed} failure={failure} src={layout.imageSrc} />
           {MAP_CONFIG.showLegends && <MapLegend filters={filters} />}
-          <LayerPanel filters={filters} onChange={setFilter} onSetAll={setAll} />
+          <LayerPanel filters={filters} onChange={setFilter} onSetAll={setAll} hexagons={hexagonSource} onClearHexagons={clearHexagons} />
           <MapControls
             zoom={view.scale}
             onZoomIn={controls.zoomIn}
             onZoomOut={controls.zoomOut}
             onReset={controls.reset}
+            onUpload={(file) => void uploadHexagons(file)}
+            isUploading={isUploading}
             isMeasuring={isMeasuring}
             onToggleMeasure={() => {
               setIsMeasuring((current) => !current);

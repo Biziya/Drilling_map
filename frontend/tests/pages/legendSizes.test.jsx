@@ -78,11 +78,11 @@ describe.each(PAGES)("%s legend sizes", (_page, MapLegend, { MAP_CONFIG }, yamlP
 });
 
 describe("TechnoMap legend symbols", () => {
-  it("puts all 11 symbols in the same symbol box", () => {
+  it("puts all 12 symbols in the same symbol box", () => {
     const { container } = render(<TechnoLegend />);
     const boxes = container.querySelectorAll(".map-legend li > .legend-symbol");
 
-    expect(boxes).toHaveLength(11);
+    expect(boxes).toHaveLength(12);
     expect(container.querySelectorAll(".map-legend .marker-symbol--small")).toHaveLength(9);
     expect(container.querySelector(".map-legend .legend-rig-icon")).toBeTruthy();
   });

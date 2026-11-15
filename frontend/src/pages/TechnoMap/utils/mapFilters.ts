@@ -5,6 +5,7 @@
 //   in-progress hole -> shown (as a rig) when its type AND Drilling in progress
 //                       are checked; never downgraded to its type's symbol
 //   deviation line   -> shown when Deviation line is checked and its hole is shown
+//   hexagons         -> the uploaded cell outlines, shown when Hexagons is checked
 
 import { FILTER_IDS } from '../config/technoMapConfig';
 import type { DrillholeType, FilterId } from '../config/technoMapConfig';

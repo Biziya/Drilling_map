@@ -4,19 +4,29 @@ import { DRILLHOLE_TYPE_CONFIG, FILTER_IDS, MAP_CONFIG } from '../config/technoM
 import type { FilterId } from '../config/technoMapConfig';
 import type { MapFilters } from '../utils/mapFilters';
 
+/** The uploaded hexagon file, as the panel describes it. */
+export interface HexagonSource {
+  fileName: string;
+  count: number;
+}
+
 export interface LayerPanelProps {
   filters: MapFilters;
   onChange: (id: FilterId, visible: boolean) => void;
   onSetAll: (visible: boolean) => void;
+  /** The uploaded Excel file behind the Hexagons layer, or null for none. */
+  hexagons?: HexagonSource | null;
+  onClearHexagons?: () => void;
 }
 
 /**
  * A filter's label colour: a drillhole type's marker colour, the deviation
- * line colour for that layer (all from technoMap.yaml), and
+ * line or hexagon colour for those layers (all from technoMap.yaml), and
  * the panel's own text colour for Drilling in progress, whose symbol is the rig.
  */
 function labelColor(id: FilterId): string | undefined {
   if (id === 'deviation-line') return MAP_CONFIG.deviationLine.color;
+  if (id === 'hexagon') return MAP_CONFIG.hexagon.color;
   if (id === 'drilling-in-progress') return undefined;
 
   return DRILLHOLE_TYPE_CONFIG[id].color;
@@ -25,21 +35,42 @@ function labelColor(id: FilterId): string | undefined {
 /**
  * Floating "Legends" panel in the map's top-right corner: every filter,
  * Show All / Hide All, and a collapse toggle. Opens expanded on every visit;
- * only the filter choices are remembered.
+ * only the filter choices are remembered. Under Hexagons, the uploaded file's
+ * name and cell count, with Clear.
  */
-function LayerPanel({ filters, onChange, onSetAll }: LayerPanelProps) {
+function LayerPanel({ filters, onChange, onSetAll, hexagons = null, onClearHexagons }: LayerPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const enabled = FILTER_IDS.filter((id) => filters[id]).length;
+
+  const hexagonNote = (
+    <div className="map-layers__note">
+      {hexagons ? (
+        <>
+          <span className="map-layers__note-text" title={hexagons.fileName}>
+            {hexagons.fileName} · {hexagons.count} cells
+          </span>
+          {onClearHexagons && (
+            <button type="button" onClick={onClearHexagons} title="Remove the uploaded hexagons">Clear</button>
+          )}
+        </>
+      ) : (
+        <span className="map-layers__note-text">No file uploaded</span>
+      )}
+    </div>
+  );
 
   const group = (title: string, entries: readonly { id: FilterId; label: string }[]) => (
     <fieldset className="map-layers__group">
       <legend>{title}</legend>
       {entries.map(({ id, label }) => (
-        <label key={id} className="map-layers__item">
-          <input type="checkbox" checked={filters[id]} onChange={(event) => onChange(id, event.target.checked)} />
-          <LayerSymbol id={id} />
-          <span className="map-layers__label" style={{ color: labelColor(id) }}>{label}</span>
-        </label>
+        <div key={id}>
+          <label className="map-layers__item">
+            <input type="checkbox" checked={filters[id]} onChange={(event) => onChange(id, event.target.checked)} />
+            <LayerSymbol id={id} />
+            <span className="map-layers__label" style={{ color: labelColor(id) }}>{label}</span>
+          </label>
+          {id === 'hexagon' && hexagonNote}
+        </div>
       ))}
     </fieldset>
   );

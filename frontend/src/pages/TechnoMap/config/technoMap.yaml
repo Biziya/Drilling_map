@@ -95,6 +95,8 @@ markers:
 mapFeatures:
   - { id: drilling-in-progress, label: Drilling in progress }
   - { id: deviation-line, label: Deviation line }
+  # Production-cell outlines from an uploaded wellfield Excel file (toolbar Upload).
+  - { id: hexagon, label: Hexagons }
 
 # Accessible role names, read before the hole id ("Producer drillhole GTZO-1").
 markerLabels:
@@ -108,6 +110,10 @@ markerLabels:
   ra-grade-sampling: Ra-grade-sampling drillhole
   sediment-sampling: Sediment-sampling drillhole
   water: Water drillhole
+
+hexagon:
+  color: '#000000'
+  lineWidth: 1.5
 
 deviationLine:
   color: '#ff0000'

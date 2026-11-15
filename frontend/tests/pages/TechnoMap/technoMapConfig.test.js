@@ -43,8 +43,8 @@ describe("Techno Map config", () => {
     MARKER_KINDS.forEach((kind) => expect(MAP_CONFIG.markerLabels[kind]).toEqual(expect.any(String)));
   });
 
-  it("defines 11 filters: nine drillhole types and two feature layers", () => {
-    expect(FILTER_IDS).toHaveLength(11);
+  it("defines 12 filters: nine drillhole types and three feature layers", () => {
+    expect(FILTER_IDS).toHaveLength(12);
     expect(MAP_CONFIG.drillholeTypes.map(({ id }) => id)).toEqual([...DRILLHOLE_TYPES]);
     expect(MAP_CONFIG.mapFeatures.map(({ id }) => id)).toEqual([...MAP_FEATURES]);
     expect(MAP_CONFIG.drillholeTypes.map(({ label }) => label)).toEqual([
@@ -52,7 +52,7 @@ describe("Techno Map config", () => {
       "Producer", "Ra-grade-sampling", "Sediment-sampling", "Water",
     ]);
     expect(MAP_CONFIG.mapFeatures.map(({ label }) => label))
-      .toEqual(["Drilling in progress", "Deviation line"]);
+      .toEqual(["Drilling in progress", "Deviation line", "Hexagons"]);
   });
 
   // The marker table: shapes and colour families per category. Development,

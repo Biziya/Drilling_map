@@ -134,6 +134,17 @@ describe("buildMapSvg", () => {
     expect(deviationLines({ view: zoomed, filters: { ...ALL_VISIBLE, "deviation-line": false } })).toBe(0);
   });
 
+  it("draws uploaded hexagons in the hexagon colour while the Hexagons layer is on", () => {
+    const hexagons = [{ id: "C1", points: [{ x: 421000, y: 4893600 }, { x: 421040, y: 4893600 }, { x: 421020, y: 4893640 }] }];
+    const outlines = (overrides) => parse(buildMapSvg(snapshot({ hexagons, ...overrides }), ASSETS))
+      .querySelectorAll(`g[stroke='${MAP_CONFIG.hexagon.color}'] polygon`);
+
+    expect(outlines({})).toHaveLength(1);
+    expect(outlines({})[0].getAttribute("points").split(" ")).toHaveLength(3);
+    expect(outlines({ filters: { ...ALL_VISIBLE, hexagon: false } })).toHaveLength(0);
+    expect(outlines({ hexagons: [] })).toHaveLength(0);
+  });
+
   it("leaves out holes far outside the view", () => {
     const panned = { scale: 1, translateX: 5000, translateY: 0 };
 

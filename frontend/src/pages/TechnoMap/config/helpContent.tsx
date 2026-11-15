@@ -3,7 +3,7 @@
 // checks, so a new toolbar button cannot ship without a description here.
 
 import type { HelpSection } from '../../../components/HelpDialog/help';
-import { BoxSelectIcon, CameraIcon, ChevronDownIcon, ColumnsIcon, DownloadIcon, EyeOffIcon, HelpIcon, LayersIcon, RefreshIcon, RulerIcon } from '../Controls/icons';
+import { BoxSelectIcon, CameraIcon, ChevronDownIcon, ColumnsIcon, DownloadIcon, EyeOffIcon, HelpIcon, LayersIcon, RefreshIcon, RulerIcon, UploadIcon } from '../Controls/icons';
 
 export const HELP_SECTIONS: readonly HelpSection[] = [
   {
@@ -43,6 +43,11 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
     buttons: [
       { icon: '+', name: 'Zoom in', description: 'Zoom in on the centre of the map.' },
       { icon: '−', name: 'Zoom out', description: 'Zoom out from the centre of the map.' },
+      {
+        icon: <UploadIcon />,
+        name: 'Upload hexagons from Excel',
+        description: 'Pick a wellfield .xlsx with X [m], Y [m] and Associated production cells columns. Each cell is drawn as a black outline through the wells that list it. Kept in this browser until you upload another file or press Clear under Hexagons in the Legends panel.',
+      },
       { icon: '⤢', name: 'Reset', description: 'Fit every drillhole in view, whatever the filters.' },
       {
         icon: <RulerIcon />,

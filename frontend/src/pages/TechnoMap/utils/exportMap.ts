@@ -2,7 +2,7 @@
 //
 // Both formats come from one SVG document built from the same data and rules
 // as the screen: the selected base map (the Redox Map image, embedded since an
-// export must stand alone, or the white coordinate grid), deviation lines, markers, the measurement, then the title and scale bar.
+// export must stand alone, or the white coordinate grid), uploaded hexagons, deviation lines, markers, the measurement, then the title and scale bar.
 // The live map draws markers on a canvas; this is its vector twin, from the
 // same features (markerLayer.ts), shapes, sizes and colours. Floating UI
 // (legend, Legends panel, toolbar, tooltip) is never drawn. PNG rasterises
@@ -12,6 +12,7 @@ import type { CaptureRect } from '../../../components/MapScreenshot/MapScreensho
 import { DRILLHOLE_TYPE_CONFIG, MAP_CONFIG, baseMapLayout } from '../config/technoMapConfig';
 import type { BaseMapId } from '../config/technoMapConfig';
 import { computeCoordinateGrid } from './coordinateGrid';
+import type { HexCell } from './hexagons';
 import { utmToMapRatio } from './coordinates';
 import { selectShownFeatures } from './mapFilters';
 import type { MapFilters } from './mapFilters';
@@ -34,6 +35,8 @@ export interface MapSnapshot {
   drillholes: readonly ProjectedDrillhole[];
   filters: MapFilters;
   measurement: readonly UtmCoordinates[];
+  /** Uploaded production-cell outlines, drawn when the Hexagons filter is on. */
+  hexagons?: readonly HexCell[];
   title: string;
   /** Background shown on screen; the default base map when omitted. */
   baseMap?: BaseMapId;
@@ -178,6 +181,13 @@ export function buildMapSvg(snapshot: MapSnapshot, assets: ExportAssets, pixelRa
       : `<image href="${assets.baseMap}" x="${n(mapOrigin.x + view.translateX)}" y="${n(mapOrigin.y + view.translateY)}" `
         + `width="${n(mapSize.width * view.scale)}" height="${n(mapSize.height * view.scale)}" preserveAspectRatio="none"/>`,
   ];
+
+  if (filters.hexagon && snapshot.hexagons?.length) {
+    const { color, lineWidth } = MAP_CONFIG.hexagon;
+    parts.push(`<g fill="none" stroke="${color}" stroke-width="${lineWidth}" stroke-linejoin="round">`
+      + snapshot.hexagons.map(({ points }) => `<polygon points="${points.map((point) => { const at = utmToScreen(point); return `${n(at.x)},${n(at.y)}`; }).join(' ')}"/>`).join('')
+      + '</g>');
+  }
 
   const features = selectShownFeatures(buildMarkerFeatures(drillholes, bounds), filters)
     .map((feature) => ({ feature, at: toScreen(feature) }));
