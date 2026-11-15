@@ -16,11 +16,9 @@ export interface SidebarProps {
   isCollapsed: boolean;
   onNavigate: (page: AppPageId) => void;
   onToggle: () => void;
-  /** Set only during the New Year season: shows the button that reopens the greeting. */
-  onOpenGreeting?: () => void;
 }
 
-function Sidebar({ activePage, isCollapsed, onNavigate, onToggle, onOpenGreeting }: SidebarProps) {
+function Sidebar({ activePage, isCollapsed, onNavigate, onToggle }: SidebarProps) {
   const backendStatus = useBackendStatus();
   const statusLabel = STATUS_LABELS[backendStatus];
 
@@ -56,18 +54,6 @@ function Sidebar({ activePage, isCollapsed, onNavigate, onToggle, onOpenGreeting
           </button>
         ))}
       </nav>
-
-      {onOpenGreeting && (
-        <button
-          className="sidebar__link sidebar__greeting"
-          type="button"
-          onClick={onOpenGreeting}
-          title="Шинэ оны мэнд · Happy New Year"
-        >
-          <span className="sidebar__icon" aria-hidden="true">🎄</span>
-          <span className="sidebar__label">Шинэ оны мэнд</span>
-        </button>
-      )}
 
       <p
         className={`sidebar__status is-${backendStatus}`}

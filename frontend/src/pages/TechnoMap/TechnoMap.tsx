@@ -31,6 +31,7 @@ import { drillholeExtent, mapRatioToUtm } from './utils/coordinates';
 import { exportMap } from './utils/exportMap';
 import type { ExportFormat } from './utils/exportMap';
 import { buildCanvasTransformStyle, isViewZoomed, measuredMapSize, toPixels } from './utils/geometry';
+import { snapHexagons } from './utils/hexagons';
 import type { HexCell } from './utils/hexagons';
 import { selectShownFeatures } from './utils/mapFilters';
 import { buildMarkerFeatures, createHitIndex, findMarkerAt, findMarkersInRect, screenTransform } from './utils/markerLayer';
@@ -78,8 +79,12 @@ function TechnoMap() {
   // A new upload turns the Hexagons layer on, so the user sees what they loaded.
   const showHexagons = useCallback(() => setFilter('hexagon', true), [setFilter]);
   const { upload: hexagons, isUploading, load: uploadHexagons, clear: clearHexagons } = useHexagonUpload(showHexagons);
-  const hexagonCells = hexagons?.cells ?? NO_CELLS;
-  const hexagonSource = useMemo(() => (hexagons ? { fileName: hexagons.fileName, count: hexagons.cells.length } : null), [hexagons]);
+  // Corners sit on the drilled wells where the database has them, at the design position otherwise.
+  const snap = useMemo(() => snapHexagons(hexagons?.cells ?? NO_CELLS, drillholes), [hexagons, drillholes]);
+  const hexagonCells = snap.cells;
+  const hexagonSource = useMemo(() => (hexagons
+    ? { fileName: hexagons.fileName, count: hexagons.cells.length, moved: snap.moved, unmatched: snap.unmatched, maxShift: snap.maxShift }
+    : null), [hexagons, snap]);
   /** Set when another image was chosen: the view is reset once it has loaded. */
   const resetOnLoadRef = useRef(false);
   const [isMeasuring, setIsMeasuring] = useState(false);

@@ -3,12 +3,20 @@ import LayerSymbol from '../Legends/LayerSymbol';
 import { DRILLHOLE_TYPE_CONFIG, FILTER_IDS, MAP_CONFIG } from '../config/technoMapConfig';
 import type { FilterId } from '../config/technoMapConfig';
 import type { MapFilters } from '../utils/mapFilters';
+import { describeSnap } from '../utils/hexagons';
 
 /** The uploaded hexagon file, as the panel describes it. */
 export interface HexagonSource {
   fileName: string;
   count: number;
+  /** Corners moved from the design position onto the drilled well of the same name. */
+  moved?: number;
+  /** Named corners with no drilled well on the map, left at the design position. */
+  unmatched?: number;
+  /** The largest move, in metres. */
+  maxShift?: number;
 }
+
 
 export interface LayerPanelProps {
   filters: MapFilters;
@@ -41,6 +49,7 @@ function labelColor(id: FilterId): string | undefined {
 function LayerPanel({ filters, onChange, onSetAll, hexagons = null, onClearHexagons }: LayerPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const enabled = FILTER_IDS.filter((id) => filters[id]).length;
+  const snapNote = hexagons ? describeSnap(hexagons) : null;
 
   const hexagonNote = (
     <div className="map-layers__note">
@@ -52,6 +61,7 @@ function LayerPanel({ filters, onChange, onSetAll, hexagons = null, onClearHexag
           {onClearHexagons && (
             <button type="button" onClick={onClearHexagons} title="Remove the uploaded hexagons">Clear</button>
           )}
+          {snapNote && <span className="map-layers__note-detail" title={snapNote}>{snapNote}</span>}
         </>
       ) : (
         <span className="map-layers__note-text">No file uploaded</span>

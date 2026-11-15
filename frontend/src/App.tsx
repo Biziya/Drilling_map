@@ -3,7 +3,6 @@ import Sidebar from "./components/Sidebar/Sidebar";
 import ToastContainer from "./components/Toast/ToastContainer";
 import NewYearGreeting from "./components/NewYearGreeting/NewYearGreeting";
 import {
-  isGreetingSeason,
   markGreetingSeen,
   shouldShowGreeting,
 } from "./components/NewYearGreeting/greeting";
@@ -27,7 +26,6 @@ function App() {
   const [isGreetingOpen, setIsGreetingOpen] = useState(() =>
     shouldShowGreeting(),
   );
-  const [isInGreetingSeason] = useState(() => isGreetingSeason(new Date()));
 
   const closeGreeting = () => {
     markGreetingSeen();
@@ -52,9 +50,6 @@ function App() {
         isCollapsed={isSidebarCollapsed}
         onNavigate={setActivePage}
         onToggle={() => setIsSidebarCollapsed((current) => !current)}
-        onOpenGreeting={
-          isInGreetingSeason ? () => setIsGreetingOpen(true) : undefined
-        }
       />
 
       <main className="min-h-0 min-w-0 overflow-hidden">

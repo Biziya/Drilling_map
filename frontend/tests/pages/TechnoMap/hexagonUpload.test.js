@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildXlsx, zipStored } from "../../../src/pages/TechnoMap/utils/xlsx";
 import { columnIndex, readXlsx } from "../../../src/pages/TechnoMap/utils/xlsxRead";
-import { buildHexagons, orderAroundCentre, parseStoredHexagons } from "../../../src/pages/TechnoMap/utils/hexagons";
+import { buildHexagons, orderAroundCentre, describeSnap, parseStoredHexagons, snapHexagons, wellKey } from "../../../src/pages/TechnoMap/utils/hexagons";
 
 const HEADER = ["Name", "Type", "X [m]", "Y [m]", "Associated production cells"];
 
@@ -89,6 +89,7 @@ describe("hexagons", () => {
     expect(cells).toHaveLength(1);
     expect(cells[0].id).toBe("CZO_A");
     expect(cells[0].points).toHaveLength(6);
+    expect(cells[0].points.map(({ name }) => name).sort()).toEqual(["IZO_0", "IZO_1", "IZO_2", "IZO_3", "IZO_4", "IZO_5"]);
     const angles = cells[0].points.map(({ x, y }) => Math.atan2(y, x));
     expect([...angles].sort((a, b) => a - b)).toEqual(angles);
   });
@@ -128,6 +129,7 @@ describe("hexagons", () => {
     });
 
     expect(cells[0].points).toContainEqual({ x: 10.5, y: 0 });
+    expect(cells[0].points.every((p) => p.name === undefined)).toBe(true);
   });
 
   it("names a missing column", () => {
@@ -146,5 +148,54 @@ describe("hexagons", () => {
     expect(parseStoredHexagons(stored)).toEqual({ fileName: "wells.xlsx", cells: [{ id: "C", points: [{ x: 1, y: 2 }] }] });
     expect(parseStoredHexagons(null)).toBeNull();
     expect(parseStoredHexagons({ cells: [] })).toBeNull();
+  });
+});
+
+describe("snapping hexagons to drilled wells", () => {
+  const square = [{ id: "C", points: [
+    { x: 0, y: 0, name: "IZO_1" },
+    { x: 10, y: 0, name: "izo_2" },
+    { x: 10, y: 10, name: "IZO_3" },
+    { x: 0, y: 10 },
+  ] }];
+
+  it("moves named corners onto the well of the same name, ignoring case and the trailing underscore", () => {
+    const { cells, moved, unmatched, maxShift } = snapHexagons(square, [
+      { holeId: "IZO_1_", x: 3, y: 4 },
+      { HoleId: "IZO_2_", X: "10", Y: "0" },
+      { holeId: "IZO_3_", x: null, y: 12 },
+    ]);
+
+    expect(cells[0].points).toContainEqual({ x: 3, y: 4, name: "IZO_1" });
+    expect(cells[0].points).toContainEqual({ x: 10, y: 0, name: "izo_2" });
+    // No usable coordinates: stays at the design position.
+    expect(cells[0].points).toContainEqual({ x: 10, y: 10, name: "IZO_3" });
+    expect(cells[0].points).toContainEqual({ x: 0, y: 10 });
+    expect(moved).toBe(1);
+    expect(unmatched).toBe(1);
+    expect(maxShift).toBe(5);
+  });
+
+  it("keeps the same cell objects when nothing moves", () => {
+    const result = snapHexagons(square, []);
+
+    expect(result.cells[0]).toBe(square[0]);
+    expect(result.unmatched).toBe(3);
+  });
+
+  it("normalises well names", () => {
+    expect(wellKey(" izo_447_053_36_a_ ")).toBe("IZO_447_053_36_A");
+  });
+
+  it("describes the result for the legend", () => {
+    expect(describeSnap({ fileName: "f", count: 1, moved: 12, unmatched: 3, maxShift: 4.24 }))
+      .toBe("12 corners moved to drilled wells (max 4.2 m) · 3 at design position");
+    expect(describeSnap({ fileName: "f", count: 1 })).toBeNull();
+  });
+
+  it("restores stored corners with and without names", () => {
+    const stored = { fileName: "w.xlsx", cells: [{ id: "C", points: [{ x: 1, y: 2, name: "IZO_1" }, { x: 3, y: 4 }] }, { id: "D", points: [{ x: 1, y: 2, name: 7 }] }] };
+
+    expect(parseStoredHexagons(stored).cells.map(({ id }) => id)).toEqual(["C"]);
   });
 });

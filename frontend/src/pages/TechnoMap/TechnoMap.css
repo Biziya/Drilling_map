@@ -555,8 +555,10 @@
 .techno-map-page .map-layers__item .legend-rig-icon { height: 18px; }
 
 /* Under Hexagons: which file the outlines came from, and Clear. */
+/* The detail line (corners snapped to drilled wells) wraps under the file name. */
 .techno-map-page .map-layers__note {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   margin: 0 4px 3px 25px;
@@ -567,6 +569,8 @@
 
 /* width 0 + flex-grow: a long file name never widens the panel; it ends in an ellipsis. */
 .techno-map-page .map-layers__note-text { flex: 1 1 0; width: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.techno-map-page .map-layers__note-detail { flex: 1 0 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .techno-map-page .map-layers__note button {
   flex: 0 0 auto;
