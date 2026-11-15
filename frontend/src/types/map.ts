@@ -54,12 +54,14 @@ export interface MapTransform {
 /** Zoom limits and thresholds for a map. */
 export interface MapZoomSettings {
   minZoom: number;
+  /** Hard cap; the real limit is minScaleBarMeters (utils/mapWheel.ts maxZoomForScaleBar). */
   maxZoom: number;
-  /** Toolbar/double-click step, and wheel fallback when adaptive zoom is off. */
+  /** Zooming in stops when the scale bar reads this many metres. */
+  minScaleBarMeters: number;
+  /** Toolbar/double-click step: each click multiplies the zoom by 1 + zoomStep. */
   zoomStep: number;
-  adaptiveZoomEnabled: boolean;
-  minWheelZoomStep: number;
-  maxWheelZoomStep: number;
+  /** Mouse-wheel step: each notch multiplies the zoom by 1 + wheelZoomStep. */
+  wheelZoomStep: number;
   /** Scale from which deviation lines are drawn. */
   deviationMinZoom: number;
 }

@@ -49,10 +49,9 @@ interface TechnoMapConfig {
   zoom: {
     minZoom: number;
     maxZoom: number;
+    minScaleBarMeters: number;
     zoomStep: number;
-    adaptiveZoomEnabled: boolean;
-    minWheelZoomStep: number;
-    maxWheelZoomStep: number;
+    wheelZoomStep: number;
     deviationMinZoom: number;
     fitPadding: number;
   };

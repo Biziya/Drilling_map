@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/react';
 import MapScreenshot from '../../src/components/MapScreenshot/MapScreenshot';
-import { getWheelZoomStep, wheelZoomDelta } from '../../src/utils/mapWheel';
+import { maxZoomForScaleBar, stepZoomDelta, wheelZoomDelta } from '../../src/utils/mapWheel';
 import * as drillGeometry from '../../src/pages/DrillMap/utils/geometry';
 import * as technoGeometry from '../../src/pages/TechnoMap/utils/geometry';
 import * as drillExport from '../../src/pages/DrillMap/utils/exportMap';
@@ -21,27 +21,31 @@ describe.each([
   ['DrillMap', drillGeometry, drillExport, drillSettings],
   ['TechnoMap', technoGeometry, technoExport, technoSettings],
 ])('%s zoom and capture', (page, geometry, exporter, settings) => {
-  it('applies progressive wheel steps at low, middle and high scales with a fixed cursor anchor', () => {
+  it('applies the same wheel factor at low, middle and high scales with a fixed cursor anchor', () => {
     const origin = { x: 5, y: 0 }, anchor = { x: 400, y: 300 }, mapSize = { width: 990, height: 700 };
-    for (const scale of [1, 9.8, 15, 90, 170]) {
+    for (const scale of [1, 9.8, 15, 90, 170, 2500]) {
       const view = { scale, translateX: -100, translateY: -50 };
-      const delta = wheelZoomDelta({ deltaY: -100, deltaMode: 0 }, getWheelZoomStep(scale, settings));
-      const next = geometry.zoomView(view, scale + delta, anchor, origin, settings);
-      expect(next.scale - scale).toBeCloseTo(getWheelZoomStep(scale, settings));
+      const notches = wheelZoomDelta({ deltaY: -100, deltaMode: 0 }, 1);
+      const next = geometry.zoomView(view, scale + stepZoomDelta(scale, settings.wheelZoomStep, notches), anchor, origin, settings);
+      expect(next.scale / scale).toBeCloseTo(1 + settings.wheelZoomStep, 10);
       const before = geometry.viewportToMapRatio(anchor, view, origin, mapSize);
       const after = geometry.viewportToMapRatio(anchor, next, origin, mapSize);
       expect(after.x).toBeCloseTo(before.x, 12);
       expect(after.y).toBeCloseTo(before.y, 12);
     }
-    expect(geometry.resolveScale(179.9, 181, settings)).toBe(settings.maxZoom);
-    expect(settings.maxZoom).toBeGreaterThan(90);
+    expect(geometry.resolveScale(settings.maxZoom - 0.1, settings.maxZoom + 1, settings)).toBe(settings.maxZoom);
   });
 
-  it('keeps the real-world scale accurate beyond the old maximum', () => {
-    const bounds = { minX: 412499.97, maxX: 423375.13, minY: 4890500, maxY: 4898190.29 };
-    const bar = computeScaleBar({ mapWidth: 1200, zoom: settings.maxZoom, bounds });
-    expect(bar.label).toBe('5 m');
-    expect(bar.width / 5).toBeCloseTo(1200 * settings.maxZoom / (bounds.maxX - bounds.minX));
+  it('reads a 5 m scale bar at the deepest zoom, accurate in real-world metres', () => {
+    for (const bounds of [
+      { minX: 412499.97, maxX: 423375.13, minY: 4890500, maxY: 4898190.29 },
+      { minX: 335469.35, maxX: 483969.35, minY: 4840000, maxY: 4945000 },
+    ]) {
+      const zoom = maxZoomForScaleBar(settings, 1200, bounds);
+      const bar = computeScaleBar({ mapWidth: 1200, zoom, bounds });
+      expect(bar.label).toBe(`${settings.minScaleBarMeters} m`);
+      expect(bar.width / settings.minScaleBarMeters).toBeCloseTo(1200 * zoom / (bounds.maxX - bounds.minX));
+    }
   });
 
   it('crops in viewport coordinates at 2x without adding a title or selection UI', () => {

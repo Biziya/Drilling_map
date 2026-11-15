@@ -2,7 +2,7 @@
 // zoom about a point, clicks on the map, fitting a box into view, and
 // persisting the view across page switches and browser refreshes.
 
-import { getWheelZoomStep, wheelZoomDelta } from '../../../utils/mapWheel';
+import { maxZoomForScaleBar, stepZoomDelta, wheelZoomDelta } from '../../../utils/mapWheel';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   MouseEvent as ReactMouseEvent,
@@ -89,6 +89,8 @@ export interface MapViewportOptions {
   dragIgnoreSelector: string;
   /** Floating panels that keep the wheel and double-click for themselves. */
   overlaySelector: string;
+  /** UTM rectangle the base map covers: with its drawn width, it sets the scale bar zoom limit. */
+  bounds: MapBounds;
   /** Box (map ratios) Reset fits into view; without one, Reset restores the initial view. */
   fitBox?: MapBounds | null;
   /**
@@ -109,6 +111,7 @@ export function useMapViewport({
   viewKey,
   dragIgnoreSelector,
   overlaySelector,
+  bounds,
   fitBox = null,
   onMapClick,
   onMapTap,
@@ -156,6 +159,23 @@ export function useMapViewport({
 
   const renderedMapSize = useMemo(() => computeRenderedMapSize(imageSize, viewportSize), [imageSize, viewportSize]);
   const mapOrigin = useMemo(() => computeMapOrigin(viewportSize, renderedMapSize), [viewportSize, renderedMapSize]);
+  // The deepest zoom: where the scale bar reads minScaleBarMeters, for this
+  // base map at this window size. Every zoom path is clamped to it.
+  const maxZoom = useMemo(
+    () => maxZoomForScaleBar(settings, measuredMapSize(renderedMapSize)?.width, bounds),
+    [settings, renderedMapSize, bounds],
+  );
+  const limits = useMemo(() => ({ ...settings, maxZoom }), [settings, maxZoom]);
+
+  // A smaller window or another base map can bring the limit below the
+  // current view: zoom out to it about the centre.
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || viewRef.current.scale <= maxZoom) return;
+    const rect = viewport.getBoundingClientRect();
+    const centre = { x: rect.width / 2, y: rect.height / 2 };
+    updateView((current) => zoomView(current, maxZoom, centre, computeMapOrigin(rect, renderedMapSize), limits));
+  }, [maxZoom, limits, renderedMapSize, updateView]);
 
   /** Zooms keeping `anchor` fixed; without an anchor, zooms about the centre. */
   const zoomBy = useCallback((delta: number | ((scale: number) => number), anchor?: Point) => {
@@ -166,8 +186,8 @@ export function useMapViewport({
     const origin = computeMapOrigin(rect, renderedMapSize);
     const point = anchor ?? { x: rect.width / 2, y: rect.height / 2 };
 
-    updateView((current) => zoomView(current, current.scale + (typeof delta === 'function' ? delta(current.scale) : delta), point, origin, settings));
-  }, [renderedMapSize, settings, updateView]);
+    updateView((current) => zoomView(current, current.scale + (typeof delta === 'function' ? delta(current.scale) : delta), point, origin, limits));
+  }, [renderedMapSize, limits, updateView]);
 
   // Registered natively: React attaches wheel listeners passively, and this
   // one must call preventDefault to stop the page scrolling.
@@ -182,7 +202,7 @@ export function useMapViewport({
       const input = wheelZoomDelta(event, 1);
       if (input === 0) return;
       // Evaluate against the live view, even when several events share a frame.
-      zoomBy((scale) => input * getWheelZoomStep(scale, settings), pointWithin(viewport, event));
+      zoomBy((scale) => stepZoomDelta(scale, settings.wheelZoomStep, input), pointWithin(viewport, event));
     };
 
     viewport.addEventListener('wheel', handleWheel, { passive: false });
@@ -240,7 +260,7 @@ export function useMapViewport({
     onDoubleClick(event: ReactMouseEvent<HTMLElement>) {
       if (onMapClick) return;
       if (event.target instanceof Element && event.target.closest(overlaySelector)) return;
-      zoomBy(settings.zoomStep, pointWithin(event.currentTarget, event));
+      zoomBy((scale) => stepZoomDelta(scale, settings.zoomStep, 1), pointWithin(event.currentTarget, event));
     },
   };
 
@@ -251,6 +271,8 @@ export function useMapViewport({
     /** Top-left of the untransformed map within the viewport. */
     mapOrigin,
     viewportSize,
+    /** The current zoom limit (scale bar at minScaleBarMeters), for the + button. */
+    maxZoom,
     isDragging,
     viewportHandlers: { ...handlers, onPointerCancel: handlers.onPointerUp },
     image: {
@@ -262,13 +284,13 @@ export function useMapViewport({
       onError: () => setImageFailed(true),
     },
     controls: {
-      zoomIn: () => zoomBy(settings.zoomStep),
-      zoomOut: () => zoomBy(-settings.zoomStep),
+      zoomIn: () => zoomBy((scale) => stepZoomDelta(scale, settings.zoomStep, 1)),
+      zoomOut: () => zoomBy((scale) => stepZoomDelta(scale, settings.zoomStep, -1)),
       /** Fits `fitBox` into view, or restores the initial view without one. */
       reset: () => {
         const mapSize = measuredMapSize(renderedMapSize);
         updateView(() => (fitBox && mapSize
-          ? fitView(fitBox, viewportSize, mapSize, settings, settings.fitPadding)
+          ? fitView(fitBox, viewportSize, mapSize, limits, settings.fitPadding)
           : initialView));
       },
     },

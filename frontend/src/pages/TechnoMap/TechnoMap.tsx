@@ -120,9 +120,10 @@ function TechnoMap() {
   // pan frame slow); the canvas skips keys that are not shown.
   const ringKeys = isSelecting || isMeasuring ? NO_SELECTION : selectedKeys;
 
-  const { viewportRef, view, renderedMapSize, mapOrigin, viewportSize, isDragging, viewportHandlers, image, controls } = useMapViewport({
+  const { viewportRef, view, renderedMapSize, mapOrigin, viewportSize, maxZoom, isDragging, viewportHandlers, image, controls } = useMapViewport({
     settings: MAP_SETTINGS,
     viewKey: MAP_ID,
+    bounds,
     dragIgnoreSelector: OVERLAY_SELECTOR,
     overlaySelector: OVERLAY_SELECTOR,
     fitBox,
@@ -302,6 +303,7 @@ function TechnoMap() {
           <LayerPanel filters={filters} onChange={setFilter} onSetAll={setAll} hexagons={hexagonSource} onClearHexagons={clearHexagons} />
           <MapControls
             zoom={view.scale}
+            maxZoom={maxZoom}
             onZoomIn={controls.zoomIn}
             onZoomOut={controls.zoomOut}
             onReset={controls.reset}

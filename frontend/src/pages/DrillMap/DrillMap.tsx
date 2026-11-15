@@ -49,9 +49,10 @@ function DrillMap() {
   const [isSelecting, setIsSelecting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
-  const { viewportRef, view, renderedMapSize, mapOrigin, viewportSize, isDragging, viewportHandlers, image, controls } = useMapViewport({
+  const { viewportRef, view, renderedMapSize, mapOrigin, viewportSize, maxZoom, isDragging, viewportHandlers, image, controls } = useMapViewport({
     settings: MAP_SETTINGS,
     viewKey: MAP_ID,
+    bounds,
     // While measuring, a press on a marker is a press on the map: measurement
     // wins over the marker (which also stops catching the pointer, see CSS).
     dragIgnoreSelector: isMeasuring ? OVERLAY_SELECTOR : DRAG_IGNORE_SELECTOR,
@@ -144,6 +145,7 @@ function DrillMap() {
           <MapStatus status={status} imageFailed={image.hasFailed} src={layout.imageSrc} failure={failure} />
           <MapControls
             zoom={view.scale}
+            maxZoom={maxZoom}
             onZoomIn={controls.zoomIn}
             onZoomOut={controls.zoomOut}
             onReset={controls.reset}

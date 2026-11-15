@@ -5,16 +5,18 @@ title: Techno Map
 
 zoom:
   minZoom: 1
-  # Linear CSS scale, not tile zoom: halves metres per pixel versus 90x.
+  # Zooming in stops when the scale bar reads this many metres (a bar of
+  # about 100 px), whatever the base map's extent or the window size.
+  minScaleBarMeters: 5
+  # Hard cap on the CSS scale; the scale bar limit above is reached first.
   # SVG/grid overzoom needs no extra tiles. Marker sizes remain constant.
-  maxZoom: 180
-  # Toolbar/double-click step; also used by the wheel when adaptive zoom is off.
+  maxZoom: 20000
+  # Zoom is multiplicative, so a step feels the same at every depth.
+  # Toolbar/double-click: each click multiplies the zoom by 1 + zoomStep.
   zoomStep: 0.4
-  adaptiveZoomEnabled: true
-  # Wheel steps interpolate linearly between these values over minZoom..maxZoom.
-  # Touchpads use fractional steps; a single wheel event is capped at one step.
-  minWheelZoomStep: 0.4
-  maxWheelZoomStep: 6
+  # Mouse wheel: each notch multiplies the zoom by 1 + wheelZoomStep.
+  # Touchpads use fractional notches; a single wheel event is capped at one.
+  wheelZoomStep: 0.6
   # Scale from which deviation lines are drawn; no threshold snapping.
   deviationMinZoom: 10
   # Space kept around the drillholes when Reset fits them into view, in px.

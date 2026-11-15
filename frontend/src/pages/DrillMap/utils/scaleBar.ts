@@ -1,6 +1,8 @@
 import type { MapBounds } from '../../../types/map';
+import { SCALE_BAR_TARGET_PX } from '../../../utils/mapWheel';
 
-const TARGET_BAR_WIDTH = 100;
+/** Shared with the zoom limit, which stops where a minScaleBarMeters bar fills it. */
+const TARGET_BAR_WIDTH = SCALE_BAR_TARGET_PX;
 
 /** A drawable scale bar: how wide to render it and what to call it. */
 export interface ScaleBar {
