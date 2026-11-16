@@ -88,12 +88,21 @@ markerLabels:
   injector: Injector drillhole
   drillhole: Drillhole
 
-# Legend "Symbol" column. Injector and drillhole draw the same square, so only
+# Legend "Drillhole Types" section. Injector and drillhole draw the same square, so only
 # one of them is listed.
 legendSymbols:
   - { kind: producer, label: Producer }
   - { kind: drillhole, label: Drillhole }
   - { kind: rig, label: Drill Rig }
+
+# The Layers panel (top-right): what can be hidden, in order, all shown at
+# first. GT and Redox are a key only and cannot be hidden. "drillhole" also
+# covers injectors, which draw the same square.
+layers:
+  - { id: producer, label: Producer }
+  - { id: drillhole, label: Drillhole }
+  - { id: rig, label: Drill Rig }
+  - { id: deviation-line, label: Deviation line }
 
 # Distance measurement line, endpoint markers and label border.
 measurement:
@@ -103,12 +112,13 @@ measurement:
 # symbolSize is the one base size of every legend symbol: GT circles, Redox
 # squares and the type shapes are all symbolSize x symbolSize. Each symbol is
 # centred in a box 1.9 x symbolSize wide and as tall as the rig icon, so labels
-# line up across all three sections; the rig icon and line/cell swatches scale
-# with it too. Sections sit side by side at their content width and wrap.
+# line up across every section; the rig icon and line/cell swatches scale
+# with it too. The card sits in the top-left corner, one section per row, so
+# columnGap is unused there.
 legend:
   paddingBlock: 8
   paddingInline: 16
-  # Between the GT, Redox and Symbol sections, across and (when they wrap) down.
+  # Between the legend sections, across and (when they wrap) down.
   columnGap: 28
   rowGap: 8
   # Under each section title.
@@ -119,7 +129,7 @@ legend:
   labelGap: 6
   symbolSize: 15
   # GT bands fill `columns` columns top to bottom.
-  gt: { columns: 2, rowGap: 3, columnGap: 16 }
+  gt: { columns: 1, rowGap: 3, columnGap: 16 }
   redox: { rowGap: 3 }
   symbols:
     # Rig icon height as a multiple of symbolSize (a detailed image needs a

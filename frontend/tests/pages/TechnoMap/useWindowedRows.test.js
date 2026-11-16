@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { windowRange } from "../../../src/pages/TechnoMap/Table/useWindowedRows.js";
+import { windowRange } from "../../../src/components/SelectionTable/useWindowedRows.js";
 
 describe("windowRange", () => {
   it("renders the rows in view plus the overscan, with padding for the rest", () => {

@@ -14,7 +14,7 @@ export function useMapFilters() {
 
   useEffect(() => writeStored(FILTERS_STORAGE_KEY, filters), [filters]);
 
-  // Stable, so the memoised Legends panel skips the re-render on every pan frame.
+  // Stable, so the memoised Layers panel skips the re-render on every pan frame.
   const setFilter = useCallback(
     (id: FilterId, visible: boolean) => setFilters((current) => ({ ...current, [id]: visible })),
     [],

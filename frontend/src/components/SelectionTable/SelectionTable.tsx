@@ -5,8 +5,6 @@ import { useWindowedRows } from './useWindowedRows';
 import ColumnsMenu from './ColumnsMenu';
 import ExportMenu from './ExportMenu';
 import {
-  HIDDEN_COLUMNS_STORAGE_KEY,
-  TABLE_COLUMNS,
   applyFilters,
   buildRows,
   columnWidths,
@@ -17,17 +15,23 @@ import {
   sortRows,
   toggleHidden,
   visibleColumns,
-} from '../utils/selectionTable';
-import type { ColumnFilters, SortState } from '../utils/selectionTable';
-import { download } from '../utils/exportMap';
-import { exportBlob, exportSheet, tableExportFileName } from '../utils/tableExport';
-import type { TableExportFormat } from '../utils/tableExport';
-import { readStored, writeStored } from '../utils/storage';
-import type { MarkerFeature } from '../utils/markerLayer';
+} from './tableModel';
+import type { ColumnFilters, SortState, TableItem } from './tableModel';
+import type { DrillholeColumn } from './columns';
+import { downloadBlob, exportBlob, exportSheet, tableExportFileName } from './tableExport';
+import type { TableExportFormat } from './tableExport';
+import { readStored, writeStored } from '../../utils/storage';
+import './SelectionTable.css';
 
 export interface SelectionTableProps {
   /** The selected holes, in the order they were selected. */
-  features: readonly MarkerFeature[];
+  items: readonly TableItem[];
+  /** Every column the table can show, in order. */
+  columns: readonly DrillholeColumn[];
+  /** Where the hidden column labels are remembered, per browser. */
+  storageKey: string;
+  /** Export file names start with this, e.g. TechnoMap_selection. */
+  exportPrefix: string;
   /** The hole whose popup is pinned, highlighted in the table. */
   pinnedKey: string | null;
   onRowClick: (key: string) => void;
@@ -38,7 +42,7 @@ export interface SelectionTableProps {
 const NO_FILTERS: ColumnFilters = {};
 const NO_EXCLUSIONS: ReadonlySet<string> = new Set();
 
-/** Every body row's height in px; TechnoMap.css sets the same (.selection-table tbody td). */
+/** Every body row's height in px; SelectionTable.css sets the same (.selection-table tbody td). */
 export const TABLE_ROW_HEIGHT = 30;
 /** Horizontal padding and border of a cell, in px, added to its width in characters. */
 const CELL_CHROME = 22;
@@ -66,16 +70,16 @@ function ChevronIcon() {
  * while scrolling, and the page memoises it so panning the map never
  * re-renders it.
  */
-function SelectionTable({ features, pinnedKey, onRowClick, onRemove, onClear }: SelectionTableProps) {
+function SelectionTable({ items, columns: allColumns, storageKey, exportPrefix, pinnedKey, onRowClick, onRemove, onClear }: SelectionTableProps) {
   const [filters, setFilters] = useState<ColumnFilters>(NO_FILTERS);
   const [sort, setSort] = useState<SortState | null>(null);
-  const [hidden, setHidden] = useState<ReadonlySet<string>>(() => parseHiddenColumns(readStored(HIDDEN_COLUMNS_STORAGE_KEY)));
+  const [hidden, setHidden] = useState<ReadonlySet<string>>(() => parseHiddenColumns(readStored(storageKey), allColumns));
   const [menu, setMenu] = useState<{ column: string; anchor: HTMLElement } | null>(null);
 
-  useEffect(() => writeStored(HIDDEN_COLUMNS_STORAGE_KEY, [...hidden]), [hidden]);
+  useEffect(() => writeStored(storageKey, [...hidden]), [storageKey, hidden]);
 
-  const columns = useMemo(() => visibleColumns(TABLE_COLUMNS, hidden), [hidden]);
-  const rows = useMemo(() => buildRows(features), [features]);
+  const columns = useMemo(() => visibleColumns(allColumns, hidden), [allColumns, hidden]);
+  const rows = useMemo(() => buildRows(items, allColumns), [items, allColumns]);
   const shownRows = useMemo(() => sortRows(applyFilters(rows, filters), sort), [rows, filters, sort]);
   const menuColumn = menu ? columns.find((column) => column.label === menu.column) : undefined;
   const menuValues = useMemo(() => (menu ? distinctValues(rows, menu.column) : []), [rows, menu]);
@@ -91,14 +95,14 @@ function SelectionTable({ features, pinnedKey, onRowClick, onRemove, onClear }: 
   }, [columns, widths]);
 
   const handleExport = (format: TableExportFormat) => {
-    download(exportBlob(format, exportSheet(shownRows, columns)), tableExportFileName(format));
+    downloadBlob(exportBlob(format, exportSheet(shownRows, columns)), tableExportFileName(exportPrefix, format));
   };
 
   return (
     <section className="selection-table" aria-label="Selected drillholes">
       <header className="selection-table__bar">
         <h2>
-          <span className="selection-table__count">{features.length}</span> selected
+          <span className="selection-table__count">{items.length}</span> selected
           {shownRows.length !== rows.length && <span className="selection-table__shown"> · {shownRows.length} shown</span>}
         </h2>
         <div className="selection-table__actions">
@@ -111,9 +115,9 @@ function SelectionTable({ features, pinnedKey, onRowClick, onRemove, onClear }: 
             Clear filters
           </button>
           <ColumnsMenu
-            columns={TABLE_COLUMNS}
+            columns={allColumns}
             hidden={hidden}
-            onToggle={(label) => setHidden((current) => toggleHidden(current, label))}
+            onToggle={(label) => setHidden((current) => toggleHidden(current, label, allColumns))}
             onShowAll={() => setHidden(new Set())}
           />
           <ExportMenu disabled={shownRows.length === 0} onExport={handleExport} />
@@ -172,7 +176,7 @@ function SelectionTable({ features, pinnedKey, onRowClick, onRemove, onClear }: 
                 <td className="selection-table__remove-col">
                   <button
                     type="button"
-                    aria-label={`Remove ${row.cells.Key ?? 'drillhole'} from selection`}
+                    aria-label={`Remove ${row.cells[allColumns[0]?.label ?? ''] ?? 'drillhole'} from selection`}
                     title="Remove from selection"
                     onClick={(event) => { event.stopPropagation(); onRemove(row.key); }}
                   >
@@ -205,7 +209,7 @@ function SelectionTable({ features, pinnedKey, onRowClick, onRemove, onClear }: 
           sort={sort}
           onExcludedChange={(excluded) => setFilters((current) => setColumnFilter(current, menu.column, excluded))}
           onSort={(direction) => setSort(direction ? { column: menu.column, direction } : null)}
-          onHide={columns.length > 1 ? () => { setHidden((current) => toggleHidden(current, menu.column)); setMenu(null); } : undefined}
+          onHide={columns.length > 1 ? () => { setHidden((current) => toggleHidden(current, menu.column, allColumns)); setMenu(null); } : undefined}
           onClose={closeMenu}
         />
       )}

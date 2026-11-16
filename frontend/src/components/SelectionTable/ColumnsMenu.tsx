@@ -1,5 +1,5 @@
 import { usePopover } from './usePopover';
-import type { DrillholeColumn } from '../utils/tooltipFields';
+import type { DrillholeColumn } from './columns';
 
 export interface ColumnsMenuProps {
   columns: readonly DrillholeColumn[];

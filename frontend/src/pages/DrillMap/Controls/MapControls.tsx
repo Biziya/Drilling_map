@@ -1,5 +1,5 @@
 import { MAP_SETTINGS } from '../config/drillMapConfig';
-import { CameraIcon, RulerIcon } from './icons';
+import { BoxSelectIcon, CameraIcon, RulerIcon } from './icons';
 
 export interface MapControlsProps {
   /** Current zoom level, for the disabled states. */
@@ -11,13 +11,15 @@ export interface MapControlsProps {
   onReset: () => void;
   isMeasuring: boolean;
   onToggleMeasure: () => void;
+  isBoxSelecting: boolean;
+  onToggleBoxSelect: () => void;
   /** True while a screenshot export runs; the camera is disabled meanwhile. */
   isExporting: boolean;
   isSelecting: boolean;
   onToggleScreenshot: () => void;
 }
 
-/** Floating toolbar: zoom in/out, reset, measure, screenshot. */
+/** Floating toolbar (bottom-right): zoom in/out, reset, measure, area select, screenshot. */
 function MapControls({
   zoom,
   maxZoom,
@@ -26,6 +28,8 @@ function MapControls({
   onReset,
   isMeasuring,
   onToggleMeasure,
+  isBoxSelecting,
+  onToggleBoxSelect,
   isExporting,
   isSelecting,
   onToggleScreenshot,
@@ -45,6 +49,16 @@ function MapControls({
           title="Measure distance"
         >
           <RulerIcon />
+        </button>
+        <button
+          className={`map-controls__icon${isBoxSelecting ? ' is-active' : ''}`}
+          type="button"
+          disabled={isSelecting} onClick={onToggleBoxSelect}
+          aria-pressed={isBoxSelecting}
+          aria-label="Select drillholes by area"
+          title="Select drillholes by area"
+        >
+          <BoxSelectIcon />
         </button>
         <button
           className="map-controls__icon"

@@ -4,12 +4,20 @@
    and clip paths. */
 
 
-/* Floating map controls: one inset from the map edges and one toolbar width,
-   matching the Techno Map's layout. */
+/* Floating map controls, as on the Techno Map: one inset from the map edges,
+   one width shared by the Legends panel (top-right) and the toolbar
+   (bottom-right) so their right edges line up. The legend sits top-left. */
 .drill-map-page {
   --float-inset: 14px;
   --float-width: 220px;
   --float-radius: 10px;
+  /* Toolbar height (38px buttons) plus the gap kept above it. */
+  --toolbar-clearance: 70px;
+  /* Scale bar height plus the gap kept above it. */
+  --scale-bar-clearance: 56px;
+  /* Rings: blue on the hovered marker, green on the pinned and selected ones. */
+  --hover-color: #2563eb;
+  --pinned-color: #16a34a;
 
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -48,9 +56,16 @@
   font-size: .76rem;
 }
 
+/* The selection table pops out over the bottom of the map rather than taking
+   height from it, so the holes just selected do not move; the floating
+   controls rise by --selection-offset to stay above it. */
+.drill-map-page .map-panel.has-selection { --selection-offset: min(42%, 300px); }
+
 .drill-map-page .map-panel {
+  --selection-offset: 0px;
+  position: relative;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -153,6 +168,31 @@
 
 .drill-map-page .drillhole-marker:hover { z-index: 20; }
 
+/* Rings around a marker: blue while hovered, green while pinned or selected. */
+.drill-map-page .drillhole-marker::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2.5px var(--ring-color), 0 1px 6px rgba(0, 0, 0, .35);
+  content: '';
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.drill-map-page .drillhole-marker--rig::after { width: 34px; height: 34px; }
+.drill-map-page .drillhole-marker:hover::after { --ring-color: var(--hover-color); visibility: visible; }
+.drill-map-page .drillhole-marker.is-selected::after,
+.drill-map-page .drillhole-marker.is-pinned::after { --ring-color: var(--pinned-color); visibility: visible; }
+.drill-map-page .drillhole-marker.is-selected,
+.drill-map-page .drillhole-marker.is-pinned { z-index: 15; }
+.drill-map-page .map-viewport.is-measuring .drillhole-marker::after,
+.drill-map-page .map-viewport.is-selecting .drillhole-marker::after { visibility: hidden; }
+
 .drill-map-page .drillhole-marker--rig {
   width: 32px;
   height: 32px;
@@ -224,59 +264,20 @@
   height: 11px;
 }
 
-.drill-map-page .drillhole-tooltip {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  z-index: 10;
-  display: none;
-  width: max-content;
-  max-width: 240px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-tooltip-border);
-  border-radius: 8px;
-  color: var(--color-tooltip-text);
-  background: var(--color-tooltip);
-  box-shadow: var(--ui-modal-shadow);
-  font-size: .72rem;
-  line-height: 1.45;
-  text-align: left;
-  white-space: normal;
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-
-.drill-map-page .drillhole-tooltip::after {
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  border: 5px solid transparent;
-  border-top-color: var(--color-tooltip);
-  content: '';
-  transform: translateX(-50%);
-}
-
-.drill-map-page .drillhole-tooltip strong,
-.drill-map-page .drillhole-tooltip span { display: block; }
-.drill-map-page .drillhole-tooltip strong { margin-bottom: 4px; font-size: .82rem; }
-.drill-map-page .drillhole-tooltip b { color: var(--color-tooltip-muted); font-weight: 500; }
-.drill-map-page .drillhole-marker:hover .drillhole-tooltip,
-.drill-map-page .drillhole-marker:focus .drillhole-tooltip,
-.drill-map-page .drillhole-marker.is-open .drillhole-tooltip { display: block; }
-
+/* Bottom-right, under the Legends panel; rises with the selection table. */
 .drill-map-page .map-toolbar {
   position: absolute;
-  top: var(--float-inset);
+  bottom: calc(var(--float-inset) + var(--selection-offset));
   right: var(--float-inset);
   z-index: 30;
   width: var(--float-width);
   max-width: calc(100% - 2 * var(--float-inset) - 40px);
 }
 
-/* Four equal icon columns around a wider Reset. */
+/* Equal icon columns around a wider Reset. */
 .drill-map-page .map-controls {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.5fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1.5fr 1fr 1fr 1fr;
   overflow: hidden;
   border: 1px solid var(--color-line);
   border-radius: var(--float-radius);
@@ -320,7 +321,6 @@
 /* While measuring, presses fall through markers to the map, and no tooltip
    shows, so any point can be picked, a marker's position included. */
 .drill-map-page .map-viewport.is-measuring .drillhole-marker { pointer-events: none; }
-.drill-map-page .map-viewport.is-measuring .drillhole-marker .drillhole-tooltip { display: none; }
 
 .drill-map-page .measurement-layer {
   position: absolute;
@@ -359,32 +359,9 @@
 }
 
 
-.drill-map-page .north-arrow {
-  position: absolute;
-  top: calc(var(--float-inset) + 1px);
-  left: calc(var(--float-inset) + 4px);
-  z-index: 5;
-  display: grid;
-  justify-items: center;
-  color: var(--color-ink);
-  font-size: .7rem;
-  font-weight: 800;
-  text-shadow: 0 1px 2px var(--color-paper);
-}
-
-.drill-map-page .north-arrow i {
-  width: 0;
-  height: 0;
-  margin-top: 2px;
-  border-right: 7px solid transparent;
-  border-bottom: 24px solid var(--color-ink);
-  border-left: 7px solid transparent;
-  filter: drop-shadow(0 1px 1px var(--color-paper));
-}
-
 .drill-map-page .map-scale-bar {
   position: absolute;
-  bottom: var(--float-inset);
+  bottom: calc(var(--float-inset) + var(--selection-offset));
   left: var(--float-inset);
   z-index: 5;
   display: grid;
@@ -482,17 +459,32 @@
   to { transform: rotate(360deg); }
 }
 
-/* Sections sit side by side at their content width and wrap onto a new line
-   when they do not fit; the Symbol section takes whatever width is left. */
+/* Anchored in the map's top-left corner, as on the Techno Map, fixed while
+   the map pans and zooms: one section per row, the card as wide as its
+   content. It stops short of the Layers panel and the scale bar, and scrolls
+   rather than reach them. */
 .drill-map-page .map-legend {
+  position: absolute;
+  top: var(--float-inset);
+  left: var(--float-inset);
+  z-index: 25;
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--legend-row-gap) var(--legend-column-gap);
+  flex-direction: column;
+  gap: var(--legend-row-gap);
+  max-width: calc(100% - var(--float-width) - 3 * var(--float-inset));
+  max-height: calc(100% - 2 * var(--float-inset) - var(--scale-bar-clearance) - var(--selection-offset));
+  overflow: hidden auto;
+  overscroll-behavior: contain;
   padding: var(--legend-padding-block) var(--legend-padding-inline);
-  border-top: 1px solid var(--color-line);
+  border: 1px solid var(--color-line);
+  border-radius: var(--float-radius);
   background: var(--ui-floating-surface);
+  box-shadow: var(--ui-shadow);
+  backdrop-filter: blur(8px);
+  cursor: auto;
 }
+
+.drill-map-page .map-legend li.is-hidden { opacity: .35; }
 
 .drill-map-page .map-legend h2 {
   margin: 0 0 var(--legend-title-gap);
@@ -512,8 +504,6 @@
 }
 
 .drill-map-page .map-legend > section { min-width: 0; }
-/* A short single column: content width, taking any spare width after it. */
-.drill-map-page .map-legend > .map-legend__symbols { flex: 1 1 auto; }
 
 /* GT bands run down, then across, in gt.columns columns. */
 .drill-map-page .map-legend__gt {
@@ -590,10 +580,7 @@
   .drill-map-page { --float-inset: 8px; padding: 8px; }
   .drill-map-page .map-header { align-items: flex-start; }
   .drill-map-page .map-header strong { display: none; }
-  .drill-map-page .map-legend {
-    max-height: 32vh;
-    overflow-y: auto;
-  }
+  .drill-map-page .map-legend { max-height: 32vh; }
 }
 
 @media (max-height: 700px) {
@@ -625,4 +612,164 @@
 .drill-map-page .map-controls .map-controls__icon[aria-pressed='true'] { color: var(--color-on-primary); background: var(--color-brand); }
 .drill-map-page .map-controls .map-controls__icon[aria-pressed='true']:hover { background: var(--color-brand-dark); }
 .drill-map-page .map-controls button:disabled { background: var(--color-control-disabled); }
-.drill-map-page .drillhole-tooltip { scrollbar-color: var(--color-tooltip-muted) transparent; }
+
+/* The right-hand column, top-right above the toolbar: the Layers panel. It
+   stops short of the toolbar and scrolls rather than reach it. */
+.drill-map-page .map-side {
+  position: absolute;
+  top: var(--float-inset);
+  right: var(--float-inset);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: var(--float-width);
+  max-width: calc(100% - 2 * var(--float-inset));
+  max-height: calc(100% - 2 * var(--float-inset) - var(--toolbar-clearance) - var(--selection-offset));
+  pointer-events: none;
+}
+
+.drill-map-page .map-side > * { pointer-events: auto; }
+
+/* The "Layers" filter panel. */
+.drill-map-page .map-layers {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  min-height: 120px;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: var(--float-radius);
+  color: var(--color-ink);
+  background: var(--ui-floating-surface);
+  box-shadow: var(--ui-shadow);
+  backdrop-filter: blur(8px);
+  cursor: auto;
+}
+
+
+.drill-map-page .map-layers__header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 10px 0 12px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font-size: .76rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.drill-map-page .map-layers__header:hover { background: var(--color-control-hover); }
+.drill-map-page .map-layers__header:focus-visible { outline: 3px solid var(--color-focus); outline-offset: -3px; }
+.drill-map-page .map-layers__title { flex: 1 1 auto; white-space: nowrap; }
+
+.drill-map-page .map-layers__count {
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: var(--color-muted);
+  background: var(--color-canvas);
+  font-size: .64rem;
+}
+
+.drill-map-page .map-layers__chevron {
+  width: 15px;
+  height: 15px;
+  transition: transform .15s ease;
+}
+
+.drill-map-page .map-layers.is-collapsed .map-layers__chevron { transform: rotate(-90deg); }
+
+.drill-map-page .map-layers__body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid var(--color-line);
+}
+
+.drill-map-page .map-layers__group {
+  margin: 0;
+  padding: 6px 8px 4px;
+  border: 0;
+}
+
+.drill-map-page .map-layers__group + .map-layers__group { border-top: 1px solid var(--color-canvas); }
+
+.drill-map-page .map-layers__group legend {
+  padding: 2px 4px 4px;
+  color: var(--color-muted);
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.drill-map-page .map-layers__item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 4px;
+  border-radius: 6px;
+  color: var(--color-muted);
+  font-size: .72rem;
+  cursor: pointer;
+}
+
+.drill-map-page .map-layers__item:hover { background: var(--color-control-hover); }
+
+.drill-map-page .map-layers__item input {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--color-brand);
+  cursor: pointer;
+}
+
+.drill-map-page .map-layers__item .legend-symbol { width: 22px; height: 18px; }
+.drill-map-page .map-layers__label { font-weight: 650; }
+.drill-map-page .map-layers__item .legend-rig-icon { height: 18px; }
+
+.drill-map-page .map-layers__footer {
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 7px 8px 8px;
+  border-top: 1px solid var(--color-line);
+  background: var(--ui-floating-surface);
+}
+
+.drill-map-page .map-layers__footer button {
+  padding: 6px 0;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  color: var(--color-ink);
+  background: var(--color-paper);
+  font-size: .7rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.drill-map-page .map-layers__footer button:hover { background: var(--color-control-hover); }
+.drill-map-page .map-layers__footer button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 1px; }
+
+/* The deviation line swatch in the Layers panel and the legend. */
+.drill-map-page .layer-swatch-line {
+  width: 22px;
+  height: 2px;
+  border-radius: 1px;
+  background: #ff0000;
+  transform: rotate(-30deg);
+}
+
+/* The area-select hint: bottom-centre, clear of the legend and the Layers panel. */
+.drill-map-page .box-select__hint {
+  top: auto;
+  bottom: calc(var(--float-inset) + var(--selection-offset) + 6px);
+}

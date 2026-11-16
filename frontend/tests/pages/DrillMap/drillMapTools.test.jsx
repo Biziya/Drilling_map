@@ -1,5 +1,6 @@
-// Exploration Map toolbar: zoom, reset, measurement and export, laid out like
-// the Techno Map's but with no Map Layers panel.
+// Exploration Map tools, laid out like the Techno Map: zoom, reset, measurement,
+// area select and export in the toolbar, the Layers panel, the selection
+// table and the one floating tooltip.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -73,17 +74,31 @@ const ends = (container) => container.querySelectorAll(".measurement-layer path"
 const label = (container) => container.querySelector(".measurement-label")?.textContent;
 
 describe("Exploration Map toolbar", () => {
-  it("has zoom, reset, measure and a single export button, and no Map Layers panel", async () => {
+  it("has zoom, reset, measure, area select and a single export button, in that order, and no upload", async () => {
     const { container } = await renderLoaded();
     const toolbar = container.querySelector(".map-toolbar");
+    const names = [...toolbar.querySelectorAll("button")].map((button) => button.getAttribute("aria-label") ?? button.textContent);
 
-    ["Zoom in", "Zoom out", "Reset", "Measure distance", "Screenshot map"].forEach((name) => {
-      expect(within(toolbar).getByRole("button", { name })).toBeTruthy();
-    });
+    expect(names).toEqual(["Zoom in", "Zoom out", "Reset", "Measure distance", "Select drillholes by area", "Screenshot map"]);
     expect(screen.queryByRole("button", { name: "Export as SVG" })).toBeNull();
-    expect(document.querySelectorAll('.map-controls button')).toHaveLength(5);
-    expect(container.querySelector(".map-layers")).toBeNull();
-    expect(screen.queryByRole("complementary", { name: "Map layers" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /upload/i })).toBeNull();
+  });
+
+  it("keeps the legend card top-left and the Layers panel top-right, with no compass", async () => {
+    const { container } = await renderLoaded();
+    const side = viewport(container).querySelector(".map-side");
+
+    expect([...side.children].map((child) => child.className.split(" ")[0])).toEqual(["map-layers"]);
+    expect(viewport(container).querySelector(":scope > .map-legend")).toBeTruthy();
+    expect(container.querySelector(".north-arrow")).toBeNull();
+  });
+
+  it("groups the Layers panel into Drillhole Types and Overlays, as on the Techno Map", async () => {
+    await renderLoaded();
+    const panel = screen.getByRole("complementary", { name: "Layers" });
+    const groups = [...panel.querySelectorAll("fieldset")].map((set) => [set.querySelector("legend").textContent, [...set.querySelectorAll("label")].map((label) => label.textContent)]);
+
+    expect(groups).toEqual([["Drillhole Types", ["Producer", "Drillhole", "Drill Rig"]], ["Overlays", ["Deviation line"]]]);
   });
 
   it("camera cancels on a second click, suspends the ruler and removes zoom percentage", async () => {
@@ -191,7 +206,8 @@ describe("Exploration Map measurement", () => {
 
     expect(container.querySelector(".measurement-layer")).toBeNull();
     expect(viewport(container).className).not.toContain("is-measuring");
-    expect(marker.className).toContain("is-open");
+    expect(marker.className).toContain("is-pinned");
+    expect(container.querySelector(".marker-tooltip.is-pinned")).toBeTruthy();
   });
 });
 
@@ -292,13 +308,121 @@ describe("help", () => {
     expect(names).toEqual(expect.arrayContaining(labels));
   });
 
-  it("leaves out the Techno Map's selection tools", async () => {
+  it("describes the Layers panel, area select and selection table, but not the hexagon upload", async () => {
     await renderLoaded();
     fireEvent.click(screen.getByRole("button", { name: "Help" }));
     const help = screen.getByRole("dialog", { name: "Exploration Map help" });
 
-    expect(help.textContent).not.toContain("Select drillholes by area");
-    expect(help.textContent).not.toContain("Selection table");
-    expect([...help.querySelectorAll("kbd")].map((key) => key.textContent)).not.toContain("Ctrl");
+    expect(help.textContent).toContain("Select drillholes by area");
+    expect(help.textContent).toContain("Layers panel");
+    expect(help.textContent).toContain("Selection table");
+    expect(help.textContent).not.toContain("hexagon");
+  });
+});
+
+describe("Exploration Map Layers panel", () => {
+  const markerIds = (container) => [...container.querySelectorAll(".drillhole-marker")]
+    .map((marker) => marker.getAttribute("aria-label").split(" ").find((word) => /-\d/.test(word)));
+
+  it("hides producers, drillholes and drill rigs, fades them in the legend, and remembers the choice", async () => {
+    const { container } = await renderLoaded();
+    const panel = screen.getByRole("complementary", { name: "Layers" });
+
+    expect(within(panel).getAllByRole("checkbox").map((box) => box.closest("label").textContent))
+      .toEqual(["Producer", "Drillhole", "Drill Rig", "Deviation line"]);
+
+    fireEvent.click(within(panel).getByRole("checkbox", { name: "Producer" }));
+    expect(markerIds(container).sort()).toEqual(["R-1,", "S-1,"]);
+    const legendRow = within(container.querySelector(".map-legend")).getByText("Producer").closest("li");
+    expect(legendRow.className).toContain("is-hidden");
+
+    fireEvent.click(within(panel).getByRole("checkbox", { name: "Drill Rig" }));
+    expect(markerIds(container)).toEqual(["S-1,"]);
+    expect(JSON.parse(localStorage.getItem("exploration-map:filters"))).toMatchObject({ producer: false, rig: false, drillhole: true });
+
+    fireEvent.click(within(panel).getByRole("checkbox", { name: "Deviation line" }));
+    expect(within(container.querySelector(".map-legend__features")).getByText("Deviation line").closest("li").className).toContain("is-hidden");
+    fireEvent.click(within(panel).getByRole("button", { name: "Hide All" }));
+    expect(container.querySelectorAll(".drillhole-marker")).toHaveLength(0);
+    // GT and Redox are a key only: they stay, never faded.
+    expect(container.querySelectorAll(".map-legend__gt li.is-hidden, .map-legend__redox li.is-hidden")).toHaveLength(0);
+    fireEvent.click(within(panel).getByRole("button", { name: "Show All" }));
+    expect(container.querySelectorAll(".drillhole-marker")).toHaveLength(RECORDS.length);
+  });
+});
+
+describe("Exploration Map area select and table", () => {
+  beforeEach(() => localStorage.clear());
+
+  const dragBox = () => {
+    const overlay = screen.getByLabelText("Area selection");
+    fireEvent.pointerDown(overlay, { button: 0, pointerId: 1, clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(overlay, { pointerId: 1, clientX: 1000, clientY: 700 });
+    fireEvent.pointerUp(overlay, { pointerId: 1, clientX: 1000, clientY: 700 });
+  };
+
+  it("selects the shown holes in the box into a table of exploration fields only", async () => {
+    const { container } = await renderLoaded();
+    fireEvent.click(within(screen.getByRole("complementary", { name: "Layers" })).getByRole("checkbox", { name: "Drill Rig" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select drillholes by area" }));
+    dragBox();
+
+    const table = screen.getByRole("region", { name: "Selected drillholes" });
+    expect(container.querySelector(".map-panel").className).toContain("has-selection");
+    const headers = [...table.querySelectorAll("th .selection-table__header span:first-child")].map((node) => node.textContent);
+    expect(headers).toEqual(["Hole ID", "Hole Purpose", "Hole Status", "X (m)", "Y (m)", "Z (m)", "Coordinate Type", "Year", "Campaign", "GT", "Max Depth (m)", "Azimuth", "Final Deviation (m)"]);
+    // The hidden rig is not picked up.
+    expect([...table.querySelectorAll("tbody tr[data-key]")].map((row) => row.querySelector("td:nth-child(2)").textContent).sort()).toEqual(["P-1", "S-1"]);
+    expect(container.querySelectorAll(".drillhole-marker.is-selected")).toHaveLength(2);
+
+    fireEvent.click(within(table).getByRole("button", { name: "Clear selection" }));
+    expect(screen.queryByRole("region", { name: "Selected drillholes" })).toBeNull();
+  });
+
+  it("exports the table under the Exploration Map's own file name", async () => {
+    await renderLoaded();
+    URL.createObjectURL = vi.fn(() => "blob:table");
+    URL.revokeObjectURL = vi.fn();
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    fireEvent.click(screen.getByRole("button", { name: "Select drillholes by area" }));
+    dragBox();
+    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /CSV/ }));
+
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(click.mock.instances[0].download).toMatch(/^ExplorationMap_selection_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.csv$/);
+  });
+});
+
+describe("Exploration Map tooltip", () => {
+  const markerFor = (container, id) => [...container.querySelectorAll(".drillhole-marker")]
+    .find((node) => node.getAttribute("aria-label").includes(id));
+
+  it("shows one floating tooltip on hover and pins it on click until Esc", async () => {
+    const { container } = await renderLoaded();
+    const marker = markerFor(container, "P-1");
+
+    fireEvent.pointerEnter(marker);
+    const tooltip = container.querySelector(".marker-tooltip");
+    expect(tooltip.getAttribute("data-hole")).toBe("P-1");
+    expect(tooltip.className).toContain("drillhole-marker--producer");
+    expect(tooltip.querySelector("strong").textContent).toBe("P-1");
+    expect(tooltip.querySelectorAll(".drillhole-tooltip__fields dt")).toHaveLength(13);
+    fireEvent.pointerLeave(marker);
+    expect(container.querySelector(".marker-tooltip")).toBeNull();
+
+    fireEvent.click(marker);
+    expect(container.querySelector(".marker-tooltip.is-pinned")).toBeTruthy();
+    expect(marker.className).toContain("is-pinned");
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(container.querySelector(".marker-tooltip")).toBeNull();
+  });
+
+  it("adds a hole to the selection with Ctrl+click", async () => {
+    const { container } = await renderLoaded();
+    fireEvent.click(markerFor(container, "S-1"), { ctrlKey: true });
+
+    expect(screen.getByRole("region", { name: "Selected drillholes" })).toBeTruthy();
+    expect(markerFor(container, "S-1").className).toContain("is-selected");
   });
 });

@@ -63,7 +63,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
     ],
   },
   {
-    title: 'Legends panel',
+    title: 'Layers panel',
     buttons: [
       { icon: '☑', name: 'Layer checkboxes', description: 'Show or hide each drillhole type and map feature.' },
       { icon: '◐', name: 'Show All / Hide All', description: 'Turn every layer on or off at once.' },

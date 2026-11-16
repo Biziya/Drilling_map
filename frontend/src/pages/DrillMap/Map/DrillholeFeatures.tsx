@@ -1,41 +1,40 @@
 import { memo, useMemo } from 'react';
 import DrillholeMarker from './DrillholeMarker';
 import { MAP_CONFIG } from '../config/drillMapConfig';
-import { attachDeviationOffsets, projectDrillholes } from '../utils/coordinates';
-import { resolveMarkerKind } from '../utils/markerKind';
-import { dedupeDrillholes } from '../../../utils/dedupeDrillholes';
-import type { MapBounds, ProjectedDrillhole } from '../../../types/map';
+import { attachDeviationOffsets } from '../utils/coordinates';
+import type { ExplorationFeature } from '../utils/features';
+
+const NO_KEYS: ReadonlySet<string> = new Set();
 
 export interface DrillholeFeaturesProps {
-  /** Drillholes already projected onto the map. */
-  drillholes: readonly ProjectedDrillhole[];
-  /** UTM corners of the base map the drillholes were projected onto. */
-  bounds: MapBounds;
-  /** Whether the current zoom is past the deviation threshold. */
+  /** The holes to draw (already filtered by the Layers panel). */
+  features: readonly ExplorationFeature[];
+  /** Whether deviation lines are on and the zoom is past their threshold. */
   deviationVisible: boolean;
   mapWidth: number;
   mapHeight: number;
+  /** Keys of the selected holes, ringed. */
+  selectedKeys?: ReadonlySet<string>;
+  pinnedKey?: string | null;
+  onHover?: (key: string | null) => void;
+  onActivate?: (key: string, additive: boolean) => void;
 }
 
-/**
- * Positions every drillhole's marker and deviation line. Deduplicated first,
- * so one hole can never produce both a rig and a shape.
- */
+/** Positions every drillhole's marker and deviation line. */
 function DrillholeFeatures({
-  drillholes,
-  bounds,
+  features,
   deviationVisible,
   mapWidth,
   mapHeight,
+  selectedKeys = NO_KEYS,
+  pinnedKey = null,
+  onHover,
+  onActivate,
 }: DrillholeFeaturesProps) {
-  const projected = useMemo(() => projectDrillholes(dedupeDrillholes(drillholes), bounds), [drillholes, bounds]);
-  const features = useMemo(
-    () => attachDeviationOffsets(projected, { mapWidth, mapHeight }),
-    [projected, mapWidth, mapHeight],
-  );
+  const placed = useMemo(() => attachDeviationOffsets(features, { mapWidth, mapHeight }), [features, mapWidth, mapHeight]);
 
-  return features.map(({ key, drillhole, deviation }) => {
-    const kind = resolveMarkerKind(drillhole);
+  return placed.map(({ key, drillhole, deviation }, index) => {
+    const { kind } = features[index] as ExplorationFeature;
 
     return (
       <div key={key} className="drillhole-feature" style={{ left: `${drillhole.xPercent}%`, top: `${drillhole.yPercent}%` }}>
@@ -45,7 +44,16 @@ function DrillholeFeatures({
             <line x1="0" y1="0" x2={deviation.x} y2={deviation.y} />
           </svg>
         )}
-        <DrillholeMarker drillhole={drillhole} kind={kind} roleLabel={MAP_CONFIG.markerLabels[kind]} />
+        <DrillholeMarker
+          featureKey={key}
+          drillhole={drillhole}
+          kind={kind}
+          roleLabel={MAP_CONFIG.markerLabels[kind]}
+          isSelected={selectedKeys.has(key)}
+          isPinned={pinnedKey === key}
+          onHover={onHover}
+          onActivate={onActivate}
+        />
       </div>
     );
   });

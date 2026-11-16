@@ -45,6 +45,16 @@ export function RulerIcon() {
   );
 }
 
+/** A dashed box with a pointer: select the holes inside a dragged rectangle. */
+export function BoxSelectIcon() {
+  return (
+    <svg {...TOOLBAR_ICON} data-icon="box-select">
+      <rect x="3" y="3" width="14" height="14" rx="1" strokeDasharray="3 2.5" />
+      <path d="m12 12 9 3.5-3.8 1.3-1.3 3.8z" />
+    </svg>
+  );
+}
+
 /** A camera: the export is a picture of the current view. */
 export function CameraIcon() {
   return (

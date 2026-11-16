@@ -1,5 +1,6 @@
 import MarkerSymbol from './MarkerSymbol';
-import { MAP_CONFIG } from '../config/drillMapConfig';
+import { MAP_CONFIG, layerForKind } from '../config/drillMapConfig';
+import type { MapFilters } from '../hooks/useMapFilters';
 import { markerShapeFor } from '../utils/markerKind';
 import type { StyleWithCssVariables } from '../../../types/map';
 
@@ -25,9 +26,15 @@ const LEGEND_STYLE: StyleWithCssVariables = {
   '--legend-symbol-row-gap': px(legend.symbols.rowGap),
 };
 
-// Symbols use the same component as the markers, so the legend cannot drift
-// away from what is drawn on the map.
-function MapLegend() {
+export interface MapLegendProps {
+  /** The Layers panel choices: hidden symbols stay listed, faded. GT and Redox never hide. */
+  filters?: MapFilters;
+}
+
+// Anchored in the map's top-left corner, one section per row. Symbols use
+// the same component as the markers, so the legend cannot drift away from
+// what is drawn on the map.
+function MapLegend({ filters }: MapLegendProps) {
   return (
     <aside className="map-legend" aria-label="Map legend" style={LEGEND_STYLE}>
       <section>
@@ -57,10 +64,10 @@ function MapLegend() {
       </section>
 
       <section className="map-legend__symbols">
-        <h2>Symbol</h2>
+        <h2>Drillhole Types</h2>
         <ul>
           {MAP_CONFIG.legendSymbols.map(({ kind, label }) => (
-            <li key={kind}>
+            <li key={kind} className={filters && !filters[layerForKind(kind)] ? 'is-hidden' : undefined}>
               <span className="legend-symbol">
                 {kind === 'rig' ? (
                   <img className="legend-rig-icon" src={MAP_CONFIG.rigIconSrc} alt="" draggable="false" />
@@ -71,6 +78,16 @@ function MapLegend() {
               <span>{label}</span>
             </li>
           ))}
+        </ul>
+      </section>
+
+      <section className="map-legend__features">
+        <h2>Overlays</h2>
+        <ul>
+          <li className={filters && !filters['deviation-line'] ? 'is-hidden' : undefined}>
+            <span className="legend-symbol"><i className="layer-swatch-line" /></span>
+            <span>{MAP_CONFIG.layers.find(({ id }) => id === 'deviation-line')?.label ?? 'Deviation line'}</span>
+          </li>
         </ul>
       </section>
     </aside>

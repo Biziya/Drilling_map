@@ -12,23 +12,44 @@
 }
 
 .sidebar__brand {
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+/* D badge + title + arrow as one big button. */
+.sidebar__toggle {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 44px;
-  padding: 0 8px 18px;
-  border-bottom: 1px solid var(--color-line);
+  width: 100%;
+  min-height: 52px;
+  padding: 8px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar__toggle:hover {
+  background: var(--color-control-hover);
+}
+
+.sidebar__toggle:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 .sidebar__brand-mark {
   display: grid;
   flex: 0 0 auto;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   color: var(--color-paper);
   background: var(--color-brand);
+  font-size: 1.05rem;
   font-weight: 700;
 }
 
@@ -94,43 +115,34 @@
 }
 
 .sidebar__collapse {
-  display: grid;
   flex: 0 0 auto;
-  place-items: center;
-  width: 27px;
-  height: 27px;
   margin-left: auto;
-  padding: 0;
-  border: 0;
-  border-radius: 7px;
   color: var(--color-muted);
-  background: transparent;
-  font-size: 1rem;
+  font-size: 1.3rem;
   font-weight: 700;
   line-height: 1;
-  cursor: pointer;
 }
 
-.sidebar__collapse:hover {
+.sidebar__toggle:hover .sidebar__collapse {
   color: var(--color-brand);
-  background: var(--color-control-hover);
-}
-
-.sidebar__collapse:focus-visible {
-  outline: 3px solid var(--color-focus);
-  outline-offset: 2px;
 }
 
 .sidebar.is-collapsed {
   padding-inline: 8px;
 }
 
-.sidebar.is-collapsed .sidebar__brand {
+/* Collapsed: the D badge with a small » beside it, still one button. */
+.sidebar.is-collapsed .sidebar__toggle {
   justify-content: center;
+  gap: 2px;
   padding-inline: 0;
 }
 
-.sidebar.is-collapsed .sidebar__brand-mark,
+.sidebar.is-collapsed .sidebar__brand-mark {
+  width: 32px;
+  height: 32px;
+}
+
 .sidebar.is-collapsed .sidebar__brand-text,
 .sidebar.is-collapsed .sidebar__label {
   display: none;
@@ -143,6 +155,7 @@
 
 .sidebar.is-collapsed .sidebar__collapse {
   margin-left: 0;
+  font-size: 1rem;
 }
 
 @media (max-width: 720px) {
@@ -150,28 +163,30 @@
     padding: 14px 8px;
   }
 
-  .sidebar__brand {
-    justify-content: center;
-    padding-inline: 0;
-  }
-
   .sidebar__brand-text,
   .sidebar__label {
     display: none;
   }
 
-  .sidebar__brand-mark {
-    display: none;
+  .sidebar__toggle {
+    justify-content: center;
+    gap: 2px;
+    padding-inline: 0;
   }
 
-  .sidebar__link,
-  .sidebar__brand {
+  .sidebar__brand-mark {
+    width: 32px;
+    height: 32px;
+  }
+
+  .sidebar__link {
     justify-content: center;
     padding: 0;
   }
 
   .sidebar__collapse {
     margin-left: 0;
+    font-size: 1rem;
   }
 }
 

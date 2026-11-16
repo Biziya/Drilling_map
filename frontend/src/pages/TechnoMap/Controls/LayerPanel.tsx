@@ -8,6 +8,8 @@ export interface LayerPanelProps {
   filters: MapFilters;
   onChange: (id: FilterId, visible: boolean) => void;
   onSetAll: (visible: boolean) => void;
+  /** Whether an uploaded Excel file has drawn hexagons; until then the Hexagons row is left out. */
+  hasHexagons?: boolean;
 }
 
 /**
@@ -24,14 +26,17 @@ function labelColor(id: FilterId): string | undefined {
 }
 
 /**
- * Floating "Legends" panel in the map's top-right corner: every filter,
+ * Floating "Layers" panel in the map's top-right corner: every filter,
  * Show All / Hide All, and a collapse toggle. Opens expanded on every visit;
  * only the filter choices are remembered. The hexagon file itself is managed
- * from the toolbar Upload window, not here.
+ * from the toolbar Upload window, not here, and the Hexagons row only shows
+ * once a file is loaded.
  */
-function LayerPanel({ filters, onChange, onSetAll }: LayerPanelProps) {
+function LayerPanel({ filters, onChange, onSetAll, hasHexagons = false }: LayerPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true);
-  const enabled = FILTER_IDS.filter((id) => filters[id]).length;
+  const shownIds = hasHexagons ? FILTER_IDS : FILTER_IDS.filter((id) => id !== 'hexagon');
+  const overlays = hasHexagons ? MAP_CONFIG.mapFeatures : MAP_CONFIG.mapFeatures.filter(({ id }) => id !== 'hexagon');
+  const enabled = shownIds.filter((id) => filters[id]).length;
   const group = (title: string, entries: readonly { id: FilterId; label: string }[]) => (
     <fieldset className="map-layers__group">
       <legend>{title}</legend>
@@ -48,17 +53,17 @@ function LayerPanel({ filters, onChange, onSetAll }: LayerPanelProps) {
   );
 
   return (
-    <aside className={`map-layers${isExpanded ? '' : ' is-collapsed'}`} aria-label="Legends">
+    <aside className={`map-layers${isExpanded ? '' : ' is-collapsed'}`} aria-label="Layers">
       <button
         className="map-layers__header"
         type="button"
         onClick={() => setIsExpanded((current) => !current)}
         aria-expanded={isExpanded}
-        title={isExpanded ? 'Collapse Legends' : 'Expand Legends'}
+        title={isExpanded ? 'Collapse Layers' : 'Expand Layers'}
       >
-        <span className="map-layers__title">Legends</span>
-        <span className="map-layers__count" aria-label={`${enabled} of ${FILTER_IDS.length} legends shown`}>
-          {enabled}/{FILTER_IDS.length}
+        <span className="map-layers__title">Layers</span>
+        <span className="map-layers__count" aria-label={`${enabled} of ${shownIds.length} layers shown`}>
+          {enabled}/{shownIds.length}
         </span>
         <svg className="map-layers__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="m6 9 6 6 6-6" />
@@ -68,7 +73,7 @@ function LayerPanel({ filters, onChange, onSetAll }: LayerPanelProps) {
       {isExpanded && (
         <div className="map-layers__body">
           {group('Drillhole Types', MAP_CONFIG.drillholeTypes)}
-          {group('Map Features', MAP_CONFIG.mapFeatures)}
+          {group('Overlays', overlays)}
           <div className="map-layers__footer">
             <button type="button" onClick={() => onSetAll(true)}>Show All</button>
             <button type="button" onClick={() => onSetAll(false)}>Hide All</button>

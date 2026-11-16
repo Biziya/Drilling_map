@@ -3,7 +3,7 @@
 // test checks, so a new toolbar button cannot ship without a description here.
 
 import type { HelpSection } from '../../../components/HelpDialog/help';
-import { CameraIcon, HelpIcon, LayersIcon, RefreshIcon, RulerIcon } from '../Controls/icons';
+import { BoxSelectIcon, CameraIcon, HelpIcon, LayersIcon, RefreshIcon, RulerIcon } from '../Controls/icons';
 
 export const HELP_SECTIONS: readonly HelpSection[] = [
   {
@@ -17,13 +17,16 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
   {
     title: 'Drillholes',
     shortcuts: [
-      { keys: ['Click'], action: "Show or hide the hole's details. Clicking elsewhere closes them." },
+      { keys: ['Hover'], action: "Show the hole's details." },
+      { keys: ['Click'], action: 'Pin the details open. Click the hole again, or empty map, to close them.' },
+      { keys: ['Ctrl', 'Click'], action: 'Add the hole to the selection, or take it out if already selected.' },
+      { keys: ['Area select', 'Drag'], action: 'Add every shown hole inside the box to the selection.' },
     ],
   },
   {
     title: 'Keys',
     shortcuts: [
-      { keys: ['Esc'], action: 'Cancel a screenshot, close a menu or this help.' },
+      { keys: ['Esc'], action: 'Leave area select, close pinned details, cancel a screenshot, close a menu or this help.' },
       { keys: ['?'], action: 'Open this help.' },
     ],
   },
@@ -46,7 +49,35 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
         name: 'Measure distance',
         description: 'Click point A, then point B to see the distance. A third click starts again. Turning it off clears the line.',
       },
+      {
+        icon: <BoxSelectIcon />,
+        name: 'Select drillholes by area',
+        description: 'Drag boxes on the map to add the holes inside to the selection. Click again or press Esc to stop.',
+      },
       { icon: <CameraIcon />, name: 'Screenshot map', description: 'Drag over the area to export, then choose PNG or SVG.' },
+    ],
+  },
+  {
+    title: 'Layers panel',
+    buttons: [
+      { icon: '☑', name: 'Layer checkboxes', description: 'Show or hide producers, drillholes, drill rigs and deviation lines. GT and Redox colours always show.' },
+      { icon: '◐', name: 'Show All / Hide All', description: 'Turn every layer on or off at once.' },
+      { icon: '⌄', name: 'Collapse', description: 'Fold the panel away; the choices stay as they are.' },
+    ],
+  },
+  {
+    title: 'Selection table',
+    buttons: [
+      {
+        icon: '⌄',
+        name: 'Column header',
+        description: 'Sort, search values, Select all / Unselect all, tick the values to show, or hide the column. A dot marks a filtered column.',
+      },
+      { icon: '▥', name: 'Columns', description: 'Tick columns to show or hide them, or Show all. Remembered in this browser.' },
+      { icon: '⤓', name: 'Export', description: 'Download the table as Excel (.xlsx) or CSV: only the rows the filters show, in the current order, without hidden columns.' },
+      { icon: '↵', name: 'Row', description: "Click a row to pin that hole's details on the map." },
+      { icon: '×', name: 'Remove', description: 'Take that hole out of the selection.' },
+      { icon: '∅', name: 'Clear selection', description: 'Empty the selection and close the table (also the × at the top right).' },
     ],
   },
 ];

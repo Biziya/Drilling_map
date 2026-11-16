@@ -16,8 +16,8 @@ import MapScaleBar from './Map/MapScaleBar';
 import MapStatus from './Map/MapStatus';
 import MeasurementOverlay from './Map/MeasurementOverlay';
 import MarkerHighlight from './Map/MarkerHighlight';
-import BoxSelectOverlay from './Map/BoxSelectOverlay';
-import SelectionTable from './Table/SelectionTable';
+import BoxSelectOverlay from '../../components/BoxSelect/BoxSelectOverlay';
+import SelectionTable from '../../components/SelectionTable/SelectionTable';
 import MarkerTooltip from './Tooltips/MarkerTooltip';
 import { MAP_CONFIG, MAP_ID, MAP_SETTINGS, baseMapLayout } from './config/technoMapConfig';
 import type { BaseMapId } from './config/technoMapConfig';
@@ -34,6 +34,8 @@ import { buildCanvasTransformStyle, isViewZoomed, measuredMapSize, toPixels } fr
 import { snapHexagons } from './utils/hexagons';
 import type { HexCell } from './utils/hexagons';
 import { selectShownFeatures } from './utils/mapFilters';
+import { HIDDEN_COLUMNS_STORAGE_KEY, TABLE_COLUMNS } from './utils/selectionTable';
+import { TABLE_EXPORT_PREFIX } from './utils/tableExport';
 import { buildMarkerFeatures, createHitIndex, findMarkerAt, findMarkersInRect, screenTransform } from './utils/markerLayer';
 import type { MarkerFeature } from './utils/markerLayer';
 import { addMeasurementPoint } from './utils/measurement';
@@ -82,6 +84,8 @@ function TechnoMap() {
   // Corners sit on the drilled wells where the database has them, at the design position otherwise.
   const snap = useMemo(() => snapHexagons(hexagons?.cells ?? NO_CELLS, drillholes), [hexagons, drillholes]);
   const hexagonCells = snap.cells;
+  // The Hexagons layer is listed only once a file has given it cells.
+  const hasHexagons = hexagonCells.length > 0;
   const hexagonSource = useMemo(() => (hexagons
     ? { fileName: hexagons.fileName, count: hexagons.cells.length, moved: snap.moved, unmatched: snap.unmatched, maxShift: snap.maxShift }
     : null), [hexagons, snap]);
@@ -304,8 +308,8 @@ function TechnoMap() {
 
           <MeasurementOverlay points={measurement} view={view} mapOrigin={mapOrigin} mapSize={mapSize} bounds={bounds} />
           <MapStatus status={status} imageFailed={image.hasFailed} failure={failure} src={layout.imageSrc} />
-          {MAP_CONFIG.showLegends && <MapLegend filters={filters} />}
-          <LayerPanel filters={filters} onChange={setFilter} onSetAll={setAll} />
+          {MAP_CONFIG.showLegends && <MapLegend filters={filters} hasHexagons={hasHexagons} />}
+          <LayerPanel filters={filters} onChange={setFilter} onSetAll={setAll} hasHexagons={hasHexagons} />
           <MapControls
             zoom={view.scale}
             maxZoom={maxZoom}
@@ -346,7 +350,10 @@ function TechnoMap() {
         </div>
         {selectedFeatures.length > 0 && (
           <SelectionTable
-            features={selectedFeatures}
+            items={selectedFeatures}
+            columns={TABLE_COLUMNS}
+            storageKey={HIDDEN_COLUMNS_STORAGE_KEY}
+            exportPrefix={TABLE_EXPORT_PREFIX}
             pinnedKey={pinnedKey}
             onRowClick={togglePinned}
             onRemove={removeSelected}

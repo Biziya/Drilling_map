@@ -2,8 +2,9 @@ import DrillholeTooltip from './DrillholeTooltip';
 import { MAP_CONFIG } from '../config/technoMapConfig';
 import { markerHalfSize } from '../utils/markerLayer';
 import type { MarkerFeature, ScreenTransform } from '../utils/markerLayer';
+import { MapTooltip } from '../../../components/MapTooltip/MapTooltip';
 import { readDrillholeText } from '../../../utils/drillholeFields';
-import type { Size, StyleWithCssVariables } from '../../../types/map';
+import type { Size } from '../../../types/map';
 
 export interface MarkerTooltipProps {
   feature: MarkerFeature;
@@ -13,51 +14,26 @@ export interface MarkerTooltipProps {
   isPinned: boolean;
 }
 
-/** Room the tooltip needs beside its marker before it turns to fit (px). */
-const SIDE_ROOM = 150;
-/** Gap from the marker (with the arrow) plus the margin kept from the map edge (px). */
-const CLEARANCE = 26;
-/** The tooltip never gets shorter than this; past it the body scrolls (px). */
-const MIN_HEIGHT = 120;
-
 /**
- * The one tooltip on the map, for the hovered or clicked hole: its details
- * beside its marker (the ring is Map/MarkerHighlight). Placed in viewport px from the
- * same transform as the canvas, so it follows the marker through pan and zoom.
- * It opens on whichever side of the marker has more room, no taller than that
- * room (the body scrolls), and shifts sideways near the left and right edges,
- * so it stays in view.
+ * The Techno Map's one tooltip (the shared MapTooltip), for the hovered or
+ * clicked hole, placed from the same transform as the marker canvas. The ring
+ * is Map/MarkerHighlight.
  */
 function MarkerTooltip({ feature, transform, viewport, isPinned }: MarkerTooltipProps) {
-  const x = transform.x + feature.x * transform.width;
-  const y = transform.y + feature.y * transform.height;
-  const half = markerHalfSize(feature.kind);
-  const isBelow = y < viewport.height / 2;
-  const room = (isBelow ? viewport.height - y : y) - half - CLEARANCE;
-  const style: StyleWithCssVariables = {
-    left: x,
-    top: y,
-    '--marker-half': `${half}px`,
-    '--tooltip-max-height': `${Math.max(MIN_HEIGHT, Math.round(room))}px`,
-  };
-  const placement = [
-    isBelow ? 'is-below' : '',
-    x < SIDE_ROOM ? 'is-start' : '',
-    x > viewport.width - SIDE_ROOM ? 'is-end' : '',
-    isPinned ? 'is-pinned' : '',
-  ].filter(Boolean).join(' ');
   const holeId = readDrillholeText(feature.drillhole, 'holeId') ?? 'unidentified hole';
 
   return (
-    <div
-      className={`marker-tooltip drillhole-marker--${feature.kind}${placement ? ` ${placement}` : ''}`}
-      style={style}
-      data-hole={holeId}
-      aria-label={`${MAP_CONFIG.markerLabels[feature.kind]} ${holeId}`}
-      role="group"
+    <MapTooltip
+      at={{ x: transform.x + feature.x * transform.width, y: transform.y + feature.y * transform.height }}
+      markerHalf={markerHalfSize(feature.kind)}
+      viewport={viewport}
+      isPinned={isPinned}
+      className={`drillhole-marker--${feature.kind}`}
+      label={`${MAP_CONFIG.markerLabels[feature.kind]} ${holeId}`}
+      holeId={holeId}
     >
       <DrillholeTooltip drillhole={feature.drillhole} />
-    </div>
+    </MapTooltip>
   );
 }
 

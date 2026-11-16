@@ -20,22 +20,26 @@ const LEGEND_STYLE: StyleWithCssVariables = {
   '--legend-line-thickness': px(legend.symbols.lineThickness),
 };
 
-/** What the map draws, in filter order: the nine drillhole types, the rig and the deviation line. */
+/** What the map draws, in filter order: the nine drillhole types, the rig, the deviation line and the hexagons. */
 const LEGEND_ENTRIES = FILTER_ENTRIES;
+/** The same, before any Excel upload: no Hexagons row. */
+const LEGEND_ENTRIES_NO_HEXAGONS = FILTER_ENTRIES.filter(({ id }) => id !== 'hexagon');
 
 export interface MapLegendProps {
   /** Hidden categories stay listed, faded. */
   filters?: MapFilters;
+  /** Whether an uploaded Excel file has drawn hexagons; until then the Hexagons row is left out. */
+  hasHexagons?: boolean;
 }
 
 // Anchored in the map's top-left corner: one category per row. Symbols use
-// the same component as the Legends panel, and the same shapes and colours as
+// the same component as the Layers panel, and the same shapes and colours as
 // the markers, so the legend cannot drift from the map. Informational only.
-function MapLegend({ filters = ALL_VISIBLE }: MapLegendProps) {
+function MapLegend({ filters = ALL_VISIBLE, hasHexagons = false }: MapLegendProps) {
   return (
     <aside className="map-legend" aria-label="Map legend" style={LEGEND_STYLE}>
       <ul>
-        {LEGEND_ENTRIES.map(({ id, label }) => (
+        {(hasHexagons ? LEGEND_ENTRIES : LEGEND_ENTRIES_NO_HEXAGONS).map(({ id, label }) => (
           <li key={id} className={filters[id] ? undefined : 'is-hidden'}>
             <LayerSymbol id={id} />
             <span>{label}</span>

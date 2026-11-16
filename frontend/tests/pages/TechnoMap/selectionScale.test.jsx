@@ -22,7 +22,7 @@ vi.mock("../../../src/services/api/mapData.js", async (importOriginal) => {
 });
 
 // Every render of the selection table calls this hook once: a render counter.
-vi.mock("../../../src/pages/TechnoMap/Table/useWindowedRows.js", async (importOriginal) => {
+vi.mock("../../../src/components/SelectionTable/useWindowedRows.js", async (importOriginal) => {
   const actual = await importOriginal();
 
   return {

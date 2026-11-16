@@ -40,6 +40,7 @@ interface DrillMapConfig {
   redox: Record<string, string>;
   markerLabels: Record<MarkerKind, string>;
   legendSymbols: { kind: MarkerKind; label: string }[];
+  layers: { id: LayerId; label: string }[];
   measurement: { color: string };
   legend: {
     paddingBlock: number;
@@ -57,7 +58,16 @@ interface DrillMapConfig {
   };
 }
 
+/** What the Layers panel can hide: three marker kinds and the deviation lines. */
+export const LAYER_IDS = ['producer', 'drillhole', 'rig', 'deviation-line'] as const;
+export type LayerId = (typeof LAYER_IDS)[number];
+
 export const MAP_CONFIG = data as DrillMapConfig;
+
+/** The Layers panel layer a marker kind belongs to: injectors draw, and hide, as drillholes. */
+export function layerForKind(kind: MarkerKind): LayerId {
+  return kind === 'injector' ? 'drillhole' : kind;
+}
 
 export const MAP_SETTINGS = MAP_CONFIG.zoom;
 

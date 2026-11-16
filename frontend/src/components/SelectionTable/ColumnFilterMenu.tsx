@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useWindowedRows } from './useWindowedRows';
-import type { DrillholeColumn } from '../utils/tooltipFields';
-import type { DistinctValue, SortDirection, SortState } from '../utils/selectionTable';
+import type { DrillholeColumn } from './columns';
+import type { DistinctValue, SortDirection, SortState } from './tableModel';
 
 export interface ColumnFilterMenuProps {
   column: DrillholeColumn;
@@ -18,7 +18,7 @@ export interface ColumnFilterMenuProps {
 }
 
 const MENU_WIDTH = 240;
-/** Each value row's height in px; TechnoMap.css sets the same (.column-filter-menu__values label). */
+/** Each value row's height in px; SelectionTable.css sets the same (.column-filter-menu__values label). */
 const VALUE_ROW_HEIGHT = 26;
 
 /** Sort labels by column kind: words read A-Z, numbers and dates ascending. */

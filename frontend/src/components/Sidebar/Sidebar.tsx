@@ -25,17 +25,18 @@ function Sidebar({ activePage, isCollapsed, onNavigate, onToggle }: SidebarProps
   return (
     <aside className={`sidebar${isCollapsed ? ' is-collapsed' : ''}`}>
       <div className="sidebar__brand" aria-label={APP_CONFIG.title}>
-        <span className="sidebar__brand-mark">D</span>
-        <span className="sidebar__brand-text">{APP_CONFIG.title}</span>
+        {/* The whole header is the collapse toggle: a large target, not a small arrow. */}
         <button
-          className="sidebar__collapse"
+          className="sidebar__toggle"
           type="button"
           onClick={onToggle}
           aria-label={isCollapsed ? 'Expand navigation' : 'Collapse navigation'}
           aria-expanded={!isCollapsed}
           title={isCollapsed ? 'Expand navigation' : 'Collapse navigation'}
         >
-          <span aria-hidden="true">{isCollapsed ? '»' : '«'}</span>
+          <span className="sidebar__brand-mark" aria-hidden="true">D</span>
+          <span className="sidebar__brand-text" aria-hidden="true">{APP_CONFIG.title}</span>
+          <span className="sidebar__collapse" aria-hidden="true">{isCollapsed ? '»' : '«'}</span>
         </button>
       </div>
 

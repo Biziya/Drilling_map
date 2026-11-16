@@ -5,7 +5,7 @@ import { MAP_CONFIG } from "../../../src/pages/DrillMap/config/drillMapConfig.js
 
 afterEach(cleanup);
 
-const symbolSection = () => screen.getByRole("heading", { name: "Symbol" }).closest("section");
+const symbolSection = () => screen.getByRole("heading", { name: "Drillhole Types" }).closest("section");
 const symbolItems = () => within(symbolSection()).getAllByRole("listitem");
 
 describe("DrillMap MapLegend", () => {

@@ -1,5 +1,5 @@
 import { usePopover } from './usePopover';
-import type { TableExportFormat } from '../utils/tableExport';
+import type { TableExportFormat } from './tableExport';
 
 export interface ExportMenuProps {
   /** False when the filters leave no rows: there is nothing to export. */

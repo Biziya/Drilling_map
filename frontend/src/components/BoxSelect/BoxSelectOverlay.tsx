@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
-import { selectionRect } from '../../../components/MapScreenshot/selectionRect';
-import type { CaptureRect } from '../../../components/MapScreenshot/selectionRect';
-import type { Point } from '../../../types/map';
+import { selectionRect } from '../MapScreenshot/selectionRect';
+import type { CaptureRect } from '../MapScreenshot/selectionRect';
+import './BoxSelect.css';
+import type { Point } from '../../types/map';
 
 /** A drag shorter than this (px) on both axes is a slip, not a box. */
 const MIN_BOX = 4;

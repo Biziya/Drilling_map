@@ -1,7 +1,7 @@
 import { MAP_SETTINGS } from '../config/technoMapConfig';
 import { useEffect } from 'react';
 import HexagonUploadPanel from './HexagonUploadPanel';
-import { usePopover } from '../Table/usePopover';
+import { usePopover } from '../../../components/SelectionTable/usePopover';
 import type { HexagonSource } from '../utils/hexagons';
 import { BoxSelectIcon, CameraIcon, RulerIcon, UploadIcon } from './icons';
 

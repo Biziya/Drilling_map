@@ -70,7 +70,7 @@ async function renderPage({ loadImages = true } = {}) {
 }
 
 const rigCount = (container) => drawnKinds(container).filter((kind) => kind === "rig").length;
-const checkbox = (name) => within(screen.getByRole("complementary", { name: "Legends" })).getByRole("checkbox", { name });
+const checkbox = (name) => within(screen.getByRole("complementary", { name: "Layers" })).getByRole("checkbox", { name });
 // A demo hole that is not being drilled, to point at.
 const HOLE = DEMO_DRILLHOLES.find((hole) => hole.holeStatus !== "INPROGRESS");
 
@@ -84,17 +84,19 @@ describe("data", () => {
   });
 });
 
-describe("Legends panel", () => {
-  it("lists 12 checked filters in two groups, expanded", async () => {
+describe("Layers panel", () => {
+  it("lists 11 checked filters in two groups, expanded, with no Hexagons before an upload", async () => {
     await renderPage();
-    const panel = screen.getByRole("complementary", { name: "Legends" });
+    const panel = screen.getByRole("complementary", { name: "Layers" });
 
-    expect(within(panel).getAllByRole("checkbox")).toHaveLength(12);
+    expect(within(panel).getAllByRole("checkbox")).toHaveLength(11);
+    expect(within(panel).queryByRole("checkbox", { name: "Hexagons" })).toBeNull();
+    expect(within(screen.getByRole("complementary", { name: "Map legend" })).queryByText("Hexagons")).toBeNull();
     expect(within(panel).getAllByRole("checkbox").every((box) => box.checked)).toBe(true);
     expect(within(panel).getByRole("group", { name: "Drillhole Types" })).toBeTruthy();
-    expect(within(panel).getByRole("group", { name: "Map Features" })).toBeTruthy();
-    expect(within(panel).getByText("12/12")).toBeTruthy();
-    expect(within(panel).getByRole("button", { name: /^Legends/ })).toBeTruthy();
+    expect(within(panel).getByRole("group", { name: "Overlays" })).toBeTruthy();
+    expect(within(panel).getByText("11/11")).toBeTruthy();
+    expect(within(panel).getByRole("button", { name: /^Layers/ })).toBeTruthy();
   });
 
   it("colours each type's label like its marker, from technoMap.yaml", async () => {
@@ -109,7 +111,6 @@ describe("Legends panel", () => {
 
     MAP_CONFIG.drillholeTypes.forEach(({ label, color }) => expect(labelColour(label)).toBe(hex(color)));
     expect(labelColour("Deviation line")).toBe(hex(MAP_CONFIG.deviationLine.color));
-    expect(labelColour("Hexagons")).toBe(hex(MAP_CONFIG.hexagon.color));
     expect(labelColour("Drilling in progress")).toBe("");
   });
 
@@ -155,8 +156,8 @@ describe("Legends panel", () => {
     expect(container.querySelector(".map-legend")).toBeTruthy();
     expect(container.querySelector(".map-scale-bar")).toBeTruthy();
     expect(container.querySelector(".map-canvas").style.transform).toBe("translate(-50px, 20px) scale(3)");
-    expect(screen.getByText("0/12")).toBeTruthy();
-    expect(container.querySelectorAll(".map-legend li")).toHaveLength(12);
+    expect(screen.getByText("0/11")).toBeTruthy();
+    expect(container.querySelectorAll(".map-legend li")).toHaveLength(11);
 
     fireEvent.click(screen.getByRole("button", { name: "Show All" }));
 
@@ -168,7 +169,7 @@ describe("Legends panel", () => {
   it("collapses and expands without changing the filters", async () => {
     const { container } = await renderPage();
     fireEvent.click(checkbox("Water"));
-    const header = screen.getByRole("button", { name: /^Legends/ });
+    const header = screen.getByRole("button", { name: /^Layers/ });
 
     fireEvent.click(header);
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
@@ -214,7 +215,7 @@ describe("toolbar", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
-  it("Upload opens a window to choose, show and remove the hexagon file; Legends only has the checkbox", async () => {
+  it("Upload opens a window to choose, show and remove the hexagon file; Layers only has the checkbox", async () => {
     const { container } = await renderPage();
     const upload = screen.getByRole("button", { name: "Upload hexagons from Excel" });
     fireEvent.click(upload);
@@ -232,13 +233,21 @@ describe("toolbar", () => {
     expect(within(dialog).getByText("1 hexagon cell")).toBeTruthy();
     expect(within(dialog).getByRole("button", { name: "Replace file" })).toBeTruthy();
     expect(container.querySelector(".hexagon-layer")?.getAttribute("data-cells")).toBe("1");
-    const legends = screen.getByRole("complementary", { name: "Legends" });
+    const legends = screen.getByRole("complementary", { name: "Layers" });
+    // The upload adds the Hexagons row, checked, to Layers and the legend.
+    const hexagonBox = within(legends).getByRole("checkbox", { name: "Hexagons" });
+    expect(hexagonBox.checked).toBe(true);
+    expect(hexagonBox.closest("label").querySelector(".map-layers__label").style.color).not.toBe("");
+    expect(within(legends).getByText("12/12")).toBeTruthy();
+    expect(within(screen.getByRole("complementary", { name: "Map legend" })).getByText("Hexagons")).toBeTruthy();
     expect(within(legends).queryByText("wells.xlsx")).toBeNull();
     expect(within(legends).queryByRole("button", { name: /Clear|Remove/ })).toBeNull();
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Remove file" }));
     expect(within(dialog).getByText("No file uploaded")).toBeTruthy();
     expect(container.querySelector(".hexagon-layer")).toBeNull();
+    expect(within(legends).queryByRole("checkbox", { name: "Hexagons" })).toBeNull();
+    expect(within(screen.getByRole("complementary", { name: "Map legend" })).queryByText("Hexagons")).toBeNull();
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog", { name: "Hexagons from Excel" })).toBeNull();

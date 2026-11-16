@@ -5,7 +5,7 @@
 // export must stand alone, or the white coordinate grid), uploaded hexagons, deviation lines, markers, the measurement, then the title and scale bar.
 // The live map draws markers on a canvas; this is its vector twin, from the
 // same features (markerLayer.ts), shapes, sizes and colours. Floating UI
-// (legend, Legends panel, toolbar, tooltip) is never drawn. PNG rasterises
+// (legend, Layers panel, toolbar, tooltip) is never drawn. PNG rasterises
 // the SVG at 2x.
 
 import type { CaptureRect } from '../../../components/MapScreenshot/MapScreenshot';

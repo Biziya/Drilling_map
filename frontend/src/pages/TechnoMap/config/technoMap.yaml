@@ -70,7 +70,7 @@ redox:
 # API returns: the backend maps the SQL Type and the sampling flags onto it
 # (backend/Models/TechnoMap/TechnoMapCategory.cs), and a hole with no category
 # is not drawn. `color` fills the marker and its legend symbol, and colours the
-# type's label in the Legends panel. Shapes: square, triangle, circle,
+# type's label in the Layers panel. Shapes: square, triangle, circle,
 # diamond (vertical, taller than wide), triangle-down, pentagon, hexagon,
 # star (five points), cross.
 drillholeTypes:

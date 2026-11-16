@@ -1,12 +1,14 @@
 // Exploration Map DOM markers and their role labels. The Techno Map draws its
 // markers on a canvas with one shared tooltip: see TechnoMap/DrillholeLayer.test.jsx
 // and TechnoMap/MarkerTooltip.test.jsx.
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import DrillDrillholeMarker from "../../../src/pages/DrillMap/Map/DrillholeMarker.jsx";
 import * as drillConfig from "../../../src/pages/DrillMap/config/drillMapConfig.js";
 import DrillholeMarker from "../../../src/pages/DrillMap/Map/DrillholeMarker.jsx";
 import { MAP_CONFIG } from "../../../src/pages/DrillMap/config/drillMapConfig.js";
+import { DrillholeFields } from "../../../src/components/MapTooltip/MapTooltip.jsx";
+import { EXPLORATION_FIELDS } from "../../../src/pages/DrillMap/utils/explorationFields.js";
 
 afterEach(cleanup);
 
@@ -133,11 +135,10 @@ describe.each(PAGES)("%s DrillholeMarker", (_page, DrillholeMarker, { MAP_CONFIG
   });
 
   describe("accessibility and interaction", () => {
-    it("keeps the tooltip inside the marker button", () => {
+    it("has no tooltip of its own: the page shows one floating tooltip", () => {
       const { container } = renderMarker({}, "injector");
 
-      expect(container.querySelector(".drillhole-marker .drillhole-tooltip")).toBeTruthy();
-      expect(container.querySelector(".drillhole-tooltip").getAttribute("role")).toBe("tooltip");
+      expect(container.querySelector(".drillhole-tooltip")).toBeNull();
     });
 
     it("names the hole and its role for assistive tech", () => {
@@ -154,67 +155,74 @@ describe.each(PAGES)("%s DrillholeMarker", (_page, DrillholeMarker, { MAP_CONFIG
         .toBe("Custom role IZO_456_062_47_B_, ZOOVCH OVOO - 2026");
     });
 
-    it("toggles the open state on click and closes on blur", () => {
-      renderMarker({}, "injector");
+    it("reports hover, click and Ctrl+click with its key, and shows pinned and selected states", () => {
+      const onHover = vi.fn();
+      const onActivate = vi.fn();
+      const { rerender } = render(
+        <DrillholeMarker featureKey="k1" drillhole={HOLE} kind="injector" roleLabel="Injector" onHover={onHover} onActivate={onActivate} />,
+      );
       const button = screen.getByRole("button");
 
-      expect(button.className).not.toContain("is-open");
+      fireEvent.pointerEnter(button);
+      expect(onHover).toHaveBeenLastCalledWith("k1");
+      fireEvent.pointerLeave(button);
+      expect(onHover).toHaveBeenLastCalledWith(null);
       fireEvent.click(button);
-      expect(button.className).toContain("is-open");
+      expect(onActivate).toHaveBeenLastCalledWith("k1", false);
+      fireEvent.click(button, { ctrlKey: true });
+      expect(onActivate).toHaveBeenLastCalledWith("k1", true);
+
+      expect(button.getAttribute("aria-expanded")).toBe("false");
+      rerender(<DrillholeMarker featureKey="k1" drillhole={HOLE} kind="injector" roleLabel="Injector" isPinned isSelected />);
       expect(button.getAttribute("aria-expanded")).toBe("true");
-      fireEvent.blur(button);
-      expect(button.className).not.toContain("is-open");
+      expect(button.className).toContain("is-pinned");
+      expect(button.className).toContain("is-selected");
     });
   });
+});
 
-  describe("tooltip contents", () => {
-    const tooltipText = (overrides = {}) => {
-      const { container } = renderMarker(overrides, "injector");
+// The tooltip rows (also the table columns): what /api/exploration-map returns.
+describe("Exploration tooltip fields", () => {
+  const rows = (overrides = {}) => {
+    const { container } = render(<DrillholeFields title="T" fields={EXPLORATION_FIELDS} drillhole={{ ...HOLE, ...overrides }} />);
+    const entries = [...container.querySelectorAll(".drillhole-tooltip__fields > div")]
+      .map((row) => [row.querySelector("dt").textContent, row.querySelector("dd").textContent]);
+    cleanup();
 
-      return container.querySelector(".drillhole-tooltip").textContent;
-    };
+    return Object.fromEntries(entries);
+  };
 
-    it("shows Hole Status", () => {
-      expect(tooltipText()).toContain("Hole Status: VALIDATED");
-    });
+  it("lists only the exploration API fields, in order", () => {
+    expect(EXPLORATION_FIELDS.map(({ label }) => label)).toEqual([
+      "Hole ID", "Hole Purpose", "Hole Status", "X (m)", "Y (m)", "Z (m)", "Coordinate Type",
+      "Year", "Campaign", "GT", "Max Depth (m)", "Azimuth", "Final Deviation (m)",
+    ]);
+  });
 
-    // The old row read only `holeStatus`, so a PascalCase payload showed a dash.
-    it("shows Hole Status when the API sends it PascalCase", () => {
-      expect(tooltipText({ holeStatus: undefined, HoleStatus: "VALIDATED" }))
-        .toContain("Hole Status: VALIDATED");
-    });
+  it("shows every value, PascalCase or camelCase", () => {
+    const shown = rows({ holeStatus: undefined, HoleStatus: "VALIDATED", CoordinateType: "Surveyed" });
 
-    it("shows Hole Purpose", () => {
-      expect(tooltipText()).toContain("Hole Purpose: INJECT");
-    });
+    expect(shown["Hole ID"]).toBe("IZO_456_062_47_B_");
+    expect(shown["Hole Purpose"]).toBe("INJECT");
+    expect(shown["Hole Status"]).toBe("VALIDATED");
+    expect(shown["X (m)"]).toBe("421,099.50");
+    expect(shown["Y (m)"]).toBe("4,893,548.00");
+    expect(shown["Z (m)"]).toBe("709.74");
+    expect(shown["Coordinate Type"]).toBe("Surveyed");
+    expect(shown.Year).toBe("2026");
+    expect(shown.Campaign).toBe("ZOOVCH OVOO - 2026");
+    expect(shown.GT).toBe("0.3198");
+    expect(shown["Max Depth (m)"]).toBe("160.00");
+    expect(shown.Azimuth).toBe("307.67");
+    expect(shown["Final Deviation (m)"]).toBe("1.33");
+  });
 
-    it("shows the deviation inputs behind the line", () => {
-      const text = tooltipText();
+  it("shows a dash rather than a zero for a missing reading", () => {
+    const shown = rows({ azimuth: null, finalDeviation: null, holeStatus: null });
 
-      expect(text).toContain("Azimuth: 307.67");
-      expect(text).toContain("Final Deviation: 1.33 m");
-    });
-
-    it("keeps every field it showed before", () => {
-      const text = tooltipText();
-
-      expect(text).toContain("IZO_456_062_47_B_");
-      expect(text).toContain("X: 421,099.5");
-      expect(text).toContain("Y: 4,893,548");
-      expect(text).toContain("Z: 709.74 m");
-      expect(text).toContain("Year: 2026");
-      expect(text).toContain("Campaign: ZOOVCH OVOO - 2026");
-      expect(text).toContain("GT: 0.3198");
-      expect(text).toContain("Max Depth: 160 m");
-    });
-
-    it("shows a dash rather than a zero for a missing reading", () => {
-      const text = tooltipText({ azimuth: null, finalDeviation: null, holeStatus: null });
-
-      expect(text).toContain("Azimuth: —");
-      expect(text).toContain("Final Deviation: —");
-      expect(text).toContain("Hole Status: —");
-    });
+    expect(shown.Azimuth).toBe("—");
+    expect(shown["Final Deviation (m)"]).toBe("—");
+    expect(shown["Hole Status"]).toBe("—");
   });
 });
 

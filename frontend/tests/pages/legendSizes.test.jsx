@@ -17,7 +17,7 @@ afterEach(() => {
 
 const PAGES = [
   ["TechnoMap", TechnoLegend, technoConfig, "../../src/pages/TechnoMap/config/technoMap.yaml", "../../src/pages/TechnoMap/config/technoMapConfig.js", []],
-  ["DrillMap", DrillLegend, drillConfig, "../../src/pages/DrillMap/config/drillMap.yaml", "../../src/pages/DrillMap/config/drillMapConfig.js", ["GT @75 ppm", "Redox Status", "Symbol"]],
+  ["DrillMap", DrillLegend, drillConfig, "../../src/pages/DrillMap/config/drillMap.yaml", "../../src/pages/DrillMap/config/drillMapConfig.js", ["GT @75 ppm", "Redox Status", "Drillhole Types", "Overlays"]],
 ];
 
 describe.each(PAGES)("%s legend sizes", (_page, MapLegend, { MAP_CONFIG }, yamlPath, configPath, headings) => {
@@ -78,8 +78,8 @@ describe.each(PAGES)("%s legend sizes", (_page, MapLegend, { MAP_CONFIG }, yamlP
 });
 
 describe("TechnoMap legend symbols", () => {
-  it("puts all 12 symbols in the same symbol box", () => {
-    const { container } = render(<TechnoLegend />);
+  it("puts all 12 symbols, Hexagons included after an upload, in the same symbol box", () => {
+    const { container } = render(<TechnoLegend hasHexagons />);
     const boxes = container.querySelectorAll(".map-legend li > .legend-symbol");
 
     expect(boxes).toHaveLength(12);

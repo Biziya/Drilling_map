@@ -3,83 +3,10 @@
 // API record, and how the column sorts. Shared by the popup, the table and
 // their tests.
 
-import { readDrillholeText, readDrillholeValue } from '../../../utils/drillholeFields';
-import type { DrillholeField } from '../../../utils/drillholeFields';
-import type { DrillholeApiRecord } from '../../../types/drillhole';
+import { dateColumn as date, measureColumn as measure, notYetAvailable, textColumn as text } from '../../../components/SelectionTable/columns';
+import type { DrillholeColumn } from '../../../components/SelectionTable/columns';
 
-const metres = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-/** A finite number from an API value, or null; '', null and booleans are not 0. */
-function toNumber(value: unknown): number | null {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  if (typeof value !== 'string' || !value.trim()) return null;
-  const number = Number(value);
-
-  return Number.isFinite(number) ? number : null;
-}
-
-export type Read = (drillhole: DrillholeApiRecord) => string | null;
-
-/** How a column sorts in the selection table: words A-Z, numbers and dates ascending. */
-export type SortKind = 'text' | 'number' | 'date';
-
-/** One popup row / table column. */
-export interface DrillholeColumn {
-  label: string;
-  /** The formatted value, or null for a dash. */
-  read: Read;
-  sort: SortKind;
-  /** The raw number a 'number' column sorts by (the display is rounded). */
-  sortValue?: (drillhole: DrillholeApiRecord) => number | null;
-  /** False while the field has no data source: always a dash, left out of the table. */
-  available: boolean;
-}
-
-type ColumnSpec = Omit<DrillholeColumn, 'label'>;
-
-const text = (field: DrillholeField): ColumnSpec => ({
-  read: (drillhole) => readDrillholeText(drillhole, field)?.trim() || null,
-  sort: 'text',
-  available: true,
-});
-
-/** Metres and coordinates, always two decimals; the record itself is not rounded. */
-const measure = (field: DrillholeField): ColumnSpec => {
-  const sortValue = (drillhole: DrillholeApiRecord) => toNumber(readDrillholeValue(drillhole, field));
-
-  return {
-    read: (drillhole) => {
-      const number = sortValue(drillhole);
-
-      return number === null ? null : metres.format(number);
-    },
-    sort: 'number',
-    sortValue,
-    available: true,
-  };
-};
-
-/**
- * A date as YYYY-MM-DD, plus HH:mm when the value carries a time (and
- * `withTime`). A date-only value never gains an invented time; anything
- * unrecognised is shown as sent. YYYY-MM-DD[ HH:mm] sorts correctly as text.
- */
-const date = (field: DrillholeField, withTime = false): ColumnSpec => ({
-  read: (drillhole) => {
-    const value = readDrillholeText(drillhole, field)?.trim();
-    if (!value) return null;
-    const match = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?)?/.exec(value);
-    if (!match) return value;
-    const [, day, time] = match;
-
-    return withTime && time && time !== '00:00' ? `${day} ${time}` : day ?? value;
-  },
-  sort: 'date',
-  available: true,
-});
-
-/** Not in pyISR_AllData_V2 or the API yet: always shown, always a dash. */
-const notYetAvailable: ColumnSpec = { read: () => null, sort: 'text', available: false };
+export type { DrillholeColumn, Read, SortKind } from '../../../components/SelectionTable/columns';
 
 /**
  * The popup rows, in the agreed order, under the ID title (Screen max depth

@@ -106,8 +106,9 @@ describe("map pages", () => {
     it("names the rig icon Drill Rig", async () => {
       const { container } = await renderPage(DrillMap);
 
-      expect(screen.getByText("Drill Rig")).toBeTruthy();
-      expect(container.querySelector(".legend-rig-icon").getAttribute("src")).toBe("/rig.svg");
+      const legend = container.querySelector(".map-legend");
+      expect(within(legend).getByText("Drill Rig")).toBeTruthy();
+      expect(legend.querySelector(".legend-rig-icon").getAttribute("src")).toBe("/rig.svg");
     });
   });
 
@@ -176,12 +177,20 @@ describe("map pages", () => {
     });
 
     it("shows HoleStatus in the tooltip", async () => {
+      // The one floating tooltip is placed in viewport px: it needs a laid-out
+      // viewport and a loaded base map.
+      mockViewportBox();
       const { container } = await renderPage(DrillMap);
+      const image = container.querySelector(".drill-map-page .base-map");
+      Object.defineProperty(image, "naturalWidth", { value: 1191 });
+      Object.defineProperty(image, "naturalHeight", { value: 842 });
+      await act(async () => fireEvent.load(image));
       const marker = [...container.querySelectorAll(".drillhole-marker")]
         .find((node) => node.getAttribute("aria-label").includes("I-1"));
+      fireEvent.pointerEnter(marker);
 
-      expect(marker.querySelector(".drillhole-tooltip").textContent)
-        .toContain("Hole Status: VALIDATED");
+      expect(container.querySelector(".marker-tooltip .drillhole-tooltip").textContent)
+        .toContain("Hole StatusVALIDATED");
     });
   });
 

@@ -6,6 +6,7 @@ import DrillDrillholeFeatures from "../../../src/pages/DrillMap/Map/DrillholeFea
 import * as drillCoordinates from "../../../src/pages/DrillMap/utils/coordinates.js";
 import DrillholeFeatures from "../../../src/pages/DrillMap/Map/DrillholeFeatures.jsx";
 import { convertUtmToMapPosition } from "../../../src/pages/DrillMap/utils/coordinates.js";
+import { buildFeatures } from "../../../src/pages/DrillMap/utils/features.js";
 
 afterEach(cleanup);
 
@@ -32,7 +33,7 @@ describe.each(PAGES)("%s DrillholeFeatures", (_page, DrillholeFeatures, {
 
   const renderFeatures = (records, { deviationVisible = true } = {}) => render(
     <DrillholeFeatures
-      drillholes={project(records)}
+      features={buildFeatures(project(records))}
       deviationVisible={deviationVisible}
       mapWidth={MAP.mapWidth}
       mapHeight={MAP.mapHeight}
@@ -173,7 +174,7 @@ describe.each(PAGES)("%s DrillholeFeatures", (_page, DrillholeFeatures, {
 
 const renderFeatures = (records) => render(
   <DrillholeFeatures
-    drillholes={records.map((record) => convertUtmToMapPosition(record))}
+    features={buildFeatures(records.map((record) => convertUtmToMapPosition(record)))}
     deviationVisible
     mapWidth={1200}
     mapHeight={850}

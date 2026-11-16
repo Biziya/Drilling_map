@@ -12,7 +12,7 @@ const itemFor = (label) => items().find((item) => item.textContent === label);
 
 const ORDER = [
   "Development", "Exploration", "Geotechnical", "Injector", "Monitoring", "Producer",
-  "Ra-grade-sampling", "Sediment-sampling", "Water", "Drilling in progress", "Deviation line", "Hexagons",
+  "Ra-grade-sampling", "Sediment-sampling", "Water", "Drilling in progress", "Deviation line",
 ];
 
 describe("TechnoMap MapLegend", () => {
@@ -22,11 +22,17 @@ describe("TechnoMap MapLegend", () => {
     expect(legend()).toBeTruthy();
   });
 
-  it("lists the 12 map categories, one per row, in the agreed order", () => {
+  it("lists the 11 map categories, one per row, in the agreed order", () => {
     render(<MapLegend />);
 
     expect(within(legend()).getAllByRole("list")).toHaveLength(1);
     expect(items().map((item) => item.textContent)).toEqual(ORDER);
+  });
+
+  it("adds Hexagons last only once an Excel file has drawn some", () => {
+    render(<MapLegend hasHexagons />);
+
+    expect(items().map((item) => item.textContent)).toEqual([...ORDER, "Hexagons"]);
   });
 
   it("puts each symbol before its label, all in the same symbol box", () => {
@@ -70,7 +76,7 @@ describe("TechnoMap MapLegend", () => {
   it("keeps hidden categories listed, faded, and is not itself a control", () => {
     render(<MapLegend filters={{ ...setAllFilters(true), water: false, "deviation-line": false }} />);
 
-    expect(items()).toHaveLength(12);
+    expect(items()).toHaveLength(11);
     expect(itemFor("Water").className).toBe("is-hidden");
     expect(itemFor("Deviation line").className).toBe("is-hidden");
     expect(itemFor("Producer").className).toBe("");
@@ -81,7 +87,7 @@ describe("TechnoMap MapLegend", () => {
   it("fades every category after Hide All, removing none", () => {
     render(<MapLegend filters={setAllFilters(false)} />);
 
-    expect(items()).toHaveLength(12);
+    expect(items()).toHaveLength(11);
     expect(items().every((item) => item.className === "is-hidden")).toBe(true);
   });
 });

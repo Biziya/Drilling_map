@@ -64,9 +64,14 @@ export interface MapViewportOptions {
    * While set, double-click does not zoom, so two quick clicks stay two clicks.
    */
   onMapClick?: ((ratio: Point) => void) | undefined;
+  /**
+   * Called for a click on the map (not a marker or control) that did not
+   * drag, while onMapClick is unset. Unlike onMapClick, double-click still zooms.
+   */
+  onBackgroundTap?: (() => void) | undefined;
 }
 
-export function useMapViewport({ settings, viewKey, dragIgnoreSelector, overlaySelector, bounds, onMapClick }: MapViewportOptions) {
+export function useMapViewport({ settings, viewKey, dragIgnoreSelector, overlaySelector, bounds, onMapClick, onBackgroundTap }: MapViewportOptions) {
   const initialView = useMemo<MapTransform>(
     () => ({ scale: settings.minZoom, translateX: 0, translateY: 0 }),
     [settings.minZoom],
@@ -195,8 +200,13 @@ export function useMapViewport({ settings, viewKey, dragIgnoreSelector, overlayS
       dragRef.current = null;
       setIsDragging(false);
 
+      if (event.type !== 'pointerup' || drag.moved) return;
+      if (!onMapClick) {
+        onBackgroundTap?.();
+        return;
+      }
       const mapSize = measuredMapSize(renderedMapSize);
-      if (event.type !== 'pointerup' || drag.moved || !onMapClick || !mapSize) return;
+      if (!mapSize) return;
       const point = pointWithin(event.currentTarget, event);
       onMapClick(viewportToMapRatio(point, viewRef.current, mapOrigin, mapSize));
     },
