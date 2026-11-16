@@ -3,28 +3,11 @@ import LayerSymbol from '../Legends/LayerSymbol';
 import { DRILLHOLE_TYPE_CONFIG, FILTER_IDS, MAP_CONFIG } from '../config/technoMapConfig';
 import type { FilterId } from '../config/technoMapConfig';
 import type { MapFilters } from '../utils/mapFilters';
-import { describeSnap } from '../utils/hexagons';
-
-/** The uploaded hexagon file, as the panel describes it. */
-export interface HexagonSource {
-  fileName: string;
-  count: number;
-  /** Corners moved from the design position onto the drilled well of the same name. */
-  moved?: number;
-  /** Named corners with no drilled well on the map, left at the design position. */
-  unmatched?: number;
-  /** The largest move, in metres. */
-  maxShift?: number;
-}
-
 
 export interface LayerPanelProps {
   filters: MapFilters;
   onChange: (id: FilterId, visible: boolean) => void;
   onSetAll: (visible: boolean) => void;
-  /** The uploaded Excel file behind the Hexagons layer, or null for none. */
-  hexagons?: HexagonSource | null;
-  onClearHexagons?: () => void;
 }
 
 /**
@@ -43,32 +26,12 @@ function labelColor(id: FilterId): string | undefined {
 /**
  * Floating "Legends" panel in the map's top-right corner: every filter,
  * Show All / Hide All, and a collapse toggle. Opens expanded on every visit;
- * only the filter choices are remembered. Under Hexagons, the uploaded file's
- * name and cell count, with Clear.
+ * only the filter choices are remembered. The hexagon file itself is managed
+ * from the toolbar Upload window, not here.
  */
-function LayerPanel({ filters, onChange, onSetAll, hexagons = null, onClearHexagons }: LayerPanelProps) {
+function LayerPanel({ filters, onChange, onSetAll }: LayerPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const enabled = FILTER_IDS.filter((id) => filters[id]).length;
-  const snapNote = hexagons ? describeSnap(hexagons) : null;
-
-  const hexagonNote = (
-    <div className="map-layers__note">
-      {hexagons ? (
-        <>
-          <span className="map-layers__note-text" title={hexagons.fileName}>
-            {hexagons.fileName} · {hexagons.count} cells
-          </span>
-          {onClearHexagons && (
-            <button type="button" onClick={onClearHexagons} title="Remove the uploaded hexagons">Clear</button>
-          )}
-          {snapNote && <span className="map-layers__note-detail" title={snapNote}>{snapNote}</span>}
-        </>
-      ) : (
-        <span className="map-layers__note-text">No file uploaded</span>
-      )}
-    </div>
-  );
-
   const group = (title: string, entries: readonly { id: FilterId; label: string }[]) => (
     <fieldset className="map-layers__group">
       <legend>{title}</legend>
@@ -79,7 +42,6 @@ function LayerPanel({ filters, onChange, onSetAll, hexagons = null, onClearHexag
             <LayerSymbol id={id} />
             <span className="map-layers__label" style={{ color: labelColor(id) }}>{label}</span>
           </label>
-          {id === 'hexagon' && hexagonNote}
         </div>
       ))}
     </fieldset>

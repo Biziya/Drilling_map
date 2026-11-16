@@ -305,7 +305,7 @@ function TechnoMap() {
           <MeasurementOverlay points={measurement} view={view} mapOrigin={mapOrigin} mapSize={mapSize} bounds={bounds} />
           <MapStatus status={status} imageFailed={image.hasFailed} failure={failure} src={layout.imageSrc} />
           {MAP_CONFIG.showLegends && <MapLegend filters={filters} />}
-          <LayerPanel filters={filters} onChange={setFilter} onSetAll={setAll} hexagons={hexagonSource} onClearHexagons={clearHexagons} />
+          <LayerPanel filters={filters} onChange={setFilter} onSetAll={setAll} />
           <MapControls
             zoom={view.scale}
             maxZoom={maxZoom}
@@ -314,6 +314,8 @@ function TechnoMap() {
             onReset={controls.reset}
             onUpload={(file) => void uploadHexagons(file)}
             isUploading={isUploading}
+            hexagons={hexagonSource}
+            onClearHexagons={clearHexagons}
             isMeasuring={isMeasuring}
             onToggleMeasure={() => {
               setIsMeasuring((current) => !current);

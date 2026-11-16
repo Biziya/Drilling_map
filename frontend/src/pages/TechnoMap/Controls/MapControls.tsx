@@ -1,5 +1,8 @@
 import { MAP_SETTINGS } from '../config/technoMapConfig';
-import { useRef } from 'react';
+import { useEffect } from 'react';
+import HexagonUploadPanel from './HexagonUploadPanel';
+import { usePopover } from '../Table/usePopover';
+import type { HexagonSource } from '../utils/hexagons';
 import { BoxSelectIcon, CameraIcon, RulerIcon, UploadIcon } from './icons';
 
 export interface MapControlsProps {
@@ -10,9 +13,12 @@ export interface MapControlsProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onReset: () => void;
-  /** A wellfield Excel file picked with the Upload button. */
+  /** A wellfield Excel file picked or dropped in the Upload window. */
   onUpload: (file: File) => void;
   isUploading: boolean;
+  /** The uploaded hexagon file, shown in the Upload window, or null. */
+  hexagons: HexagonSource | null;
+  onClearHexagons: () => void;
   isMeasuring: boolean;
   onToggleMeasure: () => void;
   /** The rectangle select tool. */
@@ -33,6 +39,8 @@ function MapControls({
   onReset,
   onUpload,
   isUploading,
+  hexagons,
+  onClearHexagons,
   isMeasuring,
   onToggleMeasure,
   isBoxSelecting,
@@ -41,37 +49,38 @@ function MapControls({
   isSelecting,
   onToggleScreenshot,
 }: MapControlsProps) {
-  const fileRef = useRef<HTMLInputElement | null>(null);
+  // The Upload window sits above the button row, outside it: the row clips its overflow.
+  const upload = usePopover<HTMLButtonElement>();
+  const { setIsOpen: setUploadOpen } = upload;
+  useEffect(() => {
+    if (isSelecting) setUploadOpen(false);
+  }, [isSelecting, setUploadOpen]);
 
   return (
     <div className="map-toolbar">
+      {upload.isOpen && (
+        <HexagonUploadPanel hexagons={hexagons} isUploading={isUploading} onUpload={onUpload} onClear={onClearHexagons} panelRef={upload.panelRef} />
+      )}
       <div className="map-controls" aria-label="Map controls">
         <button type="button" onClick={onZoomIn} disabled={isSelecting || zoom >= maxZoom} aria-label="Zoom in" title="Zoom in">+</button>
         <button type="button" onClick={onZoomOut} disabled={isSelecting || zoom <= MAP_SETTINGS.minZoom} aria-label="Zoom out" title="Zoom out">−</button>
         <button
-          className="map-controls__icon"
+          ref={(element) => {
+            upload.wrapperRef.current = element;
+            upload.buttonRef.current = element;
+          }}
+          className={`map-controls__icon${upload.isOpen ? ' is-active' : ''}`}
           type="button"
-          disabled={isSelecting || isUploading}
-          onClick={() => fileRef.current?.click()}
+          disabled={isSelecting}
+          onClick={() => upload.setIsOpen((open) => !open)}
+          aria-haspopup="dialog"
+          aria-expanded={upload.isOpen}
           aria-busy={isUploading}
           aria-label="Upload hexagons from Excel"
           title="Upload hexagons from Excel (.xlsx)"
         >
           <UploadIcon />
         </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-          hidden
-          data-testid="hexagon-file-input"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            // Cleared, so picking the same file again uploads it again.
-            event.target.value = '';
-            if (file) onUpload(file);
-          }}
-        />
         <button className="map-controls__reset" type="button" disabled={isSelecting} onClick={onReset} title="Fit all drillholes">Reset</button>
         <button
           className={`map-controls__icon${isMeasuring ? ' is-active' : ''}`}

@@ -13,6 +13,7 @@ import { clearMapData, getMapData } from "../../../src/state/mapDataStore.js";
 import { clearToasts } from "../../../src/components/Toast/toastStore.js";
 import { DATASET_IDS, clearCachedDataset } from "../../../src/services/cache/drillholeCache.js";
 import { DEMO_DRILLHOLES } from "./demoDataset.js";
+import { buildXlsx } from "../../../src/pages/TechnoMap/utils/xlsx.js";
 import { clickAt, ctrlClickAt, dragBoxAround, drawnKinds, drawnMarkerCount, hoverAt, loadMapImages, selectedRingCount } from "./canvasMap.js";
 
 // The page loads this fixed dataset through its normal backend path.
@@ -211,6 +212,37 @@ describe("toolbar", () => {
     expect(screen.queryByRole("button", { name: "Export as SVG" })).toBeNull();
     expect([...document.querySelectorAll(".map-controls button")].map((button) => button.getAttribute("aria-label") ?? button.textContent)).toEqual(ORDER);
     expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("Upload opens a window to choose, show and remove the hexagon file; Legends only has the checkbox", async () => {
+    const { container } = await renderPage();
+    const upload = screen.getByRole("button", { name: "Upload hexagons from Excel" });
+    fireEvent.click(upload);
+    const dialog = screen.getByRole("dialog", { name: "Hexagons from Excel" });
+    expect(upload.getAttribute("aria-expanded")).toBe("true");
+    expect(within(dialog).getByText("No file uploaded")).toBeTruthy();
+
+    const rows = [[0, 0], [100, 0], [50, 80]].map(([dx, dy], i) => [`IZO_T${i}`, "Injector", 420000 + dx, 4894000 + dy, "CZO_T"]);
+    const bytes = buildXlsx({ name: "Wells", header: ["Name", "Type", "X [m]", "Y [m]", "Associated production cells"], rows });
+    const file = new File([bytes], "wells.xlsx");
+    file.arrayBuffer ??= () => Promise.resolve(bytes.buffer);
+    fireEvent.change(screen.getByTestId("hexagon-file-input"), { target: { files: [file] } });
+
+    await waitFor(() => expect(within(dialog).getByText("wells.xlsx")).toBeTruthy());
+    expect(within(dialog).getByText("1 hexagon cell")).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "Replace file" })).toBeTruthy();
+    expect(container.querySelector(".hexagon-layer")?.getAttribute("data-cells")).toBe("1");
+    const legends = screen.getByRole("complementary", { name: "Legends" });
+    expect(within(legends).queryByText("wells.xlsx")).toBeNull();
+    expect(within(legends).queryByRole("button", { name: /Clear|Remove/ })).toBeNull();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Remove file" }));
+    expect(within(dialog).getByText("No file uploaded")).toBeTruthy();
+    expect(container.querySelector(".hexagon-layer")).toBeNull();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Hexagons from Excel" })).toBeNull();
+    expect(document.activeElement).toBe(upload);
   });
 
   it("camera cancels on a second click, suspends the ruler and removes zoom percentage", async () => {

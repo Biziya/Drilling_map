@@ -46,7 +46,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
       {
         icon: <UploadIcon />,
         name: 'Upload hexagons from Excel',
-        description: 'Pick a wellfield .xlsx with X [m], Y [m] and Associated production cells columns. Each cell is drawn as a black outline through the wells that list it. Kept in this browser until you upload another file or press Clear under Hexagons in the Legends panel.',
+        description: 'Opens a small window: choose or drop a wellfield .xlsx with Name, Type, X [m], Y [m] and Associated production cells columns. Each cell is drawn as a black outline through its injectors, moved onto the drilled wells where the map has them. The window shows the file name and cell count; Replace file or Remove it there. Kept in this browser until then.',
       },
       { icon: '⤢', name: 'Reset', description: 'Fit every drillhole in view, whatever the filters.' },
       {

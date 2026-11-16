@@ -171,6 +171,18 @@ export function snapHexagons(cells: readonly HexCell[], drillholes: readonly Dri
   return { cells: snapped, moved, unmatched, maxShift };
 }
 
+/** The uploaded hexagon file, as the Upload window describes it. */
+export interface HexagonSource {
+  fileName: string;
+  count: number;
+  /** Corners moved from the design position onto the drilled well of the same name. */
+  moved?: number;
+  /** Named corners with no drilled well on the map, left at the design position. */
+  unmatched?: number;
+  /** The largest move, in metres. */
+  maxShift?: number;
+}
+
 /** "12 corners moved to drilled wells (max 4.2 m) · 3 at design position", or null when nothing to say. */
 export function describeSnap({ moved = 0, unmatched = 0, maxShift = 0 }: Partial<Pick<SnapResult, 'moved' | 'unmatched' | 'maxShift'>>): string | null {
   const parts: string[] = [];
