@@ -28,5 +28,5 @@ WebExample.png
 .env
 
 # Build output and published packages
-publish/
+# publish/
 publish.zip
