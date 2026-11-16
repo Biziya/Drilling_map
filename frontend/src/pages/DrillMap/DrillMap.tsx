@@ -194,7 +194,8 @@ function DrillMap() {
         <div className="mb-[3px] flex shrink-0 items-center gap-2">
           <RefreshButton isRefreshing={isFetching} onRefresh={refresh} />
           <BaseMapSwitcher value={baseMap} onChange={handleBaseMapChange} />
-          <strong>{drillholes.length} drillholes</strong>
+          {/* Unique holes (duplicates merged): the same set the selection table draws from. */}
+          <strong>{featuresByKey.size} drillholes</strong>
           <HelpButton title={MAP_CONFIG.title} sections={HELP_SECTIONS} />
         </div>
       </header>

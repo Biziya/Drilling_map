@@ -647,6 +647,8 @@
   cursor: auto;
 }
 
+/* Collapsed: just the header bar, as on the Techno Map. */
+.drill-map-page .map-layers.is-collapsed { min-height: 0; }
 
 .drill-map-page .map-layers__header {
   display: flex;
