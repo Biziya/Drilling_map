@@ -1,0 +1,50 @@
+# Site features shown as icons on the drilling map.
+# Source: GIS_data_ToBizya.zip (SSO_Pilot.shp, ZOOV_Mudpit.shp)
+# Original CRS: WGS 84 / UTM Zone 49N (EPSG:32649). Converted to WGS 84 lat/lon (EPSG:4326).
+# Coordinate order everywhere: [longitude, latitude]
+
+crs: EPSG:4326
+source_crs: EPSG:32649
+
+features:
+  - id: pilot_factory
+    name: Zoovch Pilot
+    source_name: Zoovch_Pilot corner
+    type: pilot_factory
+    icon: /pilot_factory.svg
+    position: [110.012374, 44.189857]   # icon location (polygon centre)
+    area_ha: 1.34
+    area_m2: 13398
+    outline:                              # closed polygon, first point = last point
+      - [110.011468, 44.190244]
+      - [110.012513, 44.190623]
+      - [110.013293, 44.189475]
+      - [110.012213, 44.189095]
+      - [110.011468, 44.190244]
+    outline_utm:                          # same corners in UTM 49N, metres [E, N]
+      - [420998.9, 4893478.3]
+      - [421082.9, 4893519.4]
+      - [421143.7, 4893391.0]
+      - [421056.9, 4893349.9]
+      - [420998.9, 4893478.3]
+
+  - id: mud_pit
+    name: Mud pit
+    source_name: ZOOV_Mudpit
+    type: mud_pit
+    icon: /mud_pit.svg
+    position: [110.019853, 44.179244]
+    area_ha: 10.26
+    area_m2: 102617
+    outline:
+      - [110.017647, 44.180548]
+      - [110.022013, 44.180586]
+      - [110.022057, 44.177939]
+      - [110.017691, 44.177901]
+      - [110.017647, 44.180548]
+    outline_utm:
+      - [421479.9, 4892395.4]
+      - [421828.9, 4892395.4]
+      - [421828.9, 4892101.4]
+      - [421479.9, 4892101.4]
+      - [421479.9, 4892395.4]

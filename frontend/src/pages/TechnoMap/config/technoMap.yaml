@@ -99,6 +99,8 @@ mapFeatures:
   - { id: deviation-line, label: Deviation line }
   # Production-cell outlines from an uploaded wellfield Excel file (toolbar Upload).
   - { id: hexagon, label: Hexagons }
+  # Icons from public/site_features/site_features.yaml. Not listed in the legend.
+  - { id: site-features, label: Pilot factory & mud pit }
 
 # Accessible role names, read before the hole id ("Producer drillhole GTZO-1").
 markerLabels:
@@ -122,6 +124,12 @@ deviationLine:
 
 measurement:
   color: '#dc2626'
+
+# Site features (public/site_features/site_features.yaml). Their dashed
+# footprints are drawn once 100 px on screen covers at most this many metres
+# (about web-map zoom 15 at this latitude); the icons show at every zoom.
+siteFeatures:
+  outlineMaxMetersPer100Px: 350
 
 # Rings around a marker on the map: blue while the pointer is over it, green
 # while a click keeps its popup pinned (pinned wins when both apply). The

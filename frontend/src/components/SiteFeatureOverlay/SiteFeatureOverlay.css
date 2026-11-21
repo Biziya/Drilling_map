@@ -1,0 +1,68 @@
+/* Site features (SiteFeatureOverlay.tsx). Shared by both maps. Above every
+   map layer (hexagons, drillholes, deviation lines, measurement: z-index 4
+   at most) and below the floating panels (5+ for the scale bar). */
+.site-feature-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* The real footprint: thin, dashed, unfilled; never takes the pointer. */
+.site-feature-outlines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.site-feature-outlines polygon {
+  fill: none;
+  stroke: #1e3a5f;
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+  stroke-linejoin: round;
+}
+
+.site-feature-icon {
+  position: absolute;
+  width: var(--site-icon-size, 32px);
+  height: var(--site-icon-size, 32px);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  box-shadow: 0 1px 3px rgb(0 0 0 / .35);
+  cursor: pointer;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+}
+
+.site-feature-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.site-feature-icon:hover,
+.site-feature-icon:focus-visible,
+.site-feature-icon.is-pinned {
+  outline: 2px solid var(--pinned-color, #16a34a);
+  outline-offset: 1px;
+}
+
+/* A map tool owns the pointer: clicks go through the icons to the map. */
+.site-feature-layer.is-inert .site-feature-icon { pointer-events: none; }
+
+/* Drawn when the icon image is missing: a plain coloured circle. */
+.site-feature-icon.is-fallback {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--site-fallback-color, #2563eb);
+}

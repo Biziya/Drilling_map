@@ -20,10 +20,14 @@ const LEGEND_STYLE: StyleWithCssVariables = {
   '--legend-line-thickness': px(legend.symbols.lineThickness),
 };
 
-/** What the map draws, in filter order: the nine drillhole types, the rig, the deviation line and the hexagons. */
-const LEGEND_ENTRIES = FILTER_ENTRIES;
+/**
+ * What the map draws, in filter order: the nine drillhole types, the rig, the
+ * deviation line and the hexagons. The site-feature icons label themselves
+ * (name on hover, popup on click), so they have no row.
+ */
+const LEGEND_ENTRIES = FILTER_ENTRIES.filter(({ id }) => id !== 'site-features');
 /** The same, before any Excel upload: no Hexagons row. */
-const LEGEND_ENTRIES_NO_HEXAGONS = FILTER_ENTRIES.filter(({ id }) => id !== 'hexagon');
+const LEGEND_ENTRIES_NO_HEXAGONS = LEGEND_ENTRIES.filter(({ id }) => id !== 'hexagon');
 
 export interface MapLegendProps {
   /** Hidden categories stay listed, faded. */

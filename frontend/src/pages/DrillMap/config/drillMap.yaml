@@ -103,10 +103,18 @@ layers:
   - { id: drillhole, label: Drillhole }
   - { id: rig, label: Drill Rig }
   - { id: deviation-line, label: Deviation line }
+  # Icons from public/site_features/site_features.yaml.
+  - { id: site-features, label: Pilot factory & mud pit }
 
 # Distance measurement line, endpoint markers and label border.
 measurement:
   color: '#dc2626'
+
+# Site features (public/site_features/site_features.yaml). Their dashed
+# footprints are drawn once 100 px on screen covers at most this many metres
+# (about web-map zoom 15 at this latitude); the icons show at every zoom.
+siteFeatures:
+  outlineMaxMetersPer100Px: 350
 
 # Legend dimensions, in px unless noted; all must be 0 or more.
 # symbolSize is the one base size of every legend symbol: GT circles, Redox

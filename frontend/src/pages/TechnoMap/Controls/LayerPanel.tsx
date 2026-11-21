@@ -20,7 +20,7 @@ export interface LayerPanelProps {
 function labelColor(id: FilterId): string | undefined {
   if (id === 'deviation-line') return MAP_CONFIG.deviationLine.color;
   if (id === 'hexagon') return MAP_CONFIG.hexagon.color;
-  if (id === 'drilling-in-progress') return undefined;
+  if (id === 'drilling-in-progress' || id === 'site-features') return undefined;
 
   return DRILLHOLE_TYPE_CONFIG[id].color;
 }

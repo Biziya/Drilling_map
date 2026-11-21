@@ -2,6 +2,8 @@
 // area select and export in the toolbar, the Layers panel, the selection
 // table and the one floating tooltip.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+// The site-feature icons (public/site_features) are covered in tests/services/siteFeatures.test.js; none here.
+vi.mock("../../../src/services/siteFeatures/siteFeatures.js", async (importOriginal) => ({ ...(await importOriginal()), loadSiteFeatures: () => Promise.resolve([]) }));
 import "fake-indexeddb/auto";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import DrillMap from "../../../src/pages/DrillMap/DrillMap.jsx";
@@ -98,7 +100,7 @@ describe("Exploration Map toolbar", () => {
     const panel = screen.getByRole("complementary", { name: "Layers" });
     const groups = [...panel.querySelectorAll("fieldset")].map((set) => [set.querySelector("legend").textContent, [...set.querySelectorAll("label")].map((label) => label.textContent)]);
 
-    expect(groups).toEqual([["Drillhole Types", ["Producer", "Drillhole", "Drill Rig"]], ["Overlays", ["Deviation line"]]]);
+    expect(groups).toEqual([["Drillhole Types", ["Producer", "Drillhole", "Drill Rig"]], ["Overlays", ["Deviation line", "Pilot factory & mud pit"]]]);
   });
 
   it("camera cancels on a second click, suspends the ruler and removes zoom percentage", async () => {
@@ -329,7 +331,7 @@ describe("Exploration Map Layers panel", () => {
     const panel = screen.getByRole("complementary", { name: "Layers" });
 
     expect(within(panel).getAllByRole("checkbox").map((box) => box.closest("label").textContent))
-      .toEqual(["Producer", "Drillhole", "Drill Rig", "Deviation line"]);
+      .toEqual(["Producer", "Drillhole", "Drill Rig", "Deviation line", "Pilot factory & mud pit"]);
 
     fireEvent.click(within(panel).getByRole("checkbox", { name: "Producer" }));
     expect(markerIds(container).sort()).toEqual(["R-1,", "S-1,"]);

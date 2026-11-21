@@ -1,6 +1,7 @@
 import { memo, useState } from 'react';
 import MarkerSymbol from '../Legends/MarkerSymbol';
-import { LAYER_IDS, MAP_CONFIG } from '../config/drillMapConfig';
+import { LAYER_IDS, MAP_CONFIG, OVERLAY_LAYER_IDS } from '../config/drillMapConfig';
+import SiteFeatureSymbol from '../../../components/SiteFeatureOverlay/SiteFeatureSymbol';
 import type { LayerId } from '../config/drillMapConfig';
 import type { MapFilters } from '../hooks/useMapFilters';
 import { markerShapeFor } from '../utils/markerKind';
@@ -15,6 +16,7 @@ export interface LayerPanelProps {
 function LayerSymbol({ id }: { id: LayerId }) {
   if (id === 'rig') return <span className="legend-symbol"><img className="legend-rig-icon" src={MAP_CONFIG.rigIconSrc} alt="" draggable="false" /></span>;
   if (id === 'deviation-line') return <span className="legend-symbol"><i className="layer-swatch-line" /></span>;
+  if (id === 'site-features') return <span className="legend-symbol"><SiteFeatureSymbol size={MAP_CONFIG.legend.symbolSize} /></span>;
 
   return <span className="legend-symbol"><MarkerSymbol shape={markerShapeFor(id)} color={MAP_CONFIG.legendSymbolColor} small /></span>;
 }
@@ -63,8 +65,8 @@ function LayerPanel({ filters, onChange, onSetAll }: LayerPanelProps) {
 
       {isExpanded && (
         <div className="map-layers__body">
-          {group('Drillhole Types', MAP_CONFIG.layers.filter(({ id }) => id !== 'deviation-line'))}
-          {group('Overlays', MAP_CONFIG.layers.filter(({ id }) => id === 'deviation-line'))}
+          {group('Drillhole Types', MAP_CONFIG.layers.filter(({ id }) => !OVERLAY_LAYER_IDS.includes(id)))}
+          {group('Overlays', MAP_CONFIG.layers.filter(({ id }) => OVERLAY_LAYER_IDS.includes(id)))}
           <div className="map-layers__footer">
             <button type="button" onClick={() => onSetAll(true)}>Show All</button>
             <button type="button" onClick={() => onSetAll(false)}>Hide All</button>

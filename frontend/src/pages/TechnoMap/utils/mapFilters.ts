@@ -1,4 +1,4 @@
-// Which drillholes and layers the 12 map filters let through.
+// Which drillholes and layers the 13 map filters let through.
 //
 //   ordinary hole    -> shown when its type (the API category) is checked
 //   no category      -> never shown: an unmapped SQL Type belongs to no filter
@@ -6,6 +6,8 @@
 //                       are checked; never downgraded to its type's symbol
 //   deviation line   -> shown when Deviation line is checked and its hole is shown
 //   hexagons         -> the uploaded cell outlines, shown when Hexagons is checked
+//   site features    -> the icons from public/site_features, shown when
+//                       Pilot factory & mud pit is checked (drawn by the page)
 
 import { FILTER_IDS } from '../config/technoMapConfig';
 import type { DrillholeType, FilterId } from '../config/technoMapConfig';

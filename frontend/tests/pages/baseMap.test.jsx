@@ -4,6 +4,8 @@
 // kilometres under Easting (km) and Northing (km) axis titles) and the export
 // compass (the Techno Map has none).
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+// The site-feature icons (public/site_features) are covered in tests/services/siteFeatures.test.js; none here.
+vi.mock("../../src/services/siteFeatures/siteFeatures.js", async (importOriginal) => ({ ...(await importOriginal()), loadSiteFeatures: () => Promise.resolve([]) }));
 import "fake-indexeddb/auto";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import DrillMap from "../../src/pages/DrillMap/DrillMap.jsx";

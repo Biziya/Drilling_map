@@ -4,6 +4,8 @@
 // filter state, and the scoping that keeps the dashboard's styles and its
 // dialog off the rest of the application.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+// The Exploration Map (the landing page) loads site features; none here.
+vi.mock("../../../src/services/siteFeatures/siteFeatures.js", async (importOriginal) => ({ ...(await importOriginal()), loadSiteFeatures: () => Promise.resolve([]) }));
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import App from "../../../src/App.jsx";
 import WeeklyGeos from "../../../src/pages/WeeklyGeos/WeeklyGeos.jsx";

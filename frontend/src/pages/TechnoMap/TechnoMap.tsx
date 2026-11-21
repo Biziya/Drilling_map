@@ -1,7 +1,7 @@
 import MapScreenshot from '../../components/MapScreenshot/MapScreenshot';
 import HelpButton from '../../components/HelpDialog/HelpDialog';
 import type { CaptureRect } from '../../components/MapScreenshot/MapScreenshot';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, SyntheticEvent } from 'react';
 import BaseMapSwitcher from './Controls/BaseMapSwitcher';
 import LayerPanel from './Controls/LayerPanel';
@@ -18,6 +18,9 @@ import MeasurementOverlay from './Map/MeasurementOverlay';
 import MarkerHighlight from './Map/MarkerHighlight';
 import BoxSelectOverlay from '../../components/BoxSelect/BoxSelectOverlay';
 import SelectionTable from '../../components/SelectionTable/SelectionTable';
+import SiteFeatureOverlay from '../../components/SiteFeatureOverlay/SiteFeatureOverlay';
+import { SITE_ICON_CLASS, siteOutlinesVisible } from '../../components/SiteFeatureOverlay/siteFeatureLayout';
+import { useSiteFeatures } from '../../services/siteFeatures/useSiteFeatures';
 import MarkerTooltip from './Tooltips/MarkerTooltip';
 import { MAP_CONFIG, MAP_ID, MAP_SETTINGS, baseMapLayout } from './config/technoMapConfig';
 import type { BaseMapId } from './config/technoMapConfig';
@@ -27,10 +30,10 @@ import { useMapData } from './hooks/useMapData';
 import { useHexagonUpload } from './hooks/useHexagonUpload';
 import { useMapFilters } from './hooks/useMapFilters';
 import { useMapViewport } from './hooks/useMapViewport';
-import { drillholeExtent, mapRatioToUtm } from './utils/coordinates';
+import { drillholeExtent, mapRatioToUtm, utmToMapRatio } from './utils/coordinates';
 import { exportMap } from './utils/exportMap';
 import type { ExportFormat } from './utils/exportMap';
-import { buildCanvasTransformStyle, isViewZoomed, measuredMapSize, toPixels } from './utils/geometry';
+import { buildCanvasTransformStyle, isViewZoomed, mapRatioToViewport, measuredMapSize, toPixels } from './utils/geometry';
 import { snapHexagons } from './utils/hexagons';
 import type { HexCell } from './utils/hexagons';
 import { selectShownFeatures } from './utils/mapFilters';
@@ -48,6 +51,8 @@ import './TechnoMap.css';
  * a pinned tooltip among them, so its fields scroll instead of the map zooming.
  */
 const OVERLAY_SELECTOR = '.map-toolbar, .map-layers, .map-legend, .marker-tooltip.is-pinned';
+/** Presses that pan nothing and pick no hole: the panels, and the site-feature icons (they handle their own click). */
+const DRAG_IGNORE_SELECTOR = `.${SITE_ICON_CLASS}, ${OVERLAY_SELECTOR}`;
 
 const NO_SELECTION: ReadonlySet<string> = new Set();
 const NO_CELLS: readonly HexCell[] = [];
@@ -105,6 +110,9 @@ function TechnoMap() {
   // The multi-selection (Ctrl+click and the rectangle tool), by feature key,
   // in the order holes were added.
   const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(NO_SELECTION);
+  // Site features (pilot factory, mud pit, …) and the one whose popup is open.
+  const siteFeatures = useSiteFeatures();
+  const [pinnedSiteId, setPinnedSiteId] = useState<string | null>(null);
 
   // Every drillhole, whatever the filters, so Reset always frames the whole dataset.
   const fitBox = useMemo(() => drillholeExtent(drillholes), [drillholes]);
@@ -133,7 +141,7 @@ function TechnoMap() {
     settings: MAP_SETTINGS,
     viewKey: MAP_ID,
     bounds,
-    dragIgnoreSelector: OVERLAY_SELECTOR,
+    dragIgnoreSelector: isPointerBusy ? OVERLAY_SELECTOR : DRAG_IGNORE_SELECTOR,
     overlaySelector: OVERLAY_SELECTOR,
     fitBox,
     // While measuring, a press on a marker is a press on the map: it places a
@@ -151,6 +159,8 @@ function TechnoMap() {
         if (key) setSelectedKeys((current) => toggleKey(current, key));
         return;
       }
+      // One popup at a time: any plain click closes the site popup.
+      setPinnedSiteId(null);
       setPinnedKey((current) => (key === current ? null : key));
     },
   });
@@ -161,8 +171,27 @@ function TechnoMap() {
   const viewportState = `${isDragging ? ' is-dragging' : ''}${isViewZoomed(view, MAP_SETTINGS.minZoom) ? ' is-zoomed' : ''}`
     + `${isMeasuring ? ' is-measuring' : ''}${hovered && !isMeasuring ? ' is-over-marker' : ''}${isBoxSelecting ? ' is-box-selecting' : ''}`;
 
+  // Esc closes the site popup.
+  useEffect(() => {
+    if (!pinnedSiteId) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setPinnedSiteId(null); };
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [pinnedSiteId]);
+
+  const toggleSite = useCallback((id: string) => {
+    setPinnedKey(null);
+    setPinnedSiteId((current) => (current === id ? null : id));
+  }, []);
+  const siteToViewport = useCallback(
+    (point: UtmCoordinates) => (mapSize ? mapRatioToViewport(utmToMapRatio(point, bounds), view, mapOrigin, mapSize) : { x: -9999, y: -9999 }),
+    [bounds, view, mapOrigin, mapSize],
+  );
+
   const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    const overOverlay = event.target instanceof Element && event.target.closest(OVERLAY_SELECTOR);
+    // A site icon sits above the markers, so a hole under it is not "hovered".
+    const overOverlay = event.target instanceof Element && event.target.closest(DRAG_IGNORE_SELECTOR);
     let hit: MarkerFeature | null = null;
     if (!isPointerBusy && event.buttons === 0 && !overOverlay && transform) {
       const rect = event.currentTarget.getBoundingClientRect();
@@ -308,6 +337,18 @@ function TechnoMap() {
           )}
 
           <MeasurementOverlay points={measurement} view={view} mapOrigin={mapOrigin} mapSize={mapSize} bounds={bounds} />
+          {filters['site-features'] && mapSize && !image.hasFailed && (
+            <SiteFeatureOverlay
+              features={siteFeatures}
+              toViewport={siteToViewport}
+              showOutlines={siteOutlinesVisible(bounds, mapWidth, view.scale, MAP_CONFIG.siteFeatures.outlineMaxMetersPer100Px)}
+              pinnedId={pinnedSiteId}
+              onToggle={toggleSite}
+              viewport={viewportSize}
+              isInteractive={!isPointerBusy}
+              hidePopup={isDragging}
+            />
+          )}
           <MapStatus status={status} imageFailed={image.hasFailed} failure={failure} src={layout.imageSrc} />
           {MAP_CONFIG.showLegends && <MapLegend filters={filters} hasHexagons={hasHexagons} />}
           <LayerPanel filters={filters} onChange={setFilter} onSetAll={setAll} hasHexagons={hasHexagons} />
@@ -326,6 +367,7 @@ function TechnoMap() {
               setIsMeasuring((current) => !current);
               setMeasurement([]);
               setPinnedKey(null);
+              setPinnedSiteId(null);
               setIsBoxSelecting(false);
             }}
             isBoxSelecting={isBoxSelecting}
@@ -334,6 +376,7 @@ function TechnoMap() {
               setIsMeasuring(false);
               setMeasurement([]);
               setPinnedKey(null);
+              setPinnedSiteId(null);
             }}
             isSelecting={isSelecting}
             onToggleScreenshot={() => {

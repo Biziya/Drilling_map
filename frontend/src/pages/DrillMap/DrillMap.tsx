@@ -3,6 +3,9 @@ import HelpButton from '../../components/HelpDialog/HelpDialog';
 import BoxSelectOverlay from '../../components/BoxSelect/BoxSelectOverlay';
 import { DrillholeFields, MapTooltip } from '../../components/MapTooltip/MapTooltip';
 import SelectionTable from '../../components/SelectionTable/SelectionTable';
+import SiteFeatureOverlay from '../../components/SiteFeatureOverlay/SiteFeatureOverlay';
+import { SITE_ICON_CLASS, siteOutlinesVisible } from '../../components/SiteFeatureOverlay/siteFeatureLayout';
+import { useSiteFeatures } from '../../services/siteFeatures/useSiteFeatures';
 import type { CaptureRect } from '../../components/MapScreenshot/MapScreenshot';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SyntheticEvent } from 'react';
@@ -24,12 +27,12 @@ import { useBaseMap } from './hooks/useBaseMap';
 import { useMapFilters } from './hooks/useMapFilters';
 import { projectRecords, useMapData } from './hooks/useMapData';
 import { useMapViewport } from './hooks/useMapViewport';
-import { mapRatioToUtm } from './utils/coordinates';
+import { mapRatioToUtm, utmToMapRatio } from './utils/coordinates';
 import { EXPLORATION_FIELDS, TABLE_COLUMNS_STORAGE_KEY, TABLE_EXPORT_PREFIX } from './utils/explorationFields';
 import { buildFeatures, featureScreenPoint, featuresInRect, markerHalfSize, shownFeatures } from './utils/features';
 import { exportMap } from './utils/exportMap';
 import type { ExportFormat } from './utils/exportMap';
-import { buildCanvasTransformStyle, isViewZoomed, measuredMapSize, toPixels } from './utils/geometry';
+import { buildCanvasTransformStyle, isViewZoomed, mapRatioToViewport, measuredMapSize, toPixels } from './utils/geometry';
 import { addMeasurementPoint } from './utils/measurement';
 import { showToast } from '../../components/Toast/toastStore';
 import { readDrillholeText } from '../../utils/drillholeFields';
@@ -43,7 +46,7 @@ import './DrillMap.css';
  */
 const OVERLAY_SELECTOR = '.map-toolbar, .map-layers, .map-legend, .marker-tooltip.is-pinned';
 /** Drags starting on these pan nothing: they are clicks on a marker or a control. */
-const DRAG_IGNORE_SELECTOR = `.drillhole-marker, ${OVERLAY_SELECTOR}`;
+const DRAG_IGNORE_SELECTOR = `.drillhole-marker, .${SITE_ICON_CLASS}, ${OVERLAY_SELECTOR}`;
 
 const NO_SELECTION: ReadonlySet<string> = new Set();
 
@@ -79,6 +82,9 @@ function DrillMap() {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [pinnedKey, setPinnedKey] = useState<string | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(NO_SELECTION);
+  // Site features (pilot factory, mud pit, …) and the one whose popup is open.
+  const siteFeatures = useSiteFeatures();
+  const [pinnedSiteId, setPinnedSiteId] = useState<string | null>(null);
 
   const features = useMemo(() => buildFeatures(drillholes, bounds), [drillholes, bounds]);
   const shown = useMemo(() => shownFeatures(features, filters), [features, filters]);
@@ -103,7 +109,10 @@ function DrillMap() {
       ? (ratio) => setMeasurement((points) => addMeasurementPoint(points, mapRatioToUtm(ratio, bounds)))
       : undefined,
     // A click on empty map unpins the tooltip.
-    onBackgroundTap: () => setPinnedKey(null),
+    onBackgroundTap: () => {
+      setPinnedKey(null);
+      setPinnedSiteId(null);
+    },
   });
 
   const mapWidth = toPixels(renderedMapSize.width);
@@ -113,19 +122,37 @@ function DrillMap() {
 
   // Esc unpins the tooltip.
   useEffect(() => {
-    if (!pinnedKey) return undefined;
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setPinnedKey(null); };
+    if (!pinnedKey && !pinnedSiteId) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setPinnedKey(null);
+      setPinnedSiteId(null);
+    };
     window.addEventListener('keydown', onKeyDown);
 
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [pinnedKey]);
+  }, [pinnedKey, pinnedSiteId]);
+
+  // One popup at a time: a site popup closes the hole's, and the other way round.
+  const toggleSite = useCallback((id: string) => {
+    setPinnedKey(null);
+    setPinnedSiteId((current) => (current === id ? null : id));
+  }, []);
+  const siteToViewport = useCallback(
+    (point: UtmCoordinates) => (mapSize ? mapRatioToViewport(utmToMapRatio(point, bounds), view, mapOrigin, mapSize) : { x: -9999, y: -9999 }),
+    [bounds, view, mapOrigin, mapSize],
+  );
 
   const handleHover = useCallback((key: string | null) => setHoveredKey((current) => (current === key ? current : key)), []);
   // A click pins the hole's tooltip (one at a time), a second click unpins it;
   // Ctrl+click adds the hole to the selection, or takes it out.
   const handleActivate = useCallback((key: string, additive: boolean) => {
-    if (additive) setSelectedKeys((current) => toggleKey(current, key));
-    else setPinnedKey((current) => (current === key ? null : key));
+    if (additive) {
+      setSelectedKeys((current) => toggleKey(current, key));
+    } else {
+      setPinnedSiteId(null);
+      setPinnedKey((current) => (current === key ? null : key));
+    }
   }, []);
 
   const exitBoxSelect = useCallback(() => setIsBoxSelecting(false), []);
@@ -247,6 +274,18 @@ function DrillMap() {
           )}
 
           <MeasurementOverlay points={measurement} view={view} mapOrigin={mapOrigin} mapSize={mapSize} bounds={bounds} />
+          {filters['site-features'] && mapSize && !image.hasFailed && (
+            <SiteFeatureOverlay
+              features={siteFeatures}
+              toViewport={siteToViewport}
+              showOutlines={siteOutlinesVisible(bounds, mapWidth, view.scale, MAP_CONFIG.siteFeatures.outlineMaxMetersPer100Px)}
+              pinnedId={pinnedSiteId}
+              onToggle={toggleSite}
+              viewport={viewportSize}
+              isInteractive={!isPointerBusy}
+              hidePopup={isDragging}
+            />
+          )}
           <MapStatus status={status} imageFailed={image.hasFailed} src={layout.imageSrc} failure={failure} />
           {/* The legend card top-left, the Layers panel top-right, as on the Techno Map. */}
           {MAP_CONFIG.showLegends && <MapLegend filters={filters} />}
@@ -264,6 +303,7 @@ function DrillMap() {
               setIsMeasuring((current) => !current);
               setMeasurement([]);
               setPinnedKey(null);
+              setPinnedSiteId(null);
               setIsBoxSelecting(false);
             }}
             isBoxSelecting={isBoxSelecting}
@@ -272,6 +312,7 @@ function DrillMap() {
               setIsMeasuring(false);
               setMeasurement([]);
               setPinnedKey(null);
+              setPinnedSiteId(null);
             }}
             isSelecting={isSelecting}
             onToggleScreenshot={() => {

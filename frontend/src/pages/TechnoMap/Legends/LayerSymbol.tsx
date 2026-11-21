@@ -1,4 +1,5 @@
 import MarkerSymbol from './MarkerSymbol';
+import SiteFeatureSymbol from '../../../components/SiteFeatureOverlay/SiteFeatureSymbol';
 import { DRILLHOLE_TYPE_CONFIG, MAP_CONFIG } from '../config/technoMapConfig';
 import type { FilterId } from '../config/technoMapConfig';
 
@@ -16,6 +17,8 @@ function LayerSymbol({ id }: { id: FilterId }) {
         <polygon points="6.5,2 17.5,2 23,11 17.5,20 6.5,20 1,11" fill="none" stroke={MAP_CONFIG.hexagon.color} strokeWidth="2" strokeLinejoin="round" />
       </svg>
     );
+  } else if (id === 'site-features') {
+    symbol = <SiteFeatureSymbol size={MAP_CONFIG.legend.symbolSize} />;
   } else {
     const { shape, color } = DRILLHOLE_TYPE_CONFIG[id];
     symbol = <MarkerSymbol shape={shape} color={color} small />;

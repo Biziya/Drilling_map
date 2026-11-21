@@ -42,6 +42,7 @@ interface DrillMapConfig {
   legendSymbols: { kind: MarkerKind; label: string }[];
   layers: { id: LayerId; label: string }[];
   measurement: { color: string };
+  siteFeatures: { outlineMaxMetersPer100Px: number };
   legend: {
     paddingBlock: number;
     paddingInline: number;
@@ -58,8 +59,13 @@ interface DrillMapConfig {
   };
 }
 
-/** What the Layers panel can hide: three marker kinds and the deviation lines. */
-export const LAYER_IDS = ['producer', 'drillhole', 'rig', 'deviation-line'] as const;
+/**
+ * What the Layers panel can hide: three marker kinds, then the overlays (the
+ * deviation lines and the site features from public/site_features).
+ */
+export const LAYER_IDS = ['producer', 'drillhole', 'rig', 'deviation-line', 'site-features'] as const;
+/** The layers listed under "Overlays" rather than "Drillhole Types". */
+export const OVERLAY_LAYER_IDS: readonly LayerId[] = ['deviation-line', 'site-features'];
 export type LayerId = (typeof LAYER_IDS)[number];
 
 export const MAP_CONFIG = data as DrillMapConfig;
