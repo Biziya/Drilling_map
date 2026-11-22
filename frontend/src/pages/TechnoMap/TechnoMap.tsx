@@ -19,10 +19,12 @@ import MarkerHighlight from './Map/MarkerHighlight';
 import BoxSelectOverlay from '../../components/BoxSelect/BoxSelectOverlay';
 import SelectionTable from '../../components/SelectionTable/SelectionTable';
 import SiteFeatureOverlay from '../../components/SiteFeatureOverlay/SiteFeatureOverlay';
-import { SITE_ICON_CLASS, siteOutlinesVisible } from '../../components/SiteFeatureOverlay/siteFeatureLayout';
+import { SITE_ICON_CLASS, siteFeatureSnapTargets, siteOutlinesVisible } from '../../components/SiteFeatureOverlay/siteFeatureLayout';
+import { snapPoint } from '../../utils/snapPoint';
 import { useSiteFeatures } from '../../services/siteFeatures/useSiteFeatures';
+import { visibleSiteFeatures } from '../../services/siteFeatures/siteFeatures';
 import MarkerTooltip from './Tooltips/MarkerTooltip';
-import { MAP_CONFIG, MAP_ID, MAP_SETTINGS, baseMapLayout } from './config/technoMapConfig';
+import { MAP_CONFIG, MAP_ID, MAP_SETTINGS, SITE_FEATURE_LAYERS, baseMapLayout } from './config/technoMapConfig';
 import type { BaseMapId } from './config/technoMapConfig';
 import { HELP_SECTIONS } from './config/helpContent';
 import { useBaseMap } from './hooks/useBaseMap';
@@ -111,7 +113,8 @@ function TechnoMap() {
   // in the order holes were added.
   const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(NO_SELECTION);
   // Site features (pilot factory, mud pit, …) and the one whose popup is open.
-  const siteFeatures = useSiteFeatures();
+  const loadedSiteFeatures = useSiteFeatures();
+  const siteFeatures = useMemo(() => visibleSiteFeatures(loadedSiteFeatures, SITE_FEATURE_LAYERS, filters), [loadedSiteFeatures, filters]);
   const [pinnedSiteId, setPinnedSiteId] = useState<string | null>(null);
 
   // Every drillhole, whatever the filters, so Reset always frames the whole dataset.
@@ -144,10 +147,13 @@ function TechnoMap() {
     dragIgnoreSelector: isPointerBusy ? OVERLAY_SELECTOR : DRAG_IGNORE_SELECTOR,
     overlaySelector: OVERLAY_SELECTOR,
     fitBox,
-    // While measuring, a press on a marker is a press on the map: it places a
-    // point where it lands and opens no tooltip.
+    // While measuring, a press on a marker or a site icon is a press on the
+    // map: it opens no popup, and the point snaps to the feature under it.
     onMapClick: isMeasuring
-      ? (ratio) => setMeasurement((points) => addMeasurementPoint(points, mapRatioToUtm(ratio, bounds)))
+      ? (ratio) => {
+        const point = measurementPointAt(ratio);
+        setMeasurement((points) => addMeasurementPoint(points, point));
+      }
       : undefined,
     // A click pins the hole's popup (one at a time); a click on the pinned
     // hole, or on empty map, unpins it. Ctrl+click adds the hole to the
@@ -188,6 +194,19 @@ function TechnoMap() {
     (point: UtmCoordinates) => (mapSize ? mapRatioToViewport(utmToMapRatio(point, bounds), view, mapOrigin, mapSize) : { x: -9999, y: -9999 }),
     [bounds, view, mapOrigin, mapSize],
   );
+
+  // A measurement point: the centre of the site icon or hole under the press
+  // (icons are drawn on top, so they win), else where the press landed.
+  const measurementPointAt = (ratio: Point): UtmCoordinates => {
+    const landed = mapRatioToUtm(ratio, bounds);
+    if (!mapSize || !transform) return landed;
+    const point = mapRatioToViewport(ratio, view, mapOrigin, mapSize);
+    const site = snapPoint(point, [siteFeatureSnapTargets(siteFeatures, siteToViewport)]);
+    if (site) return site;
+    const hole = findMarkerAt(hitIndex, point, transform);
+
+    return hole ? mapRatioToUtm({ x: hole.x, y: hole.y }, bounds) : landed;
+  };
 
   const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     // A site icon sits above the markers, so a hole under it is not "hovered".
@@ -337,7 +356,7 @@ function TechnoMap() {
           )}
 
           <MeasurementOverlay points={measurement} view={view} mapOrigin={mapOrigin} mapSize={mapSize} bounds={bounds} />
-          {filters['site-features'] && mapSize && !image.hasFailed && (
+          {mapSize && !image.hasFailed && (
             <SiteFeatureOverlay
               features={siteFeatures}
               toViewport={siteToViewport}

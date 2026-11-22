@@ -43,8 +43,8 @@ describe("Techno Map config", () => {
     MARKER_KINDS.forEach((kind) => expect(MAP_CONFIG.markerLabels[kind]).toEqual(expect.any(String)));
   });
 
-  it("defines 13 filters: nine drillhole types and four feature layers", () => {
-    expect(FILTER_IDS).toHaveLength(13);
+  it("defines 14 filters: nine drillhole types and five feature layers", () => {
+    expect(FILTER_IDS).toHaveLength(14);
     expect(MAP_CONFIG.drillholeTypes.map(({ id }) => id)).toEqual([...DRILLHOLE_TYPES]);
     expect(MAP_CONFIG.mapFeatures.map(({ id }) => id)).toEqual([...MAP_FEATURES]);
     expect(MAP_CONFIG.drillholeTypes.map(({ label }) => label)).toEqual([
@@ -52,7 +52,7 @@ describe("Techno Map config", () => {
       "Producer", "Ra-grade-sampling", "Sediment-sampling", "Water",
     ]);
     expect(MAP_CONFIG.mapFeatures.map(({ label }) => label))
-      .toEqual(["Drilling in progress", "Deviation line", "Hexagons", "Pilot factory & mud pit"]);
+      .toEqual(["Drilling in progress", "Deviation line", "Hexagons", "Pilot Factory", "Mud Pit"]);
   });
 
   // The marker table: shapes and colour families per category. Development,
@@ -83,7 +83,7 @@ describe("Techno Map config", () => {
 
   it("has no GT bands: the legend no longer shows GT and markers take their category colour", () => {
     expect(MAP_CONFIG).not.toHaveProperty("gtRanges");
-    expect(MAP_CONFIG.legend).not.toHaveProperty("gt");
+    expect(MAP_CONFIG).not.toHaveProperty("legend");
   });
 
   it("offers the Geological Map (default) and the White Grid Map, and no Redox Map", () => {

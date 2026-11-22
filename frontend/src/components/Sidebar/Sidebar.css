@@ -106,12 +106,22 @@
   outline-offset: 2px;
 }
 
+/* Every page icon: one 20px outline in the link's text colour (muted, brand
+   on hover, white when active), centred on its label. */
 .sidebar__icon {
   display: grid;
   flex: 0 0 auto;
   place-items: center;
   width: 20px;
-  font-size: 1rem;
+  height: 20px;
+}
+
+.sidebar__icon svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  /* One weight for every icon: the detailed drawings stay open at 20px. */
+  stroke-width: 1.75;
 }
 
 .sidebar__collapse {
@@ -156,6 +166,38 @@
 .sidebar.is-collapsed .sidebar__collapse {
   margin-left: 0;
   font-size: 1rem;
+}
+
+/* Collapsed: the page name beside its icon on hover or keyboard focus. The
+   sidebar stops clipping so the name can sit over the page. */
+.sidebar.is-collapsed { overflow: visible; }
+
+.sidebar.is-collapsed .sidebar__link { position: relative; }
+
+.sidebar.is-collapsed .sidebar__link::after {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 10px);
+  z-index: 1;
+  padding: 5px 9px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  color: var(--color-ink);
+  background: var(--color-surface);
+  box-shadow: var(--ui-shadow);
+  content: attr(data-tooltip);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: opacity 120ms ease;
+}
+
+.sidebar.is-collapsed .sidebar__link:hover::after,
+.sidebar.is-collapsed .sidebar__link:focus-visible::after {
+  opacity: 1;
 }
 
 @media (max-width: 720px) {

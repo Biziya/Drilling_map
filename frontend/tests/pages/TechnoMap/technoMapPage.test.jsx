@@ -1,14 +1,20 @@
 // The Techno Map page on a fixed 130-hole dataset: filters, measurement,
 // selection, export menu. Loading and errors are covered in mapPages.test.jsx.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-// The site-feature icons (public/site_features) are covered in tests/services/siteFeatures.test.js; none here.
-vi.mock("../../../src/services/siteFeatures/siteFeatures.js", async (importOriginal) => ({ ...(await importOriginal()), loadSiteFeatures: () => Promise.resolve([]) }));
+// The site-feature icons (public/site_features) are covered in tests/services/siteFeatures.test.js;
+// none here unless a test sets siteFeatureMock.features.
+const siteFeatureMock = vi.hoisted(() => ({ features: [] }));
+vi.mock("../../../src/services/siteFeatures/siteFeatures.js", async (importOriginal) => ({ ...(await importOriginal()), loadSiteFeatures: () => Promise.resolve(siteFeatureMock.features) }));
 import "fake-indexeddb/auto";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import TechnoMap from "../../../src/pages/TechnoMap/TechnoMap.jsx";
 import ToastContainer from "../../../src/components/Toast/ToastContainer.jsx";
 import { MAP_CONFIG, MAP_UTM_BOUNDS } from "../../../src/pages/TechnoMap/config/technoMapConfig.js";
-import { formatDistance } from "../../../src/pages/TechnoMap/utils/measurement.js";
+import { formatDistance, measureDistance } from "../../../src/pages/TechnoMap/utils/measurement.js";
+import { parseSiteFeatures } from "../../../src/services/siteFeatures/siteFeatures.js";
+import { load } from "js-yaml";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { FILTERS_STORAGE_KEY } from "../../../src/pages/TechnoMap/hooks/useMapFilters.js";
 import { clearAllMapViews, readMapView, writeMapView } from "../../../src/state/mapViewStore.js";
 import { clearMapData, getMapData } from "../../../src/state/mapDataStore.js";
@@ -87,17 +93,17 @@ describe("data", () => {
 });
 
 describe("Layers panel", () => {
-  it("lists 12 checked filters in two groups, expanded, with no Hexagons before an upload", async () => {
+  it("lists 13 checked filters in two groups, expanded, with no Hexagons before an upload", async () => {
     await renderPage();
     const panel = screen.getByRole("complementary", { name: "Layers" });
 
-    expect(within(panel).getAllByRole("checkbox")).toHaveLength(12);
+    expect(within(panel).getAllByRole("checkbox")).toHaveLength(13);
     expect(within(panel).queryByRole("checkbox", { name: "Hexagons" })).toBeNull();
     expect(within(screen.getByRole("complementary", { name: "Map legend" })).queryByText("Hexagons")).toBeNull();
     expect(within(panel).getAllByRole("checkbox").every((box) => box.checked)).toBe(true);
     expect(within(panel).getByRole("group", { name: "Drillhole Types" })).toBeTruthy();
     expect(within(panel).getByRole("group", { name: "Overlays" })).toBeTruthy();
-    expect(within(panel).getByText("12/12")).toBeTruthy();
+    expect(within(panel).getByText("13/13")).toBeTruthy();
     expect(within(panel).getByRole("button", { name: /^Layers/ })).toBeTruthy();
   });
 
@@ -158,7 +164,7 @@ describe("Layers panel", () => {
     expect(container.querySelector(".map-legend")).toBeTruthy();
     expect(container.querySelector(".map-scale-bar")).toBeTruthy();
     expect(container.querySelector(".map-canvas").style.transform).toBe("translate(-50px, 20px) scale(3)");
-    expect(screen.getByText("0/12")).toBeTruthy();
+    expect(screen.getByText("0/13")).toBeTruthy();
     expect(container.querySelectorAll(".map-legend li")).toHaveLength(11);
 
     fireEvent.click(screen.getByRole("button", { name: "Show All" }));
@@ -240,7 +246,7 @@ describe("toolbar", () => {
     const hexagonBox = within(legends).getByRole("checkbox", { name: "Hexagons" });
     expect(hexagonBox.checked).toBe(true);
     expect(hexagonBox.closest("label").querySelector(".map-layers__label").style.color).not.toBe("");
-    expect(within(legends).getByText("13/13")).toBeTruthy();
+    expect(within(legends).getByText("14/14")).toBeTruthy();
     expect(within(screen.getByRole("complementary", { name: "Map legend" })).getByText("Hexagons")).toBeTruthy();
     expect(within(legends).queryByText("wells.xlsx")).toBeNull();
     expect(within(legends).queryByRole("button", { name: /Clear|Remove/ })).toBeNull();
@@ -419,6 +425,73 @@ describe("measurement", () => {
     const tooltip = container.querySelector(".marker-tooltip");
     expect(tooltip.dataset.hole).toBe(HOLE.holeId);
     expect(tooltip.className).toContain("is-pinned");
+  });
+
+  describe("on site features and markers", () => {
+    const SITES = parseSiteFeatures(load(readFileSync(resolve(import.meta.dirname, "../../../public/site_features/site_features.yaml"), "utf8")));
+    const [pilot, mudPit] = SITES;
+    beforeEach(() => { siteFeatureMock.features = SITES; });
+    afterEach(() => { siteFeatureMock.features = []; });
+
+    const icon = (container, id) => container.querySelector(`[data-site-feature="${id}"]`);
+    const centre = (node) => ({ x: parseFloat(node.style.left), y: parseFloat(node.style.top) });
+    const distance = (a, b) => formatDistance(measureDistance(a, b));
+    const press = (container, target, { x, y }) => {
+      fireEvent.pointerDown(target, { button: 0, pointerId: 1, clientX: x, clientY: y });
+      fireEvent.pointerUp(viewport(container), { button: 0, pointerId: 1, clientX: x, clientY: y });
+    };
+    async function startMeasuringWithSites() {
+      const result = await startMeasuring();
+      await waitFor(() => expect(icon(result.container, "mud_pit")).toBeTruthy());
+      // Zoomed in, so the two sites and the holes are well apart on screen.
+      const transform = () => result.container.querySelector(".map-canvas").style.transform;
+      for (let step = 0; step < 7; step += 1) {
+        const before = transform();
+        fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+        await waitFor(() => expect(transform()).not.toBe(before));
+      }
+      return result;
+    }
+
+    it("snaps to the pilot factory and the mud pit, wherever on the icon the press lands", async () => {
+      const { container } = await startMeasuringWithSites();
+      const a = centre(icon(container, "pilot_factory"));
+      const b = centre(icon(container, "mud_pit"));
+
+      press(container, icon(container, "pilot_factory"), { x: a.x + 6, y: a.y - 5 });
+      expect(ends(container)).toBe(1);
+      press(container, icon(container, "mud_pit"), { x: b.x - 4, y: b.y + 7 });
+
+      expect(label(container)).toBe(distance(pilot.utm, mudPit.utm));
+      expect(container.querySelector(".site-feature-tooltip")).toBeNull();
+    });
+
+    it("snaps to a drillhole marker's collar", async () => {
+      const { container } = await startMeasuringWithSites();
+      // A hole well clear of the rigs, which are drawn (and hit) on top of nearby holes.
+      const rigs = DEMO_DRILLHOLES.filter((hole) => hole.holeStatus === "INPROGRESS");
+      const lone = DEMO_DRILLHOLES.find((hole) => hole.holeStatus !== "INPROGRESS" && rigs.every((rig) => Math.hypot(rig.x - hole.x, rig.y - hole.y) > 500));
+      // UTM -> viewport px, from the two icons (the map keeps its aspect ratio).
+      const a = centre(icon(container, "pilot_factory"));
+      const b = centre(icon(container, "mud_pit"));
+      const scale = (b.x - a.x) / (mudPit.utm.x - pilot.utm.x);
+      const at = { x: a.x + (lone.x - pilot.utm.x) * scale, y: a.y - (lone.y - pilot.utm.y) * scale };
+
+      press(container, viewport(container), { x: at.x + 2, y: at.y - 2 });
+      press(container, icon(container, "pilot_factory"), centre(icon(container, "pilot_factory")));
+
+      expect(label(container)).toBe(distance({ x: lone.x, y: lone.y }, pilot.utm));
+    });
+
+    it("opens the site popup again, and places no point, once measuring is off", async () => {
+      const { container } = await startMeasuringWithSites();
+      fireEvent.click(screen.getByRole("button", { name: "Measure distance" }));
+
+      fireEvent.click(icon(container, "mud_pit"));
+
+      expect(container.querySelector(".site-feature-tooltip")).toBeTruthy();
+      expect(container.querySelector(".measurement-layer")).toBeNull();
+    });
   });
 
   it("does nothing while the tool is off", async () => {

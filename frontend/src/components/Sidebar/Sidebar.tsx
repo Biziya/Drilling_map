@@ -3,6 +3,7 @@ import type { AppPageId } from '../../config/app';
 import { APP_VERSION } from '../../config/version';
 import { useBackendStatus } from '../../state/backendStatus';
 import type { BackendStatus } from '../../state/backendStatus';
+import SidebarIcon from './SidebarIcon';
 import './Sidebar.css';
 
 const STATUS_LABELS: Readonly<Record<BackendStatus, string>> = {
@@ -48,9 +49,12 @@ function Sidebar({ activePage, isCollapsed, onNavigate, onToggle }: SidebarProps
             type="button"
             onClick={() => onNavigate(item.id)}
             aria-current={activePage === item.id ? 'page' : undefined}
-            title={item.label}
+            // Collapsed, only the icon shows: the page name appears beside it on
+            // hover or focus (a CSS tooltip), so the native title is left out.
+            title={isCollapsed ? undefined : item.label}
+            data-tooltip={item.label}
           >
-            <span className="sidebar__icon" aria-hidden="true">{item.icon}</span>
+            <SidebarIcon name={item.icon} />
             <span className="sidebar__label">{item.label}</span>
           </button>
         ))}

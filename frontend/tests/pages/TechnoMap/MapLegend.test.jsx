@@ -51,7 +51,7 @@ describe("TechnoMap MapLegend", () => {
     expect(screen.queryByText(/Redox/)).toBeNull();
     Object.keys(MAP_CONFIG.redox).forEach((label) => expect(screen.queryByText(label)).toBeNull());
     expect(screen.queryByText(/GT @75/i)).toBeNull();
-    expect(container.querySelector(".legend-swatch, .legend-dot, section")).toBeNull();
+    expect(container.querySelector(".legend-swatch, .legend-dot, h2")).toBeNull();
   });
 
   it("draws each type with its configured shape and colour", () => {

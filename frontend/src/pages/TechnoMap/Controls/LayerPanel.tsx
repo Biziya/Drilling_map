@@ -1,6 +1,7 @@
 import { memo, useState } from 'react';
 import LayerSymbol from '../Legends/LayerSymbol';
-import { DRILLHOLE_TYPE_CONFIG, FILTER_IDS, MAP_CONFIG } from '../config/technoMapConfig';
+import '../../../components/MapLegend/mapLegend.css';
+import { DRILLHOLE_TYPE_CONFIG, FILTER_IDS, MAP_CONFIG, SITE_FEATURE_FILTER_IDS } from '../config/technoMapConfig';
 import type { FilterId } from '../config/technoMapConfig';
 import type { MapFilters } from '../utils/mapFilters';
 
@@ -20,9 +21,9 @@ export interface LayerPanelProps {
 function labelColor(id: FilterId): string | undefined {
   if (id === 'deviation-line') return MAP_CONFIG.deviationLine.color;
   if (id === 'hexagon') return MAP_CONFIG.hexagon.color;
-  if (id === 'drilling-in-progress' || id === 'site-features') return undefined;
+  if (id === 'drilling-in-progress' || SITE_FEATURE_FILTER_IDS.includes(id)) return undefined;
 
-  return DRILLHOLE_TYPE_CONFIG[id].color;
+  return DRILLHOLE_TYPE_CONFIG[id as keyof typeof DRILLHOLE_TYPE_CONFIG].color;
 }
 
 /**
@@ -44,7 +45,7 @@ function LayerPanel({ filters, onChange, onSetAll, hasHexagons = false }: LayerP
         <div key={id}>
           <label className="map-layers__item">
             <input type="checkbox" checked={filters[id]} onChange={(event) => onChange(id, event.target.checked)} />
-            <LayerSymbol id={id} />
+            <span className="legend-symbol" aria-hidden="true"><LayerSymbol id={id} /></span>
             <span className="map-layers__label" style={{ color: labelColor(id) }}>{label}</span>
           </label>
         </div>

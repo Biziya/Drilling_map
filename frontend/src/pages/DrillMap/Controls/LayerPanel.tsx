@@ -1,10 +1,11 @@
 import { memo, useState } from 'react';
 import MarkerSymbol from '../Legends/MarkerSymbol';
-import { LAYER_IDS, MAP_CONFIG, OVERLAY_LAYER_IDS } from '../config/drillMapConfig';
-import SiteFeatureSymbol from '../../../components/SiteFeatureOverlay/SiteFeatureSymbol';
+import { LAYER_IDS, MAP_CONFIG, OVERLAY_LAYER_IDS, SITE_FEATURE_LAYERS } from '../config/drillMapConfig';
+import { siteFeatureIconSrc } from '../../../services/siteFeatures/siteFeatures';
 import type { LayerId } from '../config/drillMapConfig';
 import type { MapFilters } from '../hooks/useMapFilters';
 import { markerShapeFor } from '../utils/markerKind';
+import '../../../components/MapLegend/mapLegend.css';
 
 export interface LayerPanelProps {
   filters: MapFilters;
@@ -12,13 +13,16 @@ export interface LayerPanelProps {
   onSetAll: (visible: boolean) => void;
 }
 
-/** The symbol drawn beside a layer: its marker, the rig icon, or a red line. */
+/** The symbol drawn beside a layer: its marker, the rig or site icon, or a red line. */
 function LayerSymbol({ id }: { id: LayerId }) {
-  if (id === 'rig') return <span className="legend-symbol"><img className="legend-rig-icon" src={MAP_CONFIG.rigIconSrc} alt="" draggable="false" /></span>;
-  if (id === 'deviation-line') return <span className="legend-symbol"><i className="layer-swatch-line" /></span>;
-  if (id === 'site-features') return <span className="legend-symbol"><SiteFeatureSymbol size={MAP_CONFIG.legend.symbolSize} /></span>;
+  let symbol;
+  const site = SITE_FEATURE_LAYERS.find((layer) => layer.id === id);
+  if (id === 'rig') symbol = <img className="legend-rig-icon legend-image" src={MAP_CONFIG.rigIconSrc} alt="" draggable="false" />;
+  else if (id === 'deviation-line') symbol = <i className="layer-swatch-line" />;
+  else if (site) symbol = <img className="legend-image" src={siteFeatureIconSrc(site.siteFeatureType)} alt="" draggable="false" />;
+  else symbol = <MarkerSymbol shape={markerShapeFor(id as 'producer' | 'drillhole')} color={MAP_CONFIG.legendSymbolColor} small />;
 
-  return <span className="legend-symbol"><MarkerSymbol shape={markerShapeFor(id)} color={MAP_CONFIG.legendSymbolColor} small /></span>;
+  return <span className="legend-symbol" aria-hidden="true">{symbol}</span>;
 }
 
 /**

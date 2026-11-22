@@ -1,11 +1,12 @@
 import data from "./app.yaml";
+import type { SidebarIconName } from "../components/Sidebar/SidebarIcon";
 
 /** Pages the sidebar can navigate between. */
 export type AppPageId = "drill-map" | "techno-map" | "drilling-details" | "drilling-by-rigs";
 
 interface AppConfig {
   title: string;
-  navigation: { id: AppPageId; label: string; icon: string }[];
+  navigation: { id: AppPageId; label: string; icon: SidebarIconName }[];
   connection: { checkIntervalMs: number; timeoutMs: number; requestTimeoutMs: number };
 }
 

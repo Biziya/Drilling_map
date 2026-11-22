@@ -19,8 +19,11 @@ export const DRILLHOLE_TYPES = [
 ] as const;
 export type DrillholeType = (typeof DRILLHOLE_TYPES)[number];
 
-/** Feature layers; site-features are the icons from public/site_features/site_features.yaml. */
-export const MAP_FEATURES = ['drilling-in-progress', 'deviation-line', 'hexagon', 'site-features'] as const;
+/**
+ * Feature layers. pilot-factory and mud-pit each show the icons of one site
+ * feature type from public/site_features/site_features.yaml (`siteFeatureType` in the YAML).
+ */
+export const MAP_FEATURES = ['drilling-in-progress', 'deviation-line', 'hexagon', 'pilot-factory', 'mud-pit'] as const;
 type MapFeature = (typeof MAP_FEATURES)[number];
 
 /** The map filters: one per drillhole type, one per feature layer. */
@@ -74,22 +77,13 @@ interface TechnoMapConfig {
   redox: Record<string, string>;
   drillholeTypes: DrillholeTypeConfig[];
   markers: { size: number; polygonSize: number; outline: number; rigSize: number };
-  mapFeatures: { id: MapFeature; label: string }[];
+  mapFeatures: { id: MapFeature; label: string; siteFeatureType?: string }[];
   markerLabels: Record<MarkerKind, string>;
   deviationLine: { color: string };
   hexagon: { color: string; lineWidth: number };
   measurement: { color: string };
   siteFeatures: { outlineMaxMetersPer100Px: number };
   interaction: { hoverColor: string; pinnedColor: string };
-  legend: {
-    paddingBlock: number;
-    paddingInline: number;
-    rowGap: number;
-    labelFontSize: number;
-    labelGap: number;
-    symbolSize: number;
-    symbols: { rigIconScale: number; lineThickness: number };
-  };
 }
 
 export const MAP_CONFIG = data as TechnoMapConfig;
@@ -106,6 +100,12 @@ export const FILTER_ENTRIES: readonly { id: FilterId; label: string }[] = [
   ...MAP_CONFIG.drillholeTypes,
   ...MAP_CONFIG.mapFeatures,
 ];
+
+/** The filters that show one site feature type each, with that type. */
+export const SITE_FEATURE_LAYERS: readonly { id: FilterId; siteFeatureType: string }[] = MAP_CONFIG.mapFeatures.flatMap(
+  ({ id, siteFeatureType }) => (siteFeatureType ? [{ id, siteFeatureType }] : []),
+);
+export const SITE_FEATURE_FILTER_IDS: readonly FilterId[] = SITE_FEATURE_LAYERS.map(({ id }) => id);
 
 /** Where a base map is drawn from and what it covers. */
 interface BaseMapLayout {

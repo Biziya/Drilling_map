@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { load } from "js-yaml";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SITE_FEATURES_URL, loadSiteFeatures, parseSiteFeatures, resetSiteFeaturesCache } from "../../../src/services/siteFeatures/siteFeatures.js";
+import { SITE_FEATURES_URL, loadSiteFeatures, parseSiteFeatures, resetSiteFeaturesCache, siteFeatureIconSrc, visibleSiteFeatures } from "../../../src/services/siteFeatures/siteFeatures.js";
 
 const YAML_TEXT = readFileSync(resolve(import.meta.dirname, "../../../public/site_features/site_features.yaml"), "utf8");
 
@@ -93,5 +93,28 @@ describe("loadSiteFeatures", () => {
     await expect(loadSiteFeatures()).resolves.toEqual([]);
     expect(error).toHaveBeenCalledTimes(1);
     expect(error.mock.calls[0][0]).toMatch(/\[site-features\] Could not load/);
+  });
+});
+
+describe("visibleSiteFeatures", () => {
+  const features = parseSiteFeatures(load(YAML_TEXT));
+  const layers = [{ id: "pilot-factory", siteFeatureType: "pilot_factory" }, { id: "mud-pit", siteFeatureType: "mud_pit" }];
+  const types = (shown) => shown.map(({ type }) => type);
+
+  it("hides only the features whose own layer is off", () => {
+    expect(types(visibleSiteFeatures(features, layers, { "pilot-factory": true, "mud-pit": true }))).toEqual(["pilot_factory", "mud_pit"]);
+    expect(types(visibleSiteFeatures(features, layers, { "pilot-factory": false, "mud-pit": true }))).toEqual(["mud_pit"]);
+    expect(types(visibleSiteFeatures(features, layers, { "pilot-factory": true, "mud-pit": false }))).toEqual(["pilot_factory"]);
+    expect(visibleSiteFeatures(features, layers, { "pilot-factory": false, "mud-pit": false })).toEqual([]);
+  });
+
+  it("always shows a type no layer controls", () => {
+    expect(types(visibleSiteFeatures(features, layers.slice(0, 1), { "pilot-factory": false }))).toEqual(["mud_pit"]);
+  });
+});
+
+describe("siteFeatureIconSrc", () => {
+  it("is the type's SVG in public/", () => {
+    expect(siteFeatureIconSrc("mud_pit")).toBe("/mud_pit.svg");
   });
 });

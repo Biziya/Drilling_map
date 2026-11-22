@@ -59,6 +59,18 @@
   --ui-page-glow: color-mix(in srgb, var(--color-brand) 12%, transparent);
   --ui-shadow: 0 5px 16px color-mix(in srgb, var(--color-ink) 13%, transparent);
   --ui-modal-shadow: 0 8px 24px color-mix(in srgb, var(--color-ink) 20%, transparent);
+
+  /* Map legend and Layers panel symbols, on both maps (components/MapLegend).
+     Every icon - marker shapes, GT dots, Redox swatches, the rig and site
+     images, the deviation line - fits a --map-symbol-size square, centred in
+     a --map-symbol-box square, --map-symbol-gap from its label. */
+  --map-symbol-size: 13px;
+  --map-symbol-box: 16px;
+  --map-symbol-gap: 6px;
+  --map-legend-label-size: 11.5px;
+  --map-legend-title-size: 10.5px;
+  --map-legend-row-gap: 2px;
+  --map-legend-padding: 8px 10px;
 }
 
 @layer components {
