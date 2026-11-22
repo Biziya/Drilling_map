@@ -99,8 +99,11 @@ mapFeatures:
   - { id: deviation-line, label: Deviation line }
   # Production-cell outlines from an uploaded wellfield Excel file (toolbar Upload).
   - { id: hexagon, label: Hexagons }
-  # Icons from public/site_features/site_features.yaml. Not listed in the legend.
-  - { id: site-features, label: Pilot factory & mud pit }
+  # Site feature icons from public/site_features/site_features.yaml, one
+  # checkbox per feature `type` there. Not listed in the legend. A type with
+  # no entry here is always shown.
+  - { id: pilot-factory, label: Pilot Factory, siteFeatureType: pilot_factory }
+  - { id: mud-pit, label: Mud Pit, siteFeatureType: mud_pit }
 
 # Accessible role names, read before the hole id ("Producer drillhole GTZO-1").
 markerLabels:
@@ -138,22 +141,3 @@ interaction:
   hoverColor: '#2563eb'
   pinnedColor: '#16a34a'
 
-# The legend anchored in the map's top-left corner: one row per drillhole type,
-# then the rig and the deviation line, in filter order. Dimensions in px
-# unless noted; all must be 0 or more. symbolSize is the one base size of every legend symbol. Each
-# symbol is centred in a box 1.9 x symbolSize wide and as tall as the rig icon,
-# so every label starts at the same x; the rig icon and line swatch scale too.
-legend:
-  paddingBlock: 8
-  paddingInline: 10
-  # Between rows.
-  rowGap: 2
-  labelFontSize: 11.5
-  # Between a symbol or swatch and its label.
-  labelGap: 6
-  symbolSize: 13
-  symbols:
-    # Rig icon height as a multiple of symbolSize (a detailed image needs a
-    # little more height to read at the same visual weight).
-    rigIconScale: 1.35
-    lineThickness: 2.5

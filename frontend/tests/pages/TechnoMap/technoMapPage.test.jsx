@@ -87,17 +87,17 @@ describe("data", () => {
 });
 
 describe("Layers panel", () => {
-  it("lists 12 checked filters in two groups, expanded, with no Hexagons before an upload", async () => {
+  it("lists 13 checked filters in two groups, expanded, with no Hexagons before an upload", async () => {
     await renderPage();
     const panel = screen.getByRole("complementary", { name: "Layers" });
 
-    expect(within(panel).getAllByRole("checkbox")).toHaveLength(12);
+    expect(within(panel).getAllByRole("checkbox")).toHaveLength(13);
     expect(within(panel).queryByRole("checkbox", { name: "Hexagons" })).toBeNull();
     expect(within(screen.getByRole("complementary", { name: "Map legend" })).queryByText("Hexagons")).toBeNull();
     expect(within(panel).getAllByRole("checkbox").every((box) => box.checked)).toBe(true);
     expect(within(panel).getByRole("group", { name: "Drillhole Types" })).toBeTruthy();
     expect(within(panel).getByRole("group", { name: "Overlays" })).toBeTruthy();
-    expect(within(panel).getByText("12/12")).toBeTruthy();
+    expect(within(panel).getByText("13/13")).toBeTruthy();
     expect(within(panel).getByRole("button", { name: /^Layers/ })).toBeTruthy();
   });
 
@@ -158,7 +158,7 @@ describe("Layers panel", () => {
     expect(container.querySelector(".map-legend")).toBeTruthy();
     expect(container.querySelector(".map-scale-bar")).toBeTruthy();
     expect(container.querySelector(".map-canvas").style.transform).toBe("translate(-50px, 20px) scale(3)");
-    expect(screen.getByText("0/12")).toBeTruthy();
+    expect(screen.getByText("0/13")).toBeTruthy();
     expect(container.querySelectorAll(".map-legend li")).toHaveLength(11);
 
     fireEvent.click(screen.getByRole("button", { name: "Show All" }));
@@ -240,7 +240,7 @@ describe("toolbar", () => {
     const hexagonBox = within(legends).getByRole("checkbox", { name: "Hexagons" });
     expect(hexagonBox.checked).toBe(true);
     expect(hexagonBox.closest("label").querySelector(".map-layers__label").style.color).not.toBe("");
-    expect(within(legends).getByText("13/13")).toBeTruthy();
+    expect(within(legends).getByText("14/14")).toBeTruthy();
     expect(within(screen.getByRole("complementary", { name: "Map legend" })).getByText("Hexagons")).toBeTruthy();
     expect(within(legends).queryByText("wells.xlsx")).toBeNull();
     expect(within(legends).queryByRole("button", { name: /Clear|Remove/ })).toBeNull();

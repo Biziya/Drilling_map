@@ -40,35 +40,27 @@ interface DrillMapConfig {
   redox: Record<string, string>;
   markerLabels: Record<MarkerKind, string>;
   legendSymbols: { kind: MarkerKind; label: string }[];
-  layers: { id: LayerId; label: string }[];
+  layers: { id: LayerId; label: string; siteFeatureType?: string }[];
   measurement: { color: string };
   siteFeatures: { outlineMaxMetersPer100Px: number };
-  legend: {
-    paddingBlock: number;
-    paddingInline: number;
-    columnGap: number;
-    rowGap: number;
-    titleGap: number;
-    titleFontSize: number;
-    labelFontSize: number;
-    labelGap: number;
-    symbolSize: number;
-    gt: { columns: number; rowGap: number; columnGap: number };
-    redox: { rowGap: number };
-    symbols: { rigIconScale: number; rowGap: number };
-  };
 }
 
 /**
  * What the Layers panel can hide: three marker kinds, then the overlays (the
- * deviation lines and the site features from public/site_features).
+ * deviation lines, and the pilot factory and mud pit icons, each one site
+ * feature type from public/site_features: `siteFeatureType` in the YAML).
  */
-export const LAYER_IDS = ['producer', 'drillhole', 'rig', 'deviation-line', 'site-features'] as const;
+export const LAYER_IDS = ['producer', 'drillhole', 'rig', 'deviation-line', 'pilot-factory', 'mud-pit'] as const;
 /** The layers listed under "Overlays" rather than "Drillhole Types". */
-export const OVERLAY_LAYER_IDS: readonly LayerId[] = ['deviation-line', 'site-features'];
+export const OVERLAY_LAYER_IDS: readonly LayerId[] = ['deviation-line', 'pilot-factory', 'mud-pit'];
 export type LayerId = (typeof LAYER_IDS)[number];
 
 export const MAP_CONFIG = data as DrillMapConfig;
+
+/** The layers that show one site feature type each, with that type. */
+export const SITE_FEATURE_LAYERS: readonly { id: LayerId; siteFeatureType: string }[] = MAP_CONFIG.layers.flatMap(
+  ({ id, siteFeatureType }) => (siteFeatureType ? [{ id, siteFeatureType }] : []),
+);
 
 /** The Layers panel layer a marker kind belongs to: injectors draw, and hide, as drillholes. */
 export function layerForKind(kind: MarkerKind): LayerId {

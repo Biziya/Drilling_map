@@ -252,16 +252,11 @@
   top: auto;
   left: auto;
   flex: 0 0 auto;
-  width: 10px;
-  height: 10px;
-  border-width: 1.5px;
+  width: var(--map-symbol-size);
+  height: var(--map-symbol-size);
+  border-width: max(1.5px, calc(var(--map-symbol-size) / 7.5));
   box-shadow: none;
   transform: none;
-}
-
-.drill-map-page .marker-symbol--triangle.marker-symbol--small {
-  width: 11px;
-  height: 11px;
 }
 
 /* Bottom-right, under the Legends panel; rises with the selection table. */
@@ -459,128 +454,10 @@
   to { transform: rotate(360deg); }
 }
 
-/* Anchored in the map's top-left corner, as on the Techno Map, fixed while
-   the map pans and zooms: one section per row, the card as wide as its
-   content. It stops short of the Layers panel and the scale bar, and scrolls
-   rather than reach them. */
-.drill-map-page .map-legend {
-  position: absolute;
-  top: var(--float-inset);
-  left: var(--float-inset);
-  z-index: 25;
-  display: flex;
-  flex-direction: column;
-  gap: var(--legend-row-gap);
-  max-width: calc(100% - var(--float-width) - 3 * var(--float-inset));
-  max-height: calc(100% - 2 * var(--float-inset) - var(--scale-bar-clearance) - var(--selection-offset));
-  overflow: hidden auto;
-  overscroll-behavior: contain;
-  padding: var(--legend-padding-block) var(--legend-padding-inline);
-  border: 1px solid var(--color-line);
-  border-radius: var(--float-radius);
-  background: var(--ui-floating-surface);
-  box-shadow: var(--ui-shadow);
-  backdrop-filter: blur(8px);
-  cursor: auto;
-}
-
-.drill-map-page .map-legend li.is-hidden { opacity: .35; }
-
-.drill-map-page .map-legend h2 {
-  margin: 0 0 var(--legend-title-gap);
-  color: var(--color-muted);
-  font-size: var(--legend-title-size);
-  line-height: 1.2;
-  font-weight: 700;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-
-.drill-map-page .map-legend ul {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.drill-map-page .map-legend > section { min-width: 0; }
-
-/* GT bands run down, then across, in gt.columns columns. */
-.drill-map-page .map-legend__gt {
-  grid-template-rows: repeat(var(--legend-gt-rows), auto);
-  grid-auto-flow: column;
-  gap: var(--legend-gt-row-gap) var(--legend-gt-column-gap);
-}
-.drill-map-page .map-legend__redox { gap: var(--legend-redox-row-gap); }
-.drill-map-page .map-legend__symbols ul { gap: var(--legend-symbol-row-gap); }
-
-.drill-map-page .map-legend li {
-  display: flex;
-  align-items: center;
-  gap: var(--legend-label-gap);
-  min-width: 0;
-  color: var(--color-muted);
-  font-size: var(--legend-label-size);
-  line-height: 1.2;
-}
-
-/* GT circles and Redox squares: symbolSize on both sides, never stretched. */
-.drill-map-page .legend-dot,
-.drill-map-page .legend-swatch {
-  width: var(--legend-symbol-size);
-  height: var(--legend-symbol-size);
-  aspect-ratio: 1;
-  border: 1px solid rgba(20, 34, 28, .2);
-}
-
-.drill-map-page .legend-dot { border-radius: 50%; }
-.drill-map-page .legend-swatch { border-radius: 2px; }
-
-/* Every legend entry, in all three sections, centres its symbol in one box
-   derived from symbolSize, so labels start at the same x everywhere. It is
-   just wide enough for the widest swatch (1.85x) and just tall enough for the
-   rig icon, which sets the row height. */
-.drill-map-page .map-legend .legend-symbol {
-  width: calc(var(--legend-symbol-size) * 1.9);
-  height: max(var(--legend-symbol-size), calc(var(--legend-symbol-size) * var(--legend-rig-scale)));
-}
-
-/* Every marker shape is drawn at one size; the white outline scales with it. */
-.drill-map-page .map-legend .marker-symbol--small {
-  width: var(--legend-symbol-size);
-  height: var(--legend-symbol-size);
-  border-width: max(1.5px, calc(var(--legend-symbol-size) / 7.5));
-}
-
-.drill-map-page .map-legend .legend-rig-icon {
-  width: auto;
-  height: calc(var(--legend-symbol-size) * var(--legend-rig-scale));
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-/* Base symbol box and rig icon; the legend sizes them from YAML above. */
-.drill-map-page .legend-symbol {
-  display: grid;
-  flex: 0 0 auto;
-  place-items: center;
-  width: 30px;
-  height: 20px;
-}
-
-.drill-map-page .legend-rig-icon {
-  display: block;
-  width: auto;
-  height: 20px;
-  max-width: 30px;
-}
-
 @media (max-width: 560px) {
   .drill-map-page { --float-inset: 8px; padding: 8px; }
   .drill-map-page .map-header { align-items: flex-start; }
   .drill-map-page .map-header strong { display: none; }
-  .drill-map-page .map-legend { max-height: 32vh; }
 }
 
 @media (max-height: 700px) {
@@ -591,20 +468,6 @@
 
   .drill-map-page .map-header h1 {
     font-size: 1.25rem;
-  }
-
-  /* Short windows: the YAML sizes, tightened. */
-  .drill-map-page .map-legend {
-    padding-block: calc(var(--legend-padding-block) / 2);
-  }
-
-  .drill-map-page .map-legend h2 {
-    margin-bottom: calc(var(--legend-title-gap) / 2);
-    font-size: calc(var(--legend-title-size) * .9);
-  }
-
-  .drill-map-page .map-legend li {
-    font-size: calc(var(--legend-label-size) * .9);
   }
 }
 
@@ -713,7 +576,7 @@
 .drill-map-page .map-layers__item {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--map-symbol-gap);
   padding: 3px 4px;
   border-radius: 6px;
   color: var(--color-muted);
@@ -732,9 +595,7 @@
   cursor: pointer;
 }
 
-.drill-map-page .map-layers__item .legend-symbol { width: 22px; height: 18px; }
 .drill-map-page .map-layers__label { font-weight: 650; }
-.drill-map-page .map-layers__item .legend-rig-icon { height: 18px; }
 
 .drill-map-page .map-layers__footer {
   position: sticky;
@@ -760,15 +621,6 @@
 
 .drill-map-page .map-layers__footer button:hover { background: var(--color-control-hover); }
 .drill-map-page .map-layers__footer button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 1px; }
-
-/* The deviation line swatch in the Layers panel and the legend. */
-.drill-map-page .layer-swatch-line {
-  width: 22px;
-  height: 2px;
-  border-radius: 1px;
-  background: #ff0000;
-  transform: rotate(-30deg);
-}
 
 /* The area-select hint: bottom-centre, clear of the legend and the Layers panel. */
 .drill-map-page .box-select__hint {

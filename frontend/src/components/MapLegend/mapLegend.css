@@ -1,0 +1,118 @@
+/* The map legend card and the symbols it shares with the Layers panel, on
+   both maps. Sizes are the --map-symbol-* and --map-legend-* tokens in
+   index.css; colours are the shared UI tokens. Each page sets --float-inset,
+   --float-width, --float-radius, --scale-bar-clearance and --selection-offset. */
+
+/* Anchored in the map's top-left corner, fixed while the map pans and zooms,
+   as wide and tall as its content. It stops short of the Layers panel and the
+   scale bar, and scrolls rather than reach them. */
+.map-legend {
+  position: absolute;
+  top: var(--float-inset);
+  left: var(--float-inset);
+  z-index: 25;
+  max-width: calc(100% - var(--float-width) - 3 * var(--float-inset));
+  max-height: calc(100% - 2 * var(--float-inset) - var(--scale-bar-clearance) - var(--selection-offset));
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  padding: var(--map-legend-padding);
+  border: 1px solid var(--color-line);
+  border-radius: var(--float-radius);
+  background: var(--ui-floating-surface);
+  box-shadow: var(--ui-shadow);
+  backdrop-filter: blur(8px);
+  cursor: auto;
+}
+
+.map-legend__section + .map-legend__section { margin-top: 6px; }
+
+/* Section titles: smaller than the items and no heavier. */
+.map-legend h2 {
+  margin: 0 0 2px;
+  color: var(--color-muted);
+  font-size: var(--map-legend-title-size);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.map-legend ul {
+  display: grid;
+  gap: var(--map-legend-row-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Symbol left, label right after it; hidden categories stay listed, faded. */
+.map-legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--map-symbol-gap);
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: var(--map-legend-label-size);
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.map-legend li.is-hidden { opacity: .35; }
+
+/* ---- Symbols, in the legend and the Layers panel ---- */
+
+/* Every symbol is centred in the same square, so all symbols share a centre
+   line with their label and every label starts at the same x. */
+.legend-symbol {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: var(--map-symbol-box);
+  height: var(--map-symbol-box);
+}
+
+/* Image icons (the rig, the site features): scaled into the symbol square,
+   never stretched. */
+.legend-image {
+  display: block;
+  width: var(--map-symbol-size);
+  height: var(--map-symbol-size);
+  object-fit: contain;
+}
+
+/* GT circles and Redox squares. */
+.legend-dot,
+.legend-swatch {
+  width: var(--map-symbol-size);
+  height: var(--map-symbol-size);
+  border: 1px solid rgba(20, 34, 28, .2);
+}
+
+.legend-dot { border-radius: 50%; }
+.legend-swatch { border-radius: 2px; }
+
+/* The deviation line: rotated -30deg, its bounding box about one symbol wide. */
+.layer-swatch-line {
+  width: calc(var(--map-symbol-size) * 1.065);
+  height: 2px;
+  border-radius: 1px;
+  background: var(--deviation-color, #ff0000);
+  transform: rotate(-30deg);
+}
+
+/* The uploaded production-cell outline (Techno Map). */
+.layer-swatch-hexagon {
+  display: block;
+  width: var(--map-symbol-size);
+  height: var(--map-symbol-size);
+}
+
+@media (max-width: 560px) {
+  .map-legend { max-height: 32vh; }
+}
+
+/* Short windows: tighter padding and text. */
+@media (max-height: 700px) {
+  .map-legend { padding-block: 4px; }
+  .map-legend li { font-size: calc(var(--map-legend-label-size) * .9); }
+  .map-legend h2 { font-size: calc(var(--map-legend-title-size) * .9); }
+}

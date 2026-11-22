@@ -88,7 +88,7 @@ export function parseSiteFeatures(data: unknown): SiteFeature[] {
       id,
       name,
       type,
-      iconSrc: readText(raw.icon) ?? `/${type}.svg`,
+      iconSrc: readText(raw.icon) ?? siteFeatureIconSrc(type),
       areaHa: raw.area_ha !== undefined && Number.isFinite(area) ? area : null,
       lonLat: [position[0], position[1]],
       utm: fromLonLat(position),
@@ -97,6 +97,26 @@ export function parseSiteFeatures(data: unknown): SiteFeature[] {
   });
 
   return features;
+}
+
+/** The icon a feature type is drawn with when its entry names none: public/<type>.svg. */
+export function siteFeatureIconSrc(type: string): string {
+  return `/${type}.svg`;
+}
+
+/**
+ * The features to draw: those whose type's Layers-panel layer is shown. A
+ * type no layer controls is always drawn, so a new type added to the YAML
+ * still appears before it gets its own checkbox.
+ */
+export function visibleSiteFeatures<Id extends string>(
+  features: readonly SiteFeature[],
+  layers: readonly { id: Id; siteFeatureType: string }[],
+  filters: Readonly<Record<Id, boolean>>,
+): SiteFeature[] {
+  const hiddenTypes = new Set(layers.filter(({ id }) => !filters[id]).map(({ siteFeatureType }) => siteFeatureType));
+
+  return features.filter(({ type }) => !hiddenTypes.has(type));
 }
 
 let cached: Promise<SiteFeature[]> | null = null;

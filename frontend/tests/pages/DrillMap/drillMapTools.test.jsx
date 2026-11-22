@@ -2,8 +2,10 @@
 // area select and export in the toolbar, the Layers panel, the selection
 // table and the one floating tooltip.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-// The site-feature icons (public/site_features) are covered in tests/services/siteFeatures.test.js; none here.
-vi.mock("../../../src/services/siteFeatures/siteFeatures.js", async (importOriginal) => ({ ...(await importOriginal()), loadSiteFeatures: () => Promise.resolve([]) }));
+// The site-feature icons (public/site_features) are covered in tests/services/siteFeatures.test.js;
+// none here unless a test sets siteFeatureMock.features.
+const siteFeatureMock = vi.hoisted(() => ({ features: [] }));
+vi.mock("../../../src/services/siteFeatures/siteFeatures.js", async (importOriginal) => ({ ...(await importOriginal()), loadSiteFeatures: () => Promise.resolve(siteFeatureMock.features) }));
 import "fake-indexeddb/auto";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import DrillMap from "../../../src/pages/DrillMap/DrillMap.jsx";
@@ -16,6 +18,10 @@ import { clearAllMapViews } from "../../../src/state/mapViewStore.js";
 import { clearMapData } from "../../../src/state/mapDataStore.js";
 import { clearToasts } from "../../../src/components/Toast/toastStore.js";
 import { DATASET_IDS, clearCachedDataset } from "../../../src/services/cache/drillholeCache.js";
+import { parseSiteFeatures } from "../../../src/services/siteFeatures/siteFeatures.js";
+import { load } from "js-yaml";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const RECORDS = [
   { holeId: "P-1", x: 418000, y: 4894000, holePurpose: "PRODUCT", gt: 0.18 },
@@ -100,7 +106,7 @@ describe("Exploration Map toolbar", () => {
     const panel = screen.getByRole("complementary", { name: "Layers" });
     const groups = [...panel.querySelectorAll("fieldset")].map((set) => [set.querySelector("legend").textContent, [...set.querySelectorAll("label")].map((label) => label.textContent)]);
 
-    expect(groups).toEqual([["Drillhole Types", ["Producer", "Drillhole", "Drill Rig"]], ["Overlays", ["Deviation line", "Pilot factory & mud pit"]]]);
+    expect(groups).toEqual([["Drillhole Types", ["Producer", "Drillhole", "Drill Rig"]], ["Overlays", ["Deviation line", "Pilot Factory", "Mud Pit"]]]);
   });
 
   it("camera cancels on a second click, suspends the ruler and removes zoom percentage", async () => {
@@ -331,7 +337,7 @@ describe("Exploration Map Layers panel", () => {
     const panel = screen.getByRole("complementary", { name: "Layers" });
 
     expect(within(panel).getAllByRole("checkbox").map((box) => box.closest("label").textContent))
-      .toEqual(["Producer", "Drillhole", "Drill Rig", "Deviation line", "Pilot factory & mud pit"]);
+      .toEqual(["Producer", "Drillhole", "Drill Rig", "Deviation line", "Pilot Factory", "Mud Pit"]);
 
     fireEvent.click(within(panel).getByRole("checkbox", { name: "Producer" }));
     expect(markerIds(container).sort()).toEqual(["R-1,", "S-1,"]);
@@ -350,6 +356,29 @@ describe("Exploration Map Layers panel", () => {
     expect(container.querySelectorAll(".map-legend__gt li.is-hidden, .map-legend__redox li.is-hidden")).toHaveLength(0);
     fireEvent.click(within(panel).getByRole("button", { name: "Show All" }));
     expect(container.querySelectorAll(".drillhole-marker")).toHaveLength(RECORDS.length);
+  });
+
+  it("turns the pilot factory and the mud pit on and off independently", async () => {
+    localStorage.clear();
+    siteFeatureMock.features = parseSiteFeatures(load(readFileSync(resolve(import.meta.dirname, "../../../public/site_features/site_features.yaml"), "utf8")));
+    try {
+      const { container } = await renderLoaded();
+      const panel = screen.getByRole("complementary", { name: "Layers" });
+      const icons = () => [...container.querySelectorAll("[data-site-feature]")].map((icon) => icon.getAttribute("data-site-feature"));
+      await waitFor(() => expect(icons()).toEqual(["pilot_factory", "mud_pit"]));
+
+      fireEvent.click(within(panel).getByRole("checkbox", { name: "Mud Pit" }));
+      expect(icons()).toEqual(["pilot_factory"]);
+      fireEvent.click(within(panel).getByRole("checkbox", { name: "Pilot Factory" }));
+      expect(icons()).toEqual([]);
+      fireEvent.click(within(panel).getByRole("checkbox", { name: "Mud Pit" }));
+      expect(icons()).toEqual(["mud_pit"]);
+      expect(JSON.parse(localStorage.getItem("exploration-map:filters"))).toMatchObject({ "pilot-factory": false, "mud-pit": true });
+      // The Layers panel shows each feature's own icon, in the shared symbol box.
+      expect(within(panel).getByRole("checkbox", { name: "Mud Pit" }).closest("label").querySelector(".legend-symbol > img.legend-image").getAttribute("src")).toBe("/mud_pit.svg");
+    } finally {
+      siteFeatureMock.features = [];
+    }
   });
 });
 

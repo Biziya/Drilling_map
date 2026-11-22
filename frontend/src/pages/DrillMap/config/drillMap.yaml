@@ -103,8 +103,10 @@ layers:
   - { id: drillhole, label: Drillhole }
   - { id: rig, label: Drill Rig }
   - { id: deviation-line, label: Deviation line }
-  # Icons from public/site_features/site_features.yaml.
-  - { id: site-features, label: Pilot factory & mud pit }
+  # Site feature icons from public/site_features/site_features.yaml, one
+  # checkbox per feature `type` there. A type with no entry here is always shown.
+  - { id: pilot-factory, label: Pilot Factory, siteFeatureType: pilot_factory }
+  - { id: mud-pit, label: Mud Pit, siteFeatureType: mud_pit }
 
 # Distance measurement line, endpoint markers and label border.
 measurement:
@@ -116,31 +118,5 @@ measurement:
 siteFeatures:
   outlineMaxMetersPer100Px: 350
 
-# Legend dimensions, in px unless noted; all must be 0 or more.
-# symbolSize is the one base size of every legend symbol: GT circles, Redox
-# squares and the type shapes are all symbolSize x symbolSize. Each symbol is
-# centred in a box 1.9 x symbolSize wide and as tall as the rig icon, so labels
-# line up across every section; the rig icon and line/cell swatches scale
-# with it too. The card sits in the top-left corner, one section per row, so
-# columnGap is unused there.
-legend:
-  paddingBlock: 8
-  paddingInline: 16
-  # Between the legend sections, across and (when they wrap) down.
-  columnGap: 28
-  rowGap: 8
-  # Under each section title.
-  titleGap: 4
-  titleFontSize: 13
-  labelFontSize: 12.5
-  # Between a symbol or swatch and its label.
-  labelGap: 6
-  symbolSize: 15
-  # GT bands fill `columns` columns top to bottom.
-  gt: { columns: 1, rowGap: 3, columnGap: 16 }
-  redox: { rowGap: 3 }
-  symbols:
-    # Rig icon height as a multiple of symbolSize (a detailed image needs a
-    # little more height to read at the same visual weight).
-    rigIconScale: 1.35
-    rowGap: 3
+# Legend and Layers-panel sizes are shared by both maps: the --map-symbol-*
+# and --map-legend-* tokens in src/index.css.

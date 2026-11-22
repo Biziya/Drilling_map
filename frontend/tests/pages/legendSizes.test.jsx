@@ -1,53 +1,43 @@
-// Legend dimensions come from each page's own YAML `legend` block. The Techno
-// Map legend is one headless list of map categories (no GT, Redox or Symbol
-// sections); the Exploration Map's keeps all three.
-import { afterEach, describe, expect, it, vi } from "vitest";
+// Both maps draw their legend with the shared card (components/MapLegend):
+// one look, sized by the --map-symbol-* / --map-legend-* tokens in index.css,
+// differing only in content. The Techno Map legend is one untitled list; the
+// Exploration Map's keeps its four titled sections.
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import TechnoLegend from "../../src/pages/TechnoMap/Legends/MapLegend.jsx";
 import DrillLegend from "../../src/pages/DrillMap/Legends/MapLegend.jsx";
 import * as technoConfig from "../../src/pages/TechnoMap/config/technoMapConfig.js";
 import * as drillConfig from "../../src/pages/DrillMap/config/drillMapConfig.js";
 
-afterEach(() => {
-  cleanup();
-  vi.resetModules();
-  vi.doUnmock("../../src/pages/TechnoMap/config/technoMap.yaml");
-  vi.doUnmock("../../src/pages/DrillMap/config/drillMap.yaml");
-});
+afterEach(cleanup);
+
+const SRC = resolve(import.meta.dirname, "../../src");
+const read = (path) => readFileSync(resolve(SRC, path), "utf8");
 
 const PAGES = [
-  ["TechnoMap", TechnoLegend, technoConfig, "../../src/pages/TechnoMap/config/technoMap.yaml", "../../src/pages/TechnoMap/config/technoMapConfig.js", []],
-  ["DrillMap", DrillLegend, drillConfig, "../../src/pages/DrillMap/config/drillMap.yaml", "../../src/pages/DrillMap/config/drillMapConfig.js", ["GT @75 ppm", "Redox Status", "Drillhole Types", "Overlays"]],
+  ["TechnoMap", TechnoLegend, technoConfig, []],
+  ["DrillMap", DrillLegend, drillConfig, ["GT @75 ppm", "Redox Status", "Drillhole Types", "Overlays"]],
 ];
 
-describe.each(PAGES)("%s legend sizes", (_page, MapLegend, { MAP_CONFIG }, yamlPath, configPath, headings) => {
-  const hasGt = headings.includes("GT @75 ppm");
-  const hasRedox = headings.includes("Redox Status");
-  const variable = (name) => screen.getByRole("complementary", { name: "Map legend" }).style.getPropertyValue(name);
-
-  it("applies its YAML legend sizes as CSS variables", () => {
-    const { legend } = MAP_CONFIG;
+describe.each(PAGES)("%s legend", (_page, MapLegend, { MAP_CONFIG }, headings) => {
+  it("is the shared card, with no sizes of its own", () => {
     render(<MapLegend />);
+    const card = screen.getByRole("complementary", { name: "Map legend" });
 
-    expect(variable("--legend-symbol-size")).toBe(`${legend.symbolSize}px`);
-    expect(variable("--legend-rig-scale")).toBe(String(legend.symbols.rigIconScale));
-    expect(variable("--legend-label-size")).toBe(`${legend.labelFontSize}px`);
-    if (headings.length) expect(variable("--legend-title-size")).toBe(`${legend.titleFontSize}px`);
-    if (hasGt) expect(variable("--legend-gt-row-gap")).toBe(`${legend.gt.rowGap}px`);
-    if (hasRedox) expect(variable("--legend-redox-row-gap")).toBe(`${legend.redox.rowGap}px`);
-    expect(variable("--legend-padding-inline")).toBe(`${legend.paddingInline}px`);
+    expect(card.className).toBe("map-legend");
+    expect(card.getAttribute("style")).toBeNull();
+    expect(MAP_CONFIG).not.toHaveProperty("legend");
   });
 
-  // GT circles (where shown) and Redox squares sit in the same symbol box as
-  // the type symbols, so every section's labels line up.
-  it("centres every GT, Redox and type symbol in the same box", () => {
+  it("centres every symbol in the shared symbol box", () => {
     const { container } = render(<MapLegend />);
     const rows = [...container.querySelectorAll(".map-legend li")];
 
     expect(rows.length).toBeGreaterThan(9);
     rows.forEach((row) => expect(row.firstElementChild.className).toBe("legend-symbol"));
-    expect(container.querySelectorAll(".map-legend__gt .legend-symbol > .legend-dot")).toHaveLength(hasGt ? MAP_CONFIG.gtRanges.length : 0);
-    expect(container.querySelectorAll(".map-legend__redox .legend-symbol > .legend-swatch")).toHaveLength(hasRedox ? 3 : 0);
+    expect(container.querySelectorAll(".legend-symbol .legend-symbol")).toHaveLength(0);
   });
 
   it("keeps its section headings in order", () => {
@@ -56,25 +46,28 @@ describe.each(PAGES)("%s legend sizes", (_page, MapLegend, { MAP_CONFIG }, yamlP
     expect(screen.queryAllByRole("heading").map((heading) => heading.textContent)).toEqual(headings);
   });
 
-  it("follows a changed YAML value", async () => {
-    const actual = (await vi.importActual(yamlPath)).default;
-    vi.doMock(yamlPath, () => ({
-      default: { ...actual, legend: { ...actual.legend, symbolSize: 22 } },
-    }));
-    const { MAP_CONFIG: reloaded } = await import(configPath);
+  it("scales the rig image into the symbol box", () => {
+    const { container } = render(<MapLegend />);
 
-    expect(reloaded.legend.symbolSize).toBe(22);
+    expect(container.querySelector(".legend-rig-icon").classList.contains("legend-image")).toBe(true);
+  });
+});
+
+describe("shared legend styles", () => {
+  it("defines the symbol size once, in index.css", () => {
+    expect(read("index.css")).toMatch(/--map-symbol-size:\s*13px/);
+    expect(read("pages/DrillMap/DrillMap.css")).not.toMatch(/--map-symbol-size:|\.map-legend|\.legend-symbol/);
+    expect(read("pages/TechnoMap/TechnoMap.css")).not.toMatch(/--map-symbol-size:|\.map-legend|\.legend-symbol/);
   });
 
+  it("sizes every legend and Layers-panel icon from the shared token", () => {
+    const css = read("components/MapLegend/mapLegend.css");
 
-  it.runIf(hasGt)("lays the GT bands out in gt.columns columns", () => {
-    render(<MapLegend />);
-
-    expect(variable("--legend-gt-rows")).toBe(String(Math.ceil(MAP_CONFIG.gtRanges.length / MAP_CONFIG.legend.gt.columns)));
-    expect(variable("--legend-gt-column-gap")).toBe(`${MAP_CONFIG.legend.gt.columnGap}px`);
+    [".legend-image", ".legend-dot", ".layer-swatch-hexagon"].forEach((selector) => expect(css).toContain(selector));
+    expect(css.match(/width: var\(--map-symbol-size\)/g).length).toBeGreaterThanOrEqual(3);
+    expect(read("pages/DrillMap/DrillMap.css")).toMatch(/marker-symbol--small \{[^}]*width: var\(--map-symbol-size\)/);
+    expect(read("pages/TechnoMap/TechnoMap.css")).toMatch(/marker-symbol--small \{[^}]*width: var\(--map-symbol-size\)/);
   });
-
-
 });
 
 describe("TechnoMap legend symbols", () => {

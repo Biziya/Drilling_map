@@ -6,6 +6,7 @@ import SelectionTable from '../../components/SelectionTable/SelectionTable';
 import SiteFeatureOverlay from '../../components/SiteFeatureOverlay/SiteFeatureOverlay';
 import { SITE_ICON_CLASS, siteOutlinesVisible } from '../../components/SiteFeatureOverlay/siteFeatureLayout';
 import { useSiteFeatures } from '../../services/siteFeatures/useSiteFeatures';
+import { visibleSiteFeatures } from '../../services/siteFeatures/siteFeatures';
 import type { CaptureRect } from '../../components/MapScreenshot/MapScreenshot';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SyntheticEvent } from 'react';
@@ -20,7 +21,7 @@ import MapCanvas from './Map/MapCanvas';
 import MapScaleBar from './Map/MapScaleBar';
 import MapStatus from './Map/MapStatus';
 import MeasurementOverlay from './Map/MeasurementOverlay';
-import { MAP_CONFIG, MAP_ID, MAP_SETTINGS, baseMapLayout } from './config/drillMapConfig';
+import { MAP_CONFIG, MAP_ID, MAP_SETTINGS, SITE_FEATURE_LAYERS, baseMapLayout } from './config/drillMapConfig';
 import type { BaseMapId } from './config/drillMapConfig';
 import { HELP_SECTIONS } from './config/helpContent';
 import { useBaseMap } from './hooks/useBaseMap';
@@ -83,7 +84,8 @@ function DrillMap() {
   const [pinnedKey, setPinnedKey] = useState<string | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(NO_SELECTION);
   // Site features (pilot factory, mud pit, …) and the one whose popup is open.
-  const siteFeatures = useSiteFeatures();
+  const loadedSiteFeatures = useSiteFeatures();
+  const siteFeatures = useMemo(() => visibleSiteFeatures(loadedSiteFeatures, SITE_FEATURE_LAYERS, filters), [loadedSiteFeatures, filters]);
   const [pinnedSiteId, setPinnedSiteId] = useState<string | null>(null);
 
   const features = useMemo(() => buildFeatures(drillholes, bounds), [drillholes, bounds]);
@@ -274,7 +276,7 @@ function DrillMap() {
           )}
 
           <MeasurementOverlay points={measurement} view={view} mapOrigin={mapOrigin} mapSize={mapSize} bounds={bounds} />
-          {filters['site-features'] && mapSize && !image.hasFailed && (
+          {mapSize && !image.hasFailed && (
             <SiteFeatureOverlay
               features={siteFeatures}
               toViewport={siteToViewport}

@@ -21,8 +21,9 @@ import SelectionTable from '../../components/SelectionTable/SelectionTable';
 import SiteFeatureOverlay from '../../components/SiteFeatureOverlay/SiteFeatureOverlay';
 import { SITE_ICON_CLASS, siteOutlinesVisible } from '../../components/SiteFeatureOverlay/siteFeatureLayout';
 import { useSiteFeatures } from '../../services/siteFeatures/useSiteFeatures';
+import { visibleSiteFeatures } from '../../services/siteFeatures/siteFeatures';
 import MarkerTooltip from './Tooltips/MarkerTooltip';
-import { MAP_CONFIG, MAP_ID, MAP_SETTINGS, baseMapLayout } from './config/technoMapConfig';
+import { MAP_CONFIG, MAP_ID, MAP_SETTINGS, SITE_FEATURE_LAYERS, baseMapLayout } from './config/technoMapConfig';
 import type { BaseMapId } from './config/technoMapConfig';
 import { HELP_SECTIONS } from './config/helpContent';
 import { useBaseMap } from './hooks/useBaseMap';
@@ -111,7 +112,8 @@ function TechnoMap() {
   // in the order holes were added.
   const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(NO_SELECTION);
   // Site features (pilot factory, mud pit, …) and the one whose popup is open.
-  const siteFeatures = useSiteFeatures();
+  const loadedSiteFeatures = useSiteFeatures();
+  const siteFeatures = useMemo(() => visibleSiteFeatures(loadedSiteFeatures, SITE_FEATURE_LAYERS, filters), [loadedSiteFeatures, filters]);
   const [pinnedSiteId, setPinnedSiteId] = useState<string | null>(null);
 
   // Every drillhole, whatever the filters, so Reset always frames the whole dataset.
@@ -337,7 +339,7 @@ function TechnoMap() {
           )}
 
           <MeasurementOverlay points={measurement} view={view} mapOrigin={mapOrigin} mapSize={mapSize} bounds={bounds} />
-          {filters['site-features'] && mapSize && !image.hasFailed && (
+          {mapSize && !image.hasFailed && (
             <SiteFeatureOverlay
               features={siteFeatures}
               toViewport={siteToViewport}

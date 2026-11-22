@@ -1,4 +1,4 @@
-// Which drillholes and layers the 13 map filters let through.
+// Which drillholes and layers the 14 map filters let through.
 //
 //   ordinary hole    -> shown when its type (the API category) is checked
 //   no category      -> never shown: an unmapped SQL Type belongs to no filter
