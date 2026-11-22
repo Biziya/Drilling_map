@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import Sidebar from "../../../src/components/Sidebar/Sidebar.jsx";
 import { APP_VERSION } from "../../../src/config/version.js";
+import { readdirSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 afterEach(cleanup);
 
@@ -26,6 +28,55 @@ describe("sidebar version", () => {
 
     expect(container.querySelector(".sidebar.is-collapsed .sidebar__version")).toBeTruthy();
     expect(screen.getByRole("status").getAttribute("title")).toContain(APP_VERSION);
+  });
+});
+
+describe("sidebar page icons", () => {
+  const links = () => within(screen.getByRole("navigation", { name: "Main navigation" })).getAllByRole("button");
+
+  it("gives every page its own outline icon, hidden from screen readers", () => {
+    renderSidebar();
+    const icons = links().map((link) => link.querySelector(".sidebar__icon[aria-hidden='true'] > svg"));
+
+    expect(icons.map((icon) => icon.dataset.icon)).toEqual(["exploration-map", "techno-map", "drilling-details", "drilling-by-rig"]);
+    icons.forEach((icon) => {
+      expect(icon.getAttribute("viewBox")).toBe("0 0 24 24");
+      expect(icon.getAttribute("stroke")).toBe("currentColor");
+      expect(icon.getAttribute("stroke-width")).toBe("2");
+      expect(icon.getAttribute("fill")).toBe("none");
+    });
+    expect(links().map((link) => link.textContent)).toEqual(["Exploration Map", "Techno Map", "Drilling Details", "Drilling by Rig"]);
+  });
+
+  it("keeps the icon files free of fixed colours, sizes and backgrounds, so CSS sizes and colours them", () => {
+    const dir = resolve(import.meta.dirname, "../../../src/assets/sidebar");
+    const files = readdirSync(dir).filter((name) => name.endsWith(".svg"));
+
+    expect(files.sort()).toEqual(["icon-drilling-by-rig.svg", "icon-drilling-details.svg", "icon-exploration-map.svg", "icon-techno-map.svg"]);
+    files.forEach((name) => {
+      const svg = readFileSync(resolve(dir, name), "utf8");
+      const root = svg.match(/<svg\b[^>]*>/)[0];
+
+      expect(root, name).toContain('viewBox="0 0 24 24"');
+      expect(root, name).toContain('stroke="currentColor"');
+      expect(root, name).toContain('fill="none"');
+      expect(root, name).not.toMatch(/\s(width|height)=/);
+      expect(svg, name).not.toMatch(/(fill|stroke|color)="(#|rgb|white|black)/i);
+      expect(svg, name).not.toMatch(/<rect\b[^>]*width="24"/);
+    });
+  });
+
+  it("names each page in a tooltip when collapsed, instead of the native title", () => {
+    renderSidebar({ isCollapsed: true });
+
+    expect(links().map((link) => link.dataset.tooltip)).toEqual(["Exploration Map", "Techno Map", "Drilling Details", "Drilling by Rig"]);
+    expect(links().every((link) => !link.hasAttribute("title"))).toBe(true);
+  });
+
+  it("keeps the native title when expanded", () => {
+    renderSidebar();
+
+    expect(links().map((link) => link.title)).toEqual(["Exploration Map", "Techno Map", "Drilling Details", "Drilling by Rig"]);
   });
 });
 

@@ -11,7 +11,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import DrillMap from "../../../src/pages/DrillMap/DrillMap.jsx";
 import ToastContainer from "../../../src/components/Toast/ToastContainer.jsx";
 import { MAP_UTM_BOUNDS, baseMapLayout } from "../../../src/pages/DrillMap/config/drillMapConfig.js";
-import { formatDistance } from "../../../src/pages/DrillMap/utils/measurement.js";
+import { formatDistance, measureDistance } from "../../../src/pages/DrillMap/utils/measurement.js";
 import { buildMapSvg, exportFileName } from "../../../src/pages/DrillMap/utils/exportMap.js";
 import { convertUtmToMapPosition } from "../../../src/pages/DrillMap/utils/coordinates.js";
 import { clearAllMapViews } from "../../../src/state/mapViewStore.js";
@@ -200,6 +200,65 @@ describe("Exploration Map measurement", () => {
     fireEvent.pointerUp(viewport(container), { button: 0, pointerId: 1, clientX: 260, clientY: 330 });
 
     expect(ends(container)).toBe(0);
+  });
+
+  describe("on site features and markers", () => {
+    const SITES = parseSiteFeatures(load(readFileSync(resolve(import.meta.dirname, "../../../public/site_features/site_features.yaml"), "utf8")));
+    const [pilot, mudPit] = SITES;
+    beforeEach(() => { localStorage.clear(); siteFeatureMock.features = SITES; });
+    afterEach(() => { siteFeatureMock.features = []; });
+
+    const icon = (container, id) => container.querySelector(`[data-site-feature="${id}"]`);
+    const centre = (node) => ({ x: parseFloat(node.style.left), y: parseFloat(node.style.top) });
+    const distance = (a, b) => formatDistance(measureDistance(a, b));
+    async function renderWithSites() {
+      const result = await renderLoaded();
+      await waitFor(() => expect(icon(result.container, "mud_pit")).toBeTruthy());
+      return result;
+    }
+
+    it("snaps to the pilot factory and the mud pit, wherever on the icon the press lands", async () => {
+      const { container } = await renderWithSites();
+      fireEvent.click(screen.getByRole("button", { name: "Measure distance" }));
+      const a = centre(icon(container, "pilot_factory"));
+      const b = centre(icon(container, "mud_pit"));
+
+      press(icon(container, "pilot_factory"), viewport(container), a.x + 6, a.y - 5);
+      expect(ends(container)).toBe(1);
+      press(icon(container, "mud_pit"), viewport(container), b.x - 4, b.y + 7);
+
+      expect(label(container)).toBe(distance(pilot.utm, mudPit.utm));
+      // No popup opens while measuring.
+      expect(container.querySelector(".site-feature-tooltip")).toBeNull();
+    });
+
+    it("snaps to a drillhole marker's collar", async () => {
+      const { container } = await renderWithSites();
+      fireEvent.click(screen.getByRole("button", { name: "Measure distance" }));
+      // UTM -> viewport px, from the two icons (the map keeps its aspect ratio).
+      const a = centre(icon(container, "pilot_factory"));
+      const b = centre(icon(container, "mud_pit"));
+      const scale = (b.x - a.x) / (mudPit.utm.x - pilot.utm.x);
+      const hole = { x: RECORDS[0].x, y: RECORDS[0].y };
+      const at = { x: a.x + (hole.x - pilot.utm.x) * scale, y: a.y - (hole.y - pilot.utm.y) * scale };
+
+      press(icon(container, "pilot_factory"), viewport(container), a.x, a.y);
+      press(viewport(container), viewport(container), at.x + 3, at.y - 2);
+
+      expect(label(container)).toBe(distance(pilot.utm, hole));
+    });
+
+    it("opens the site popup again, and places no point, once measuring is off", async () => {
+      const { container } = await renderWithSites();
+      const ruler = screen.getByRole("button", { name: "Measure distance" });
+      fireEvent.click(ruler);
+      fireEvent.click(ruler);
+
+      fireEvent.click(icon(container, "mud_pit"));
+
+      expect(container.querySelector(".site-feature-tooltip")).toBeTruthy();
+      expect(container.querySelector(".measurement-layer")).toBeNull();
+    });
   });
 
   it("clears the measurement and gives markers back their tooltips when switched off", async () => {

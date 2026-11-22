@@ -2,19 +2,21 @@
 title: Drilling Map
 
 # Sidebar entries, in display order. `id` must match a page registered in App.tsx.
+# `icon` names one of the page icons in src/assets/sidebar (see components/Sidebar/SidebarIcon.tsx):
+# exploration-map, techno-map, drilling-details, drilling-by-rig; each page has its own.
 navigation:
   - id: drill-map
     label: Exploration Map
-    icon: ⌖
+    icon: exploration-map
   - id: techno-map
     label: Techno Map
-    icon: ⌖
+    icon: techno-map
   - id: drilling-details
     label: Drilling Details
-    icon: ▥
+    icon: drilling-details
   - id: drilling-by-rigs
     label: Drilling by Rig
-    icon: ⛏
+    icon: drilling-by-rig
 
 # Backend health polling behind the sidebar Online/Offline indicator.
 connection:

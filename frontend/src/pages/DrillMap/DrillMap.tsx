@@ -4,7 +4,8 @@ import BoxSelectOverlay from '../../components/BoxSelect/BoxSelectOverlay';
 import { DrillholeFields, MapTooltip } from '../../components/MapTooltip/MapTooltip';
 import SelectionTable from '../../components/SelectionTable/SelectionTable';
 import SiteFeatureOverlay from '../../components/SiteFeatureOverlay/SiteFeatureOverlay';
-import { SITE_ICON_CLASS, siteOutlinesVisible } from '../../components/SiteFeatureOverlay/siteFeatureLayout';
+import { SITE_ICON_CLASS, SNAP_SLOP, siteFeatureSnapTargets, siteOutlinesVisible } from '../../components/SiteFeatureOverlay/siteFeatureLayout';
+import { snapPoint } from '../../utils/snapPoint';
 import { useSiteFeatures } from '../../services/siteFeatures/useSiteFeatures';
 import { visibleSiteFeatures } from '../../services/siteFeatures/siteFeatures';
 import type { CaptureRect } from '../../components/MapScreenshot/MapScreenshot';
@@ -37,7 +38,7 @@ import { buildCanvasTransformStyle, isViewZoomed, mapRatioToViewport, measuredMa
 import { addMeasurementPoint } from './utils/measurement';
 import { showToast } from '../../components/Toast/toastStore';
 import { readDrillholeText } from '../../utils/drillholeFields';
-import type { StyleWithCssVariables, UtmCoordinates } from '../../types/map';
+import type { Point, StyleWithCssVariables, UtmCoordinates } from '../../types/map';
 import './DrillMap.css';
 
 /**
@@ -103,12 +104,16 @@ function DrillMap() {
     settings: MAP_SETTINGS,
     viewKey: MAP_ID,
     bounds,
-    // While measuring, a press on a marker is a press on the map: measurement
-    // wins over the marker (which also stops catching the pointer, see CSS).
+    // While measuring, a press on a marker or a site icon is a press on the
+    // map: measurement wins over them (they also stop catching the pointer,
+    // see CSS), and the point snaps to the feature under the press.
     dragIgnoreSelector: isMeasuring ? OVERLAY_SELECTOR : DRAG_IGNORE_SELECTOR,
     overlaySelector: OVERLAY_SELECTOR,
     onMapClick: isMeasuring
-      ? (ratio) => setMeasurement((points) => addMeasurementPoint(points, mapRatioToUtm(ratio, bounds)))
+      ? (ratio) => {
+        const point = measurementPointAt(ratio);
+        setMeasurement((points) => addMeasurementPoint(points, point));
+      }
       : undefined,
     // A click on empty map unpins the tooltip.
     onBackgroundTap: () => {
@@ -144,6 +149,21 @@ function DrillMap() {
     (point: UtmCoordinates) => (mapSize ? mapRatioToViewport(utmToMapRatio(point, bounds), view, mapOrigin, mapSize) : { x: -9999, y: -9999 }),
     [bounds, view, mapOrigin, mapSize],
   );
+
+  // A measurement point: the centre of the site icon or hole under the press
+  // (icons are drawn on top, so they win), else where the press landed.
+  const measurementPointAt = (ratio: Point): UtmCoordinates => {
+    const landed = mapRatioToUtm(ratio, bounds);
+    if (!mapSize) return landed;
+    const holes = shown.map((feature) => ({
+      at: featureScreenPoint(feature, view, mapOrigin, mapSize),
+      radius: markerHalfSize(feature.kind) + SNAP_SLOP,
+      utm: mapRatioToUtm({ x: feature.drillhole.xPercent / 100, y: feature.drillhole.yPercent / 100 }, bounds),
+    }));
+    const point = mapRatioToViewport(ratio, view, mapOrigin, mapSize);
+
+    return snapPoint(point, [siteFeatureSnapTargets(siteFeatures, siteToViewport), holes]) ?? landed;
+  };
 
   const handleHover = useCallback((key: string | null) => setHoveredKey((current) => (current === key ? current : key)), []);
   // A click pins the hole's tooltip (one at a time), a second click unpins it;

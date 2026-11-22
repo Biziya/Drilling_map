@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="drilling-by-rig">
+  <!-- Crawler drill rig: tracks, cab, boom up to a tall mast, drill rod into the ground. -->
+  <rect x="2" y="17" width="13" height="4.5" rx="2.25"/>
+  <path d="M4 17v-3a1 1 0 0 1 1-1h4.5l1.5 4"/>
+  <path d="m10 13 5.5-4.5"/>
+  <path d="M15.5 3h4M16 3v14M19 3v14M16 8l3-2.5M16 13l3-2.5"/>
+  <path d="M17.5 17v5"/>
+</svg>
